@@ -1,6 +1,11 @@
 import json
 
 import boto3
+from botocore.exceptions import ClientError
+
+from src.services.logger import get_logger
+
+logger = get_logger(__name__)
 
 _TITAN_MODEL_ID = "amazon.titan-embed-text-v1"
 _MAX_INPUT_CHARS = 8000
@@ -19,12 +24,16 @@ def embed_text(text: str | None) -> list[float]:
 
     truncated = text[:_MAX_INPUT_CHARS]
 
-    response = _bedrock_client.invoke_model(
-        modelId=_TITAN_MODEL_ID,
-        contentType="application/json",
-        accept="application/json",
-        body=json.dumps({"inputText": truncated}),
-    )
+    try:
+        response = _bedrock_client.invoke_model(
+            modelId=_TITAN_MODEL_ID,
+            contentType="application/json",
+            accept="application/json",
+            body=json.dumps({"inputText": truncated}),
+        )
+        response_body = json.loads(response["body"].read())
+    except ClientError as exc:
+        logger.info({"event": "bedrock_embed_failed", "error": str(exc)})
+        raise
 
-    response_body = json.loads(response["body"].read())
     return response_body["embedding"]

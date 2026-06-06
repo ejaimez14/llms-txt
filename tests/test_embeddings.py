@@ -3,6 +3,7 @@ from io import BytesIO
 from unittest.mock import MagicMock
 
 import pytest
+from botocore.exceptions import ClientError
 
 import src.services.embeddings as embeddings_module
 from src.services.embeddings import embed_text
@@ -76,11 +77,21 @@ def test_embed_returns_empty_list_for_none() -> None:
 
 
 def test_embed_bedrock_error_raises(mocker: MagicMock) -> None:
-    """embed_text re-raises the exception when the Bedrock call fails."""
+    """embed_text logs and re-raises ClientError when the Bedrock call fails."""
     mock_client = mocker.patch.object(
         embeddings_module, "_bedrock_client", autospec=True
     )
-    mock_client.invoke_model.side_effect = RuntimeError("Bedrock unavailable")
+    client_error = ClientError(
+        {"Error": {"Code": "ServiceUnavailableException", "Message": "Bedrock unavailable"}},
+        "InvokeModel",
+    )
+    mock_client.invoke_model.side_effect = client_error
 
-    with pytest.raises(RuntimeError, match="Bedrock unavailable"):
+    mock_logger = mocker.patch.object(embeddings_module, "logger")
+
+    with pytest.raises(ClientError):
         embed_text("some text")
+
+    mock_logger.info.assert_called_once_with(
+        {"event": "bedrock_embed_failed", "error": str(client_error)}
+    )
