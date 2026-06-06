@@ -9,7 +9,3 @@ module "dynamodb" {
   sites_table_name = "crawler-sites"
 }
 
-module "secrets" {
-  source            = "./modules/secrets"
-  anthropic_api_key = var.anthropic_api_key
-}

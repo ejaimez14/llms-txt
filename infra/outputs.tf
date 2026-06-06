@@ -12,8 +12,3 @@ output "sites_table_name" {
   description = "Name of the DynamoDB table storing the latest state per URL."
   value       = module.dynamodb.sites_table_name
 }
-
-output "anthropic_secret_arn" {
-  description = "ARN of the Secrets Manager secret holding the Anthropic API key."
-  value       = module.secrets.anthropic_secret_arn
-}
