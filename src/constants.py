@@ -34,3 +34,5 @@ class ModelName(str, Enum):
 # implementation plans benefits from stronger reasoning.
 CLAUDE_CRAWL_MODEL = "claude-haiku-4-5-20251001"
 CLAUDE_UI_PLAN_MODEL = "claude-sonnet-4-6-20250514"
+
+TITAN_EMBED_MODEL = "amazon.titan-embed-text-v1"

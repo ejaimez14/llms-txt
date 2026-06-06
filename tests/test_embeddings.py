@@ -35,10 +35,10 @@ def test_embed_calls_titan_model(mock_bedrock: MagicMock) -> None:
 
 def test_embed_truncates_long_input(mock_bedrock: MagicMock) -> None:
     mock_bedrock.invoke_model.return_value = _make_bedrock_response([0.9])
-    embed_text("x" * 9000)
+    embed_text("x" * 30000)
 
     sent_body = json.loads(mock_bedrock.invoke_model.call_args.kwargs["body"])
-    assert len(sent_body["inputText"]) == 8000
+    assert len(sent_body["inputText"]) == 25000
 
 
 def test_embed_returns_empty_for_empty_string() -> None:
