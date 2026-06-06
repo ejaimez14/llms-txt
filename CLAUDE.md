@@ -60,6 +60,20 @@ plans/              # Read-only — implementation specs
 
 ---
 
+## Code Quality
+
+These apply to every file, every agent, every phase. Correctness is the floor — quality is the standard.
+
+- **Functions do one thing.** If a function is doing two distinct things, split it. A function that fetches and also transforms is two functions.
+- **Keep functions concise.** If a function is getting long, it's a signal to split — not a requirement, but a smell worth investigating.
+- **Clarity over cleverness.** If a reader would pause to figure out what a line does, rewrite it. Readable code is not slower code.
+- **No dead code.** No commented-out blocks, unused variables, unreachable branches, or leftover debug statements.
+- **Consistent patterns within a file.** If you handle errors one way in one function, handle them the same way in the next. Inconsistency forces readers to re-learn the pattern.
+- **Top-to-bottom readability.** A file should read like a document — public interface at the top, helpers and internals at the bottom. A reader shouldn't need to jump around to follow the logic.
+- **Don't optimise prematurely.** Write the clear version first. Only add complexity if there is a concrete, demonstrated reason.
+
+---
+
 ## Terraform
 
 - All resources in `us-east-1`.
