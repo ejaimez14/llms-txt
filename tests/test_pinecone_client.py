@@ -1,5 +1,5 @@
 import sys
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -26,15 +26,20 @@ def pinecone_module(mock_index: MagicMock) -> object:
     mock_pinecone_instance = MagicMock()
     mock_pinecone_instance.Index.return_value = mock_index
 
-    with patch("pinecone.Pinecone", return_value=mock_pinecone_instance):
-        # Remove cached module so the patched Pinecone is used on import.
-        sys.modules.pop("src.services.pinecone_client", None)
-        import src.services.pinecone_client as module
+    # Stub the entire pinecone package so the import doesn't hit the real SDK.
+    mock_pinecone_pkg = MagicMock()
+    mock_pinecone_pkg.Pinecone = MagicMock(return_value=mock_pinecone_instance)
+    sys.modules["pinecone"] = mock_pinecone_pkg
 
-        yield module
+    # Remove cached module so the patched Pinecone is used on import.
+    sys.modules.pop("src.services.pinecone_client", None)
+    import src.services.pinecone_client as module
+
+    yield module
 
     # Clean up so the patched version doesn't bleed into other tests.
     sys.modules.pop("src.services.pinecone_client", None)
+    sys.modules.pop("pinecone", None)
 
 
 # --- Tests ---
@@ -101,12 +106,11 @@ def test_query_vectors_returns_ranked_results(
     assert "s3Key" in first["metadata"]
 
 
-def test_query_vectors_connection_error_returns_empty(
+def test_query_vectors_connection_error_raises(
     pinecone_module: object, mock_index: MagicMock
 ) -> None:
     vector = [0.1, 0.2, 0.3]
     mock_index.query.side_effect = Exception("connection refused")
 
-    results = pinecone_module.query_vectors(vector)
-
-    assert results == []
+    with pytest.raises(Exception, match="connection refused"):
+        pinecone_module.query_vectors(vector)
