@@ -7,9 +7,12 @@ import boto3.dynamodb.conditions as dynamo_conditions
 from botocore.exceptions import ClientError
 
 from src.constants import ArtifactStatus, ArtifactType, JobStatus
+from src.services.logger import get_logger
 
 _s3 = boto3.client("s3")
 _dynamodb = boto3.resource("dynamodb")
+
+logger = get_logger(__name__)
 
 _ARTIFACT_TYPES = [ArtifactType.LLMS_TXT, ArtifactType.PLAN]
 
@@ -71,19 +74,23 @@ def create_job(job_id: str, url: str, model: str) -> None:
     """
     table = _jobs_table()
     processing_artifact = {"status": ArtifactStatus.PROCESSING}
-    table.put_item(
-        Item={
-            "jobId": job_id,
-            "url": url,
-            "model": model,
-            "createdAt": _utc_now(),
-            "status": JobStatus.PROCESSING,
-            "artifacts": {
-                ArtifactType.LLMS_TXT: processing_artifact,
-                ArtifactType.PLAN: processing_artifact,
-            },
-        }
-    )
+    try:
+        table.put_item(
+            Item={
+                "jobId": job_id,
+                "url": url,
+                "model": model,
+                "createdAt": _utc_now(),
+                "status": JobStatus.PROCESSING,
+                "artifacts": {
+                    ArtifactType.LLMS_TXT: processing_artifact,
+                    ArtifactType.PLAN: processing_artifact,
+                },
+            }
+        )
+    except ClientError as exc:
+        logger.info({"event": "create_job_failed", "error": str(exc)})
+        raise
 
 
 def complete_artifact(job_id: str, artifact_type: str, s3_key: str) -> None:
@@ -92,14 +99,18 @@ def complete_artifact(job_id: str, artifact_type: str, s3_key: str) -> None:
     Recalculates and updates the overall job status.
     """
     table = _jobs_table()
-    table.update_item(
-        Key={"jobId": job_id},
-        UpdateExpression="SET artifacts.#artifact = :artifact_val",
-        ExpressionAttributeNames={"#artifact": artifact_type},
-        ExpressionAttributeValues={
-            ":artifact_val": {"status": ArtifactStatus.COMPLETE, "s3Key": s3_key},
-        },
-    )
+    try:
+        table.update_item(
+            Key={"jobId": job_id},
+            UpdateExpression="SET artifacts.#artifact = :artifact_val",
+            ExpressionAttributeNames={"#artifact": artifact_type},
+            ExpressionAttributeValues={
+                ":artifact_val": {"status": ArtifactStatus.COMPLETE, "s3Key": s3_key},
+            },
+        )
+    except ClientError as exc:
+        logger.info({"event": "complete_artifact_failed", "error": str(exc)})
+        raise
     _recalculate_job_status(job_id)
 
 
@@ -109,21 +120,29 @@ def fail_artifact(job_id: str, artifact_type: str, error: str) -> None:
     Recalculates and updates the overall job status.
     """
     table = _jobs_table()
-    table.update_item(
-        Key={"jobId": job_id},
-        UpdateExpression="SET artifacts.#artifact = :artifact_val",
-        ExpressionAttributeNames={"#artifact": artifact_type},
-        ExpressionAttributeValues={
-            ":artifact_val": {"status": ArtifactStatus.FAILED, "error": error},
-        },
-    )
+    try:
+        table.update_item(
+            Key={"jobId": job_id},
+            UpdateExpression="SET artifacts.#artifact = :artifact_val",
+            ExpressionAttributeNames={"#artifact": artifact_type},
+            ExpressionAttributeValues={
+                ":artifact_val": {"status": ArtifactStatus.FAILED, "error": error},
+            },
+        )
+    except ClientError as exc:
+        logger.info({"event": "fail_artifact_failed", "error": str(exc)})
+        raise
     _recalculate_job_status(job_id)
 
 
 def get_job(job_id: str) -> dict | None:
     """Reads full job record from DynamoDB. Returns None if not found."""
     table = _jobs_table()
-    response = table.get_item(Key={"jobId": job_id})
+    try:
+        response = table.get_item(Key={"jobId": job_id})
+    except ClientError as exc:
+        logger.info({"event": "get_job_failed", "error": str(exc)})
+        raise
     return response.get("Item")
 
 
@@ -143,14 +162,18 @@ def list_jobs(model_filter: str | None = None) -> list[dict]:
     if model_filter is not None:
         kwargs["FilterExpression"] = dynamo_conditions.Attr("model").eq(model_filter)
 
-    response = table.scan(**kwargs)
-    jobs = response.get("Items", [])
-
-    # DynamoDB scan may paginate — collect all pages
-    while "LastEvaluatedKey" in response:
-        kwargs["ExclusiveStartKey"] = response["LastEvaluatedKey"]
+    try:
         response = table.scan(**kwargs)
-        jobs.extend(response.get("Items", []))
+        jobs = response.get("Items", [])
+
+        # DynamoDB scan may paginate — collect all pages
+        while "LastEvaluatedKey" in response:
+            kwargs["ExclusiveStartKey"] = response["LastEvaluatedKey"]
+            response = table.scan(**kwargs)
+            jobs.extend(response.get("Items", []))
+    except ClientError as exc:
+        logger.info({"event": "list_jobs_failed", "error": str(exc)})
+        raise
 
     jobs.sort(key=lambda j: j.get("createdAt", ""), reverse=True)
     return [_slim_job(job) for job in jobs]
@@ -162,11 +185,15 @@ def list_jobs_for_url(url: str) -> list[dict]:
     Queries the url-createdAt-index GSI — no table scan.
     """
     table = _jobs_table()
-    response = table.query(
-        IndexName="url-createdAt-index",
-        KeyConditionExpression=dynamo_conditions.Key("url").eq(url),
-        ScanIndexForward=False,
-    )
+    try:
+        response = table.query(
+            IndexName="url-createdAt-index",
+            KeyConditionExpression=dynamo_conditions.Key("url").eq(url),
+            ScanIndexForward=False,
+        )
+    except ClientError as exc:
+        logger.info({"event": "list_jobs_for_url_failed", "error": str(exc)})
+        raise
     return response.get("Items", [])
 
 
@@ -179,27 +206,35 @@ def upsert_site(url: str, job_id: str, s3_key: str, metadata: dict) -> None:
     SiteMetadata fields are stored flat so they can be used directly as Pinecone metadata.
     """
     table = _sites_table()
-    table.put_item(
-        Item={
-            "url": url,
-            "latestJobId": job_id,
-            "latestS3Key": s3_key,
-            "lastCrawledAt": _utc_now(),
-            # SiteMetadata fields stored flat (not nested)
-            "tech_stack": metadata.get("tech_stack", []),
-            "audience": metadata.get("audience"),
-            "tone": metadata.get("tone"),
-            "business_model": metadata.get("business_model"),
-            "integrations": metadata.get("integrations", []),
-            "content_types": metadata.get("content_types", []),
-        }
-    )
+    try:
+        table.put_item(
+            Item={
+                "url": url,
+                "latestJobId": job_id,
+                "latestS3Key": s3_key,
+                "lastCrawledAt": _utc_now(),
+                # SiteMetadata fields stored flat (not nested)
+                "tech_stack": metadata.get("tech_stack", []),
+                "audience": metadata.get("audience"),
+                "tone": metadata.get("tone"),
+                "business_model": metadata.get("business_model"),
+                "integrations": metadata.get("integrations", []),
+                "content_types": metadata.get("content_types", []),
+            }
+        )
+    except ClientError as exc:
+        logger.info({"event": "upsert_site_failed", "error": str(exc)})
+        raise
 
 
 def get_site(url: str) -> dict | None:
     """Returns the latest site record for a URL, or None if never crawled."""
     table = _sites_table()
-    response = table.get_item(Key={"url": url})
+    try:
+        response = table.get_item(Key={"url": url})
+    except ClientError as exc:
+        logger.info({"event": "get_site_failed", "error": str(exc)})
+        raise
     return response.get("Item")
 
 
@@ -209,12 +244,16 @@ def list_sites() -> list[dict]:
     Used by the scheduler and the History tab.
     """
     table = _sites_table()
-    response = table.scan()
-    sites = response.get("Items", [])
+    try:
+        response = table.scan()
+        sites = response.get("Items", [])
 
-    while "LastEvaluatedKey" in response:
-        response = table.scan(ExclusiveStartKey=response["LastEvaluatedKey"])
-        sites.extend(response.get("Items", []))
+        while "LastEvaluatedKey" in response:
+            response = table.scan(ExclusiveStartKey=response["LastEvaluatedKey"])
+            sites.extend(response.get("Items", []))
+    except ClientError as exc:
+        logger.info({"event": "list_sites_failed", "error": str(exc)})
+        raise
 
     return sites
 
@@ -240,7 +279,11 @@ def _utc_now() -> str:
 def _put_s3_object(s3_key: str, content: str) -> None:
     """Writes a string object to S3."""
     bucket = os.environ["BUCKET"]
-    _s3.put_object(Bucket=bucket, Key=s3_key, Body=content.encode("utf-8"))
+    try:
+        _s3.put_object(Bucket=bucket, Key=s3_key, Body=content.encode("utf-8"))
+    except ClientError as exc:
+        logger.info({"event": "put_s3_object_failed", "error": str(exc)})
+        raise
 
 
 def _get_s3_object(s3_key: str) -> str | None:
@@ -252,6 +295,7 @@ def _get_s3_object(s3_key: str) -> str | None:
     except ClientError as exc:
         if exc.response["Error"]["Code"] == "NoSuchKey":
             return None
+        logger.info({"event": "get_s3_object_failed", "error": str(exc)})
         raise
 
 
@@ -277,12 +321,16 @@ def _recalculate_job_status(job_id: str) -> None:
         else JobStatus.PARTIAL
     )
 
-    _jobs_table().update_item(
-        Key={"jobId": job_id},
-        UpdateExpression="SET #status = :status",
-        ExpressionAttributeNames={"#status": "status"},
-        ExpressionAttributeValues={":status": overall},
-    )
+    try:
+        _jobs_table().update_item(
+            Key={"jobId": job_id},
+            UpdateExpression="SET #status = :status",
+            ExpressionAttributeNames={"#status": "status"},
+            ExpressionAttributeValues={":status": overall},
+        )
+    except ClientError as exc:
+        logger.info({"event": "recalculate_job_status_failed", "error": str(exc)})
+        raise
 
 
 def _slim_job(job: dict) -> dict:
