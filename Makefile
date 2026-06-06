@@ -1,4 +1,4 @@
-.PHONY: setup format lint test run build tf-plan tf-apply
+.PHONY: setup format lint test run build tf-init tf-plan tf-apply
 
 setup:
 	uv venv --clear
@@ -19,8 +19,11 @@ run:
 build:
 	bash build.sh
 
-tf-plan:
+tf-init:
+	cd infra && terraform init
+
+tf-plan: tf-init
 	cd infra && terraform plan
 
-tf-apply:
+tf-apply: tf-init
 	cd infra && terraform apply
