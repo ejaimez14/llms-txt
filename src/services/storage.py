@@ -88,7 +88,7 @@ def create_job(job_id: str, url: str, model: str) -> None:
             }
         )
     except ClientError as exc:
-        logger.info({"event": "create_job_failed", "error": str(exc)})
+        logger.error({"event": "create_job_failed", "error": str(exc)})
         raise
 
 
@@ -108,7 +108,7 @@ def complete_artifact(job_id: str, artifact_type: str, s3_key: str) -> None:
             },
         )
     except ClientError as exc:
-        logger.info({"event": "complete_artifact_failed", "error": str(exc)})
+        logger.error({"event": "complete_artifact_failed", "error": str(exc)})
         raise
     _recalculate_job_status(job_id)
 
@@ -129,7 +129,7 @@ def fail_artifact(job_id: str, artifact_type: str, error: str) -> None:
             },
         )
     except ClientError as exc:
-        logger.info({"event": "fail_artifact_failed", "error": str(exc)})
+        logger.error({"event": "fail_artifact_failed", "error": str(exc)})
         raise
     _recalculate_job_status(job_id)
 
@@ -140,7 +140,7 @@ def get_job(job_id: str) -> dict | None:
     try:
         response = table.get_item(Key={"jobId": job_id})
     except ClientError as exc:
-        logger.info({"event": "get_job_failed", "error": str(exc)})
+        logger.error({"event": "get_job_failed", "error": str(exc)})
         raise
     return response.get("Item")
 
@@ -171,7 +171,7 @@ def list_jobs(model_filter: str | None = None) -> list[dict]:
             response = table.scan(**kwargs)
             jobs.extend(response.get("Items", []))
     except ClientError as exc:
-        logger.info({"event": "list_jobs_failed", "error": str(exc)})
+        logger.error({"event": "list_jobs_failed", "error": str(exc)})
         raise
 
     jobs.sort(key=lambda j: j.get("createdAt", ""), reverse=True)
@@ -191,7 +191,7 @@ def list_jobs_for_url(url: str) -> list[dict]:
             ScanIndexForward=False,
         )
     except ClientError as exc:
-        logger.info({"event": "list_jobs_for_url_failed", "error": str(exc)})
+        logger.error({"event": "list_jobs_for_url_failed", "error": str(exc)})
         raise
     return response.get("Items", [])
 
@@ -222,7 +222,7 @@ def upsert_site(url: str, job_id: str, s3_key: str, metadata: dict) -> None:
             }
         )
     except ClientError as exc:
-        logger.info({"event": "upsert_site_failed", "error": str(exc)})
+        logger.error({"event": "upsert_site_failed", "error": str(exc)})
         raise
 
 
@@ -232,7 +232,7 @@ def get_site(url: str) -> dict | None:
     try:
         response = table.get_item(Key={"url": url})
     except ClientError as exc:
-        logger.info({"event": "get_site_failed", "error": str(exc)})
+        logger.error({"event": "get_site_failed", "error": str(exc)})
         raise
     return response.get("Item")
 
@@ -251,7 +251,7 @@ def list_sites() -> list[dict]:
             response = table.scan(ExclusiveStartKey=response["LastEvaluatedKey"])
             sites.extend(response.get("Items", []))
     except ClientError as exc:
-        logger.info({"event": "list_sites_failed", "error": str(exc)})
+        logger.error({"event": "list_sites_failed", "error": str(exc)})
         raise
 
     return sites
@@ -285,7 +285,7 @@ def _put_s3_object(s3_key: str, content: str) -> None:
     try:
         _s3.put_object(Bucket=_bucket(), Key=s3_key, Body=content.encode("utf-8"))
     except ClientError as exc:
-        logger.info({"event": "put_s3_object_failed", "error": str(exc)})
+        logger.error({"event": "put_s3_object_failed", "error": str(exc)})
         raise
 
 
@@ -297,7 +297,7 @@ def _get_s3_object(s3_key: str) -> str | None:
     except ClientError as exc:
         if exc.response["Error"]["Code"] == "NoSuchKey":
             return None
-        logger.info({"event": "get_s3_object_failed", "error": str(exc)})
+        logger.error({"event": "get_s3_object_failed", "error": str(exc)})
         raise
 
 
@@ -331,7 +331,7 @@ def _recalculate_job_status(job_id: str) -> None:
             ExpressionAttributeValues={":status": overall},
         )
     except ClientError as exc:
-        logger.info({"event": "recalculate_job_status_failed", "error": str(exc)})
+        logger.error({"event": "recalculate_job_status_failed", "error": str(exc)})
         raise
 
 
