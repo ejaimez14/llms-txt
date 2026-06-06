@@ -25,7 +25,6 @@ class AgentType(str, Enum):
 
 class ModelName(str, Enum):
     CLAUDE = "claude"
-    # CODEX = "codex"  # TO ADD CODEX: uncomment, add openai SDK dep, implement in 07-agent-factory-hooks.md
 
 
 # --- Runtime Constants ---
