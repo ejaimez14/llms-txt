@@ -88,12 +88,25 @@ plans/              # Read-only — implementation specs
 
 - **Branch naming:** `ejaimez/<feature-name>` — descriptive, no plan numbers. e.g. `ejaimez/terraform-storage`, `ejaimez/storage-service`.
 - **Commits:** one logical commit per component. Message format: imperative sentence describing what changed and why, 72 chars max.
-- **PRs:** always open as **draft** — owner reviews before marking ready. Title = component name. Body must include:
-  - `## Summary` — 2–4 bullet points describing what was built
-  - `## Acceptance criteria` — copied from the plan, checked off
-  - `## Test plan` — how to verify it works locally
-- **Base branch:** `main`.
-- Do not push directly to `main`.
+- **PRs:** always open as **draft** — owner reviews before marking ready.
+- **Base branch:** `main`. Do not push directly to `main`.
+- **PR title format:** `[<short-feature-word>] - <Brief Title With Each First Letter Capitalized>`
+  - e.g. `[Tooling] - Project Setup With Pyproject And Makefile`
+  - e.g. `[Infra] - Terraform Storage Modules For S3 And DynamoDB`
+- **PR body format:**
+
+  ```
+  ## What
+  - <brief bullet points describing the changes made>
+
+  ## Why
+  - <brief bullet points explaining why the changes are needed>
+
+  ## Tested By
+  - <brief bullet points describing how changes were verified — test cases, manual steps, or make targets>
+  ```
+
+  Keep each section brief but useful — written for someone trying to understand the PR at a glance without reading every line of code.
 
 ---
 
@@ -115,4 +128,4 @@ Before opening a PR, review the code critically for quality — not just correct
 - [ ] Docstrings present on non-trivial functions
 - [ ] Code is easy to read top-to-bottom without needing to jump around
 - [ ] `terraform.tfvars.example` updated if new variables were added (Terraform components only)
-- [ ] PR opened as draft with Summary, Acceptance criteria, and Test plan sections
+- [ ] PR opened as draft with What, Why, and Tested By sections following the format in CLAUDE.md
