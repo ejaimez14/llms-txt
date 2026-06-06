@@ -92,9 +92,15 @@ def create_job(job_id: str, url: str, model: str) -> None:
         raise
 
 
-def complete_artifact(job_id: str, artifact_type: str, s3_key: str) -> None:
+def complete_artifact(
+    job_id: str,
+    artifact_type: str,
+    s3_key: str,
+    input_tokens: int = 0,
+    output_tokens: int = 0,
+) -> None:
     """
-    Marks one artifact as complete and stores its s3Key.
+    Marks one artifact as complete and stores its s3Key and token counts.
     Recalculates and updates the overall job status.
     """
     table = _jobs_table()
@@ -104,7 +110,12 @@ def complete_artifact(job_id: str, artifact_type: str, s3_key: str) -> None:
             UpdateExpression="SET artifacts.#artifact = :artifact_val",
             ExpressionAttributeNames={"#artifact": artifact_type},
             ExpressionAttributeValues={
-                ":artifact_val": {"status": ArtifactStatus.COMPLETE, "s3Key": s3_key},
+                ":artifact_val": {
+                    "status": ArtifactStatus.COMPLETE,
+                    "s3Key": s3_key,
+                    "inputTokens": input_tokens,
+                    "outputTokens": output_tokens,
+                },
             },
         )
     except ClientError as exc:
@@ -323,12 +334,19 @@ def _recalculate_job_status(job_id: str) -> None:
         else JobStatus.PARTIAL
     )
 
+    total_input_tokens = sum(artifacts.get(t, {}).get("inputTokens", 0) for t in _ARTIFACT_TYPES)
+    total_output_tokens = sum(artifacts.get(t, {}).get("outputTokens", 0) for t in _ARTIFACT_TYPES)
+
     try:
         _jobs_table().update_item(
             Key={"jobId": job_id},
-            UpdateExpression="SET #status = :status",
+            UpdateExpression="SET #status = :status, totalInputTokens = :input, totalOutputTokens = :output",
             ExpressionAttributeNames={"#status": "status"},
-            ExpressionAttributeValues={":status": overall},
+            ExpressionAttributeValues={
+                ":status": overall,
+                ":input": total_input_tokens,
+                ":output": total_output_tokens,
+            },
         )
     except ClientError as exc:
         logger.error({"event": "recalculate_job_status_failed", "error": str(exc)})

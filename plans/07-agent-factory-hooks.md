@@ -91,49 +91,46 @@ def create_agent(model, agent_type, job_id, url, system_prompt, tools=None, subm
 
 ### Claude via Direct Anthropic API
 
-Use `anthropic.Anthropic()`. The key is always fetched from AWS Secrets Manager — both locally and in Lambda. The secret name is hardcoded so no env var is needed to locate it. The client is cached at module level so the Secrets Manager call only happens once per cold start (or once per local process).
+Use `anthropic.Anthropic()`. Both the Anthropic and Pinecone API keys are fetched at module load time via the [AWS Parameters and Secrets Lambda Extension](https://docs.aws.amazon.com/secretsmanager/latest/userguide/retrieving-secrets_lambda.html). The extension runs a local sidecar on `localhost:2773` that caches secrets from Secrets Manager — fast enough for module-level initialization, with automatic rotation support. The Lambda layer ARN is added in Phase 5 (`infra/modules/lambda/`).
 
 ```python
 import json
-import boto3
+import os
+import urllib.request
 from anthropic import Anthropic
-from src.constants import CLAUDE_CRAWL_MODEL, CLAUDE_UI_PLAN_MODEL
+from src.constants import ANTHROPIC_SECRET_NAME, CLAUDE_CRAWL_MODEL, CLAUDE_UI_PLAN_MODEL
 
-# Crawl uses Haiku (cheaper, sufficient for content organization).
-# UI plan uses Sonnet (CSS analysis and implementation plans need stronger reasoning).
-# Update the constants in src/constants.py to upgrade model versions.
 _AGENT_MODEL = {
     "crawl":   CLAUDE_CRAWL_MODEL,
     "ui-plan": CLAUDE_UI_PLAN_MODEL,
 }
 
-_ANTHROPIC_SECRET_NAME = "llms-txt/anthropic-api-key"
+def _fetch_secret(secret_name: str) -> str:
+    """Fetches a secret value from the Lambda Parameters and Secrets Extension (localhost cache)."""
+    url = f"http://localhost:2773/secretsmanager/get?secretId={secret_name}"
+    req = urllib.request.Request(url, headers={"X-Aws-Parameters-Secrets-Token": os.environ["AWS_SESSION_TOKEN"]})
+    with urllib.request.urlopen(req) as resp:
+        return json.loads(json.loads(resp.read())["SecretString"])["value"]
 
-_anthropic_client = None  # cached per Lambda container / local process
+_anthropic_client = Anthropic(api_key=_fetch_secret(ANTHROPIC_SECRET_NAME))
 
-def _get_anthropic_client() -> Anthropic:
-    global _anthropic_client
-    if _anthropic_client is not None:
-        return _anthropic_client
-    secret = boto3.client("secretsmanager").get_secret_value(SecretId=_ANTHROPIC_SECRET_NAME)
-    api_key = json.loads(secret["SecretString"])["value"]
-    _anthropic_client = Anthropic(api_key=api_key)
-    return _anthropic_client
-
-def _create_claude_agent(system_prompt, job_id, agent_type, url, model_str, tools=None, submit_tool_name=None):
+def _create_claude_agent(system_prompt, job_id, agent_type, url, model, tools=None, submit_tool_name=None):
     model_id = _AGENT_MODEL.get(agent_type)
     if not model_id:
         raise ValueError(f"No Claude model configured for agent_type={agent_type!r}")
-    hooks = CrawlerClaudeHooks(job_id, agent_type, url, model_str)
+    hooks = CrawlerClaudeHooks(job_id, agent_type, url, model)
     return {
         "provider": "claude",
-        "model_id": model_id,        # resolved per agent_type — Haiku for crawl, Sonnet for ui-plan
-        "client": _get_anthropic_client(),
+        "model_id": model_id,
+        "client": _anthropic_client,
         "system_prompt": system_prompt,
         "hooks": hooks,
         "tools": tools or [],
         "submit_tool_name": submit_tool_name,
     }
+```
+
+The same `_fetch_secret` pattern is used in `pinecone_client.py` for the Pinecone API key.
 
 def run_agent(agent_ctx, user_content):
     if agent_ctx["provider"] == "claude":
@@ -288,11 +285,11 @@ def _url_vector_id(url: str) -> str:
 
 ## Environment Variables
 
-No application-level env vars needed for Claude — the secret name is hardcoded and the code always calls Secrets Manager. Your AWS credentials (local `AWS_*` env vars or Lambda IAM role) must have `secretsmanager:GetSecretValue` on `llms-txt/anthropic-api-key`.
+Both API keys are fetched from Secrets Manager via the extension — no application-level env vars needed for secrets. Lambda needs `AWS_SESSION_TOKEN` (provided automatically by the runtime) and `PINECONE_INDEX` (config, not a secret, set via Lambda env var in Phase 5).
 
-The secret is created in Phase 1 Terraform — see [01-terraform-storage.md](01-terraform-storage.md).
+IAM requires `secretsmanager:GetSecretValue` on both secret ARNs (outputs from `infra/modules/secrets/`). Both secrets are created in Phase 1 Terraform — see [01-terraform-storage.md](01-terraform-storage.md).
 
-When Codex is added: same pattern — create `llms-txt/openai-api-key` in Secrets Manager, hardcode the name in the OpenAI factory function.
+When Codex is added: same pattern — create `secrets/openai-api-key` in Secrets Manager and add `OPENAI_SECRET_NAME` to `src/constants.py`.
 
 ---
 
