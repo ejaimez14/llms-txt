@@ -1,0 +1,25 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
+
+# Lambda build artifact
+lambda.zip
+package/
+
+# Terraform
+infra/terraform.tfvars
+infra/.terraform/
+infra/*.tfstate
+infra/*.tfstate.backup
+infra/.terraform.lock.hcl
+
+# Claude Code local config
+.claude/
+
+# Env files
+.env

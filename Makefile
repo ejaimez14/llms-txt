@@ -1,4 +1,8 @@
-.PHONY: format lint test run build tf-plan tf-apply
+.PHONY: setup format lint test run build tf-plan tf-apply
+
+setup:
+	uv venv --clear
+	uv sync
 
 format:
 	uv run ruff format src/ tests/

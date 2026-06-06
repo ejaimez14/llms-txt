@@ -12,8 +12,8 @@ dependencies = [
     # "openai",            # uncomment when Codex support is added
 ]
 
-[tool.uv]
-dev-dependencies = [
+[dependency-groups]
+dev = [
     "pytest",
     "pytest-asyncio",
     "httpx",               # required by FastAPI TestClient
