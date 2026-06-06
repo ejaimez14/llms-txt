@@ -112,7 +112,7 @@ def test_crawl_on_complete_embeds_upserts_and_completes(mocker: MockerFixture, c
     crawl_hooks.on_complete(_CRAWL_OUTPUT)
 
     mock_embed.assert_called_once_with(_CRAWL_OUTPUT["llms_txt"])
-    mock_complete.assert_called_once_with("job-123", "llmsTxt", "s3://bucket/llms.txt")
+    mock_complete.assert_called_once_with("job-123", "llmsTxt", "s3://bucket/llms.txt", 0, 0)
 
 
 def test_ui_plan_on_complete_saves_plan_and_does_not_embed(mocker: MockerFixture, ui_plan_hooks: CrawlerClaudeHooks) -> None:
@@ -124,7 +124,7 @@ def test_ui_plan_on_complete_saves_plan_and_does_not_embed(mocker: MockerFixture
     ui_plan_hooks.on_complete(_UI_PLAN_OUTPUT)
 
     mock_save.assert_called_once_with("job-456", "# Plan")
-    mock_complete.assert_called_once_with("job-456", "plan", "s3://bucket/plan.md")
+    mock_complete.assert_called_once_with("job-456", "plan", "s3://bucket/plan.md", 0, 0)
     mock_embed.assert_not_called()
 
 

@@ -68,13 +68,17 @@ class CrawlerClaudeHooks(AgentHooks):
             s3_key = save_plan(self.job_id, output.plan_markdown)
             # UI plan is saved to S3 only — not embedded or indexed in Pinecone.
 
-        complete_artifact(self.job_id, _artifact_key(self.agent_type), s3_key)
+        input_tokens = getattr(usage, "input_tokens", 0) or 0
+        output_tokens = getattr(usage, "output_tokens", 0) or 0
+        complete_artifact(self.job_id, _artifact_key(self.agent_type), s3_key, input_tokens, output_tokens)
         log_job_event(
             logger,
             f"{self.agent_type}_completed",
             self.job_id,
             duration_ms=duration_ms,
             s3_key=s3_key,
+            input_tokens=input_tokens,
+            output_tokens=output_tokens,
         )
 
     def on_error(self, error: Exception) -> None:
