@@ -1,13 +1,32 @@
+import importlib.util
+import json
 import os
 import sys
+import unittest.mock
 from unittest.mock import MagicMock
 
-os.environ.setdefault("PINECONE_API_KEY", "test-key")
-os.environ.setdefault("PINECONE_INDEX", "test-index")
+# Test doubles for Lambda environment variables.
 os.environ.setdefault("AWS_DEFAULT_REGION", "us-east-1")
 os.environ.setdefault("AWS_ACCESS_KEY_ID", "testing")
 os.environ.setdefault("AWS_SECRET_ACCESS_KEY", "testing")
+os.environ.setdefault("AWS_SESSION_TOKEN", "testing")
 os.environ.setdefault("BUCKET", "test-bucket")
 os.environ.setdefault("TABLE", "test-jobs")
 os.environ.setdefault("SITES_TABLE", "test-sites")
+os.environ.setdefault("PINECONE_INDEX", "test-index")
+
+# llm.py and pinecone_client.py call fetch_secret() at import time via the Lambda extension.
+# The extension isn't running in tests — intercept the HTTP call before any module is imported.
+_secret_body = json.dumps({"SecretString": json.dumps({"value": "test-key"})}).encode()
+_mock_http = MagicMock(read=MagicMock(return_value=_secret_body))
+_mock_http.__enter__ = lambda s: s
+_mock_http.__exit__ = MagicMock(return_value=False)
+unittest.mock.patch("urllib.request.urlopen", return_value=_mock_http).start()
+
+# pinecone is installed as the legacy pinecone-client package which raises on import.
 sys.modules.setdefault("pinecone", MagicMock())
+
+# Stub service modules that don't exist in this environment so hooks.py can be imported.
+for _mod in ("src.services.embeddings", "src.services.logger", "src.services.storage"):
+    if importlib.util.find_spec(_mod) is None:
+        sys.modules[_mod] = MagicMock()
