@@ -87,7 +87,7 @@ plans/              # Read-only — implementation specs
 ## Git & PRs
 
 - **Branch naming:** `ejaimez/<feature-name>` — descriptive, no plan numbers. e.g. `ejaimez/terraform-storage`, `ejaimez/storage-service`.
-- **Commits:** one logical commit per component. Message format: imperative sentence describing what changed and why, 72 chars max.
+- **Commits:** brief, accurate, imperative phrase — a few words that clearly describe what changed. If two distinct things were changed, separate them with ` ; ` (e.g. `Extract providers.tf ; remove tfvars example`). Never include more than two things in a single commit message — split into separate commits if needed.
 - **PRs:** always open as **draft** — owner reviews before marking ready.
 - **Base branch:** `main`. Do not push directly to `main`.
 - **PR title format:** `[<short-feature-word>] - <Brief Title With Each First Letter Capitalized>`
