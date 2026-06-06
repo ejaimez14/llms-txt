@@ -1,0 +1,15 @@
+# Terraform state and local variable files — never commit real credentials
+infra/terraform.tfvars
+infra/.terraform/
+infra/.terraform.lock.hcl
+infra/terraform.tfstate
+infra/terraform.tfstate.backup
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+.env
+
+# OS
+.DS_Store
