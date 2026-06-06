@@ -27,7 +27,7 @@ infra/
   main.tf
   variables.tf
   outputs.tf
-  terraform.tfvars.example
+  providers.tf
   modules/
     s3/
     dynamodb/
@@ -67,7 +67,7 @@ plans/              # Read-only — implementation specs
 - No hardcoded account IDs, bucket names, or ARNs in module code — pass everything via variables.
 - Root `main.tf` wires modules together; modules own their resources.
 - Sensitive variables (API keys, passwords) must be marked `sensitive = true`.
-- `terraform.tfvars` is gitignored. Always keep `terraform.tfvars.example` up to date with all variables (empty values only).
+- `terraform.tfvars` is gitignored — never commit it. Provider config lives in `providers.tf`, not `main.tf`.
 
 ---
 
@@ -127,5 +127,5 @@ Before opening a PR, review the code critically for quality — not just correct
 - [ ] Type hints present on all functions
 - [ ] Docstrings present on non-trivial functions
 - [ ] Code is easy to read top-to-bottom without needing to jump around
-- [ ] `terraform.tfvars.example` updated if new variables were added (Terraform components only)
+- [ ] New Terraform variables added to `variables.tf` with descriptions (Terraform components only)
 - [ ] PR opened as draft with What, Why, and Tested By sections following the format in CLAUDE.md
