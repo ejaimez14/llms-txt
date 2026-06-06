@@ -21,7 +21,7 @@ def upsert_vector(job_id: str, vector: list[float], metadata: dict) -> None:
     try:
         _index.upsert(vectors=[{"id": job_id, "values": vector, "metadata": metadata}])
     except Exception as exc:
-        logger.info({"event": "pinecone_upsert_failed", "error": str(exc)})
+        logger.error({"event": "pinecone_upsert_failed", "error": str(exc)})
         raise
 
 
@@ -36,7 +36,7 @@ def query_vectors(vector: list[float], top_k: int = 10) -> list[dict]:
     try:
         response = _index.query(vector=vector, top_k=top_k, include_metadata=True)
     except Exception as exc:
-        logger.info({"event": "pinecone_query_failed", "error": str(exc)})
+        logger.error({"event": "pinecone_query_failed", "error": str(exc)})
         raise
 
     return [
