@@ -1,40 +1,22 @@
-import sys
 from unittest.mock import MagicMock
 
 import pytest
+from pytest_mock import MockerFixture
 
-
-@pytest.fixture(autouse=True)
-def _pinecone_env(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("PINECONE_API_KEY", "test-api-key")
-    monkeypatch.setenv("PINECONE_INDEX", "test-index")
+import src.services.pinecone_client as pinecone_module
 
 
 @pytest.fixture()
-def mock_index() -> MagicMock:
-    return MagicMock()
-
-
-@pytest.fixture()
-def pinecone_module(mock_index: MagicMock) -> object:
-    """Imports pinecone_client with Pinecone fully mocked, re-imported fresh per test."""
-    mock_pinecone_pkg = MagicMock()
-    mock_pinecone_pkg.Pinecone.return_value.Index.return_value = mock_index
-    sys.modules["pinecone"] = mock_pinecone_pkg
-    sys.modules.pop("src.services.pinecone_client", None)
-
-    import src.services.pinecone_client as module
-
-    yield module
-
-    sys.modules.pop("src.services.pinecone_client", None)
-    sys.modules.pop("pinecone", None)
+def mock_index(mocker: MockerFixture) -> MagicMock:
+    index = MagicMock()
+    mocker.patch.object(pinecone_module, "_index", index)
+    return index
 
 
 # --- Tests ---
 
 
-def test_upsert_vector_calls_index(pinecone_module: object, mock_index: MagicMock) -> None:
+def test_upsert_vector_calls_index(mock_index: MagicMock) -> None:
     vector = [0.1, 0.2, 0.3]
     metadata = {"url": "https://example.com", "s3Key": "results/abc123/llms.txt", "model": "claude"}
 
@@ -45,7 +27,7 @@ def test_upsert_vector_calls_index(pinecone_module: object, mock_index: MagicMoc
     )
 
 
-def test_query_vectors_returns_ranked_results(pinecone_module: object, mock_index: MagicMock) -> None:
+def test_query_vectors_returns_ranked_results(mock_index: MagicMock) -> None:
     mock_index.query.return_value = {
         "matches": [
             {"id": "job-1", "score": 0.95, "metadata": {"url": "https://example.com", "s3Key": "k1"}},
@@ -60,7 +42,7 @@ def test_query_vectors_returns_ranked_results(pinecone_module: object, mock_inde
     assert results[0]["score"] == 0.95
 
 
-def test_query_vectors_error_raises(pinecone_module: object, mock_index: MagicMock) -> None:
+def test_query_vectors_error_raises(mock_index: MagicMock) -> None:
     mock_index.query.side_effect = Exception("connection refused")
 
     with pytest.raises(Exception, match="connection refused"):

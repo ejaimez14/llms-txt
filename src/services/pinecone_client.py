@@ -14,10 +14,7 @@ _index = _client.Index(os.environ["PINECONE_INDEX"])
 
 
 def upsert_vector(job_id: str, vector: list[float], metadata: dict) -> None:
-    """Upserts a single vector into Pinecone using job_id as the vector ID.
-
-    Metadata must always include 'url' and 's3Key'.
-    """
+    """Upserts a single vector into Pinecone using job_id as the vector ID."""
     try:
         _index.upsert(vectors=[{"id": job_id, "values": vector, "metadata": metadata}])
     except Exception as exc:
@@ -29,10 +26,7 @@ def upsert_vector(job_id: str, vector: list[float], metadata: dict) -> None:
 
 
 def query_vectors(vector: list[float], top_k: int = 10) -> list[dict]:
-    """Queries Pinecone by vector similarity.
-
-    Returns top_k matches as a list of dicts with 'id', 'score', and 'metadata'.
-    """
+    """Queries Pinecone by vector similarity and returns top_k matches."""
     try:
         response = _index.query(vector=vector, top_k=top_k, include_metadata=True)
     except Exception as exc:
