@@ -1,0 +1,23 @@
+[project]
+name = "llms-txt-crawler"
+version = "0.1.0"
+requires-python = ">=3.11"
+dependencies = [
+    "anthropic",           # direct Anthropic API; built-in web_search/web_fetch run server-side
+    "boto3",               # S3, DynamoDB, Secrets Manager, Bedrock Titan embeddings
+    "fastapi",
+    "mangum",              # ASGI adapter — lets API Gateway invoke the FastAPI app as Lambda
+    "uvicorn[standard]",   # local dev server
+    "pinecone-client",
+    # "openai",            # uncomment when Codex support is added
+]
+
+[tool.uv]
+dev-dependencies = [
+    "pytest",
+    "pytest-asyncio",
+    "httpx",               # required by FastAPI TestClient
+    "moto[s3,dynamodb]",   # AWS mocking for tests
+    "pytest-mock",
+    "ruff",
+]
