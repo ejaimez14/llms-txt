@@ -1,15 +1,25 @@
-# Terraform state and local variable files — never commit real credentials
-infra/terraform.tfvars
-infra/.terraform/
-infra/.terraform.lock.hcl
-infra/terraform.tfstate
-infra/terraform.tfstate.backup
-
 # Python
+.venv/
 __pycache__/
 *.pyc
-.venv/
-.env
+*.pyo
+*.egg-info/
+dist/
+build/
 
-# OS
-.DS_Store
+# Lambda build artifact
+lambda.zip
+package/
+
+# Terraform
+infra/terraform.tfvars
+infra/.terraform/
+infra/*.tfstate
+infra/*.tfstate.backup
+infra/.terraform.lock.hcl
+
+# Claude Code local config
+.claude/
+
+# Env files
+.env
