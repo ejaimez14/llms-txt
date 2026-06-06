@@ -28,11 +28,10 @@ class ModelName(str, Enum):
     # CODEX = "codex"  # TO ADD CODEX: uncomment, add openai SDK dep, implement in 07-agent-factory-hooks.md
 
 
-# Crawl uses Haiku: content organization doesn't need heavy reasoning, and
-# re-crawling 100 sites daily makes token cost the dominant expense.
-# UI plan uses Sonnet: analyzing CSS design systems and producing actionable
-# implementation plans benefits from stronger reasoning.
+# --- Runtime Constants ---
+
 CLAUDE_CRAWL_MODEL = "claude-haiku-4-5-20251001"
 CLAUDE_UI_PLAN_MODEL = "claude-sonnet-4-6-20250514"
 
 TITAN_EMBED_MODEL = "amazon.titan-embed-text-v1"
+TITAN_MAX_INPUT_CHARS = 25000

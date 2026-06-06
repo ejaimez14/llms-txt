@@ -3,12 +3,10 @@ import json
 import boto3
 from botocore.exceptions import ClientError
 
-from src.constants import TITAN_EMBED_MODEL
+from src.constants import TITAN_EMBED_MODEL, TITAN_MAX_INPUT_CHARS
 from src.services.logger import get_logger
 
 logger = get_logger(__name__)
-
-_MAX_INPUT_CHARS = 25000
 
 _bedrock_client = boto3.client("bedrock-runtime", region_name="us-east-1")
 
@@ -16,13 +14,13 @@ _bedrock_client = boto3.client("bedrock-runtime", region_name="us-east-1")
 def embed_text(text: str | None) -> list[float]:
     """Embeds text using Amazon Bedrock Titan Embed Text v1.
 
-    Truncates input to 25000 characters (~6250 tokens, within Titan's 8192-token limit).
+    Truncates input to TITAN_MAX_INPUT_CHARS before embedding.
     Returns an empty list if text is empty or None.
     """
     if not text:
         return []
 
-    truncated = text[:_MAX_INPUT_CHARS]
+    truncated = text[:TITAN_MAX_INPUT_CHARS]
 
     try:
         response = _bedrock_client.invoke_model(
