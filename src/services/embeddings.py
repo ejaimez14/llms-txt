@@ -31,7 +31,7 @@ def embed_text(text: str | None) -> list[float]:
         )
         response_body = json.loads(response["body"].read())
     except ClientError as exc:
-        logger.info({"event": "bedrock_embed_failed", "error": str(exc)})
+        logger.error({"event": "bedrock_embed_failed", "error": str(exc)})
         raise
 
     return response_body["embedding"]
