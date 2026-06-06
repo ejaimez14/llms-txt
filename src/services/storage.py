@@ -56,10 +56,9 @@ def get_artifact_content(job_id: str, artifact_type: str) -> str | None:
 
 def generate_download_url(s3_key: str, expiry: int = 3600) -> str:
     """Generates a presigned S3 URL for private downloads."""
-    bucket = os.environ["BUCKET"]
     return _s3.generate_presigned_url(
         "get_object",
-        Params={"Bucket": bucket, "Key": s3_key},
+        Params={"Bucket": _bucket(), "Key": s3_key},
         ExpiresIn=expiry,
     )
 
@@ -261,6 +260,11 @@ def list_sites() -> list[dict]:
 # --- Internal ---
 
 
+def _bucket() -> str:
+    """Returns the S3 bucket name."""
+    return os.environ["BUCKET"]
+
+
 def _jobs_table() -> Any:
     """Returns the DynamoDB Table resource for the jobs table."""
     return _dynamodb.Table(os.environ["TABLE"])
@@ -278,9 +282,8 @@ def _utc_now() -> str:
 
 def _put_s3_object(s3_key: str, content: str) -> None:
     """Writes a string object to S3."""
-    bucket = os.environ["BUCKET"]
     try:
-        _s3.put_object(Bucket=bucket, Key=s3_key, Body=content.encode("utf-8"))
+        _s3.put_object(Bucket=_bucket(), Key=s3_key, Body=content.encode("utf-8"))
     except ClientError as exc:
         logger.info({"event": "put_s3_object_failed", "error": str(exc)})
         raise
@@ -288,9 +291,8 @@ def _put_s3_object(s3_key: str, content: str) -> None:
 
 def _get_s3_object(s3_key: str) -> str | None:
     """Reads an object from S3, returning None if it does not exist."""
-    bucket = os.environ["BUCKET"]
     try:
-        response = _s3.get_object(Bucket=bucket, Key=s3_key)
+        response = _s3.get_object(Bucket=_bucket(), Key=s3_key)
         return response["Body"].read().decode("utf-8")
     except ClientError as exc:
         if exc.response["Error"]["Code"] == "NoSuchKey":
