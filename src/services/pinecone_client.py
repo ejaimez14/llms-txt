@@ -2,12 +2,11 @@ import os
 
 from pinecone import Pinecone
 
+from src.constants import PINECONE_SECRET_NAME
 from src.services.logger import get_logger
+from src.services.helpers import fetch_secret
 
 logger = get_logger(__name__)
-
-_client = Pinecone(api_key=os.environ["PINECONE_API_KEY"])
-_index = _client.Index(os.environ["PINECONE_INDEX"])
 
 
 # --- Upsert Operations ---
@@ -41,3 +40,7 @@ def query_vectors(vector: list[float], top_k: int = 10) -> list[dict]:
         }
         for match in response["matches"]
     ]
+
+
+_client = Pinecone(api_key=fetch_secret(PINECONE_SECRET_NAME))
+_index = _client.Index(os.environ["PINECONE_INDEX"])
