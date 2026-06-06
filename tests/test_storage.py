@@ -5,15 +5,8 @@ import boto3
 import pytest
 from moto import mock_aws
 
+import src.services.storage as storage
 from src.constants import ArtifactStatus, ArtifactType, JobStatus
-
-# Environment variables must be set before importing storage so boto3 clients
-# are created with moto-intercepted credentials.
-os.environ.setdefault("BUCKET", "test-bucket")
-os.environ.setdefault("TABLE", "test-jobs")
-os.environ.setdefault("SITES_TABLE", "test-sites")
-
-import src.services.storage as storage  # noqa: E402  (must follow env var setup)
 
 # ---------------------------------------------------------------------------
 # Fixtures
