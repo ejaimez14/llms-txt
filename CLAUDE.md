@@ -50,7 +50,8 @@ plans/              # Read-only — implementation specs
 - **Comments:** add only when necessary — brief, useful, and explaining WHY not WHAT. Never restate what the code already says.
 - **Docstrings:** add for non-trivial functions — one concise line describing purpose and any non-obvious behavior. Skip for simple getters or wrappers where the signature is self-explanatory.
 - **Abstractions:** only introduce what the current task requires. Three similar lines is better than a premature abstraction.
-- **Error handling:** one `try/except` clause per function maximum — no nested try/except blocks. Catch the narrowest exception type possible. Only handle errors at system boundaries (external API calls, boto3 calls).
+- **Error handling:** one `try/except` clause per function maximum — no nested try/except blocks. Catch the narrowest exception type possible. Only handle errors at system boundaries (external API calls, boto3 calls). In the except block, log with `logger.error` and re-raise — never swallow exceptions silently.
+- **Logging levels:** `logger.info` for normal operational events. `logger.error` for caught exceptions that are re-raised. Log a structured dict: `{"event": "<name>", "error": str(exc)}`.
 - **Imports:** always at the top of the file. Never inside functions or conditionals.
 - **Internal functions:** prefix with `_` to signal they are private to the module. Place all internal functions at the bottom of the file, after public functions.
 - **File organization:** group related functions with a section comment (e.g. `# --- S3 Operations ---`, `# --- DynamoDB Operations ---`, `# --- Internal ---`). Use these sparingly — only when the file has meaningfully distinct groups.
