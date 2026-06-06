@@ -1,5 +1,5 @@
-# Jobs table — full run history, one record per crawl invocation
-resource "aws_dynamodb_table" "jobs" {
+# One record per crawl run; history is preserved across re-crawls
+resource "aws_dynamodb_table" "crawl_jobs" {
   name         = var.jobs_table_name
   billing_mode = "PAY_PER_REQUEST"
   hash_key     = "jobId"
@@ -19,7 +19,7 @@ resource "aws_dynamodb_table" "jobs" {
     type = "S"
   }
 
-  # GSI for "give me all crawl runs for this URL, sorted by date"
+  # Enables per-URL history queries without a full table scan
   global_secondary_index {
     name            = "url-createdAt-index"
     hash_key        = "url"
@@ -28,8 +28,8 @@ resource "aws_dynamodb_table" "jobs" {
   }
 }
 
-# Sites table — one record per URL, always the latest successful crawl
-resource "aws_dynamodb_table" "sites" {
+# Canonical latest state per URL; overwritten on each successful crawl
+resource "aws_dynamodb_table" "crawled_sites" {
   name         = var.sites_table_name
   billing_mode = "PAY_PER_REQUEST"
   hash_key     = "url"
