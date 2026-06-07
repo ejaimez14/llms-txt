@@ -6,12 +6,17 @@ You are implementing **Component 2: Lambda Handler + Routing**. Your job is to p
 
 The same FastAPI app runs locally (via uvicorn) and on Lambda (via Mangum). No separate dev server wrapper is needed.
 
-Dependencies: [04-models-constants-prompts.md](04-models-constants-prompts.md) — import `CrawlRequest`, `ModelName`, `AgentType`, `ArtifactType`, and system prompts from there. [08-crawl-agent.md](08-crawl-agent.md) — import `CRAWL_TOOLS`. [10-ui-planner-agent.md](10-ui-planner-agent.md) — import `UI_PLAN_TOOLS`. Stub agent functions to test in isolation.
+Dependencies:
+- [04-models-constants-prompts.md](04-models-constants-prompts.md) — import `CrawlRequest`, `ReportRequest`, `CompareRequest`, `ModelName`, `AgentType`, `ArtifactType`, `JobType`, `JobStatus`
+- [09-report-compare-foundations.md](09-report-compare-foundations.md) — must be implemented first; provides `ReportRequest`, `CompareRequest`, `JobType`
+- [08-crawl-agent.md](08-crawl-agent.md) — import `CRAWL_TOOLS`
+- [10-ui-planner-agent.md](10-ui-planner-agent.md) — import `UI_PLAN_TOOLS`
+- [11-reporter-agent.md](11-reporter-agent.md) — import `run_reporter`
+- [12-comparer-agent.md](12-comparer-agent.md) — import `run_comparer`
 
 Related plans:
 - [07-agent-factory-hooks.md](07-agent-factory-hooks.md) — the agent factory this handler calls
-- [03-storage-service.md](03-storage-service.md) — `create_job`, `get_job`, `get_artifact_content` called here
-- [08-crawl-agent.md](08-crawl-agent.md), [10-ui-planner-agent.md](10-ui-planner-agent.md) — both agents started from here per crawl
+- [03-storage-service.md](03-storage-service.md) — `create_job`, `get_job`, `get_artifact_content`, `list_jobs` called here
 - [19-scheduled-recrawl.md](19-scheduled-recrawl.md) — adds `handle_schedule` and `handle_sqs` paths; replaces `handler = Mangum(app)` with a dispatch entrypoint
 
 ---
@@ -59,13 +64,24 @@ _mangum_handler = Mangum(app)
 
 ---
 
-## Request Model
+## Request Models
 
 ```python
 class CrawlRequest(BaseModel):
     url: str
-    model: str = "claude"
+    model: ModelName = ModelName.CLAUDE
+
+class ReportRequest(BaseModel):
+    url: str
+    model: ModelName = ModelName.CLAUDE
+
+class CompareRequest(BaseModel):
+    job_id_a: str
+    job_id_b: str
+    model: ModelName = ModelName.CLAUDE
 ```
+
+All three are imported from `src/models.py` — do not redefine them here.
 
 ---
 
@@ -215,6 +231,69 @@ Synchronous. Embeds the query, calls Pinecone, returns ranked results with presi
 
 ---
 
+### `POST /api/report`
+
+Looks up the latest crawl for a URL and generates a structured site analysis report. Returns 202 immediately; client polls `GET /api/job`.
+
+```python
+@router.post("/report", status_code=202)
+def report(req: ReportRequest):
+    site = get_site(req.url)
+    if not site:
+        raise HTTPException(status_code=404, detail=f"No crawl found for {req.url}. Crawl the site first.")
+    job_id = str(uuid.uuid4())
+    create_job(job_id, req.url, req.model, JobType.REPORT)
+    _run_in_thread(run_reporter, job_id, req.url, req.model)
+    return {"jobId": job_id, "status": "processing"}
+```
+
+Note: The site existence check is done synchronously before creating the job so the client gets an immediate 404 rather than a job that immediately fails. `run_reporter` also checks and calls `fail_artifact` if the content is unavailable, as a safety net.
+
+---
+
+### `POST /api/compare`
+
+Fetches llms.txt from two completed crawl jobs and generates a diff-focused comparison. Returns 202; client polls `GET /api/job`.
+
+```python
+@router.post("/compare", status_code=202)
+def compare(req: CompareRequest):
+    if req.job_id_a == req.job_id_b:
+        raise HTTPException(status_code=400, detail="Cannot compare a job to itself")
+    job_a = get_job(req.job_id_a)
+    job_b = get_job(req.job_id_b)
+    if not job_a:
+        raise HTTPException(status_code=404, detail=f"Job {req.job_id_a} not found")
+    if not job_b:
+        raise HTTPException(status_code=404, detail=f"Job {req.job_id_b} not found")
+    if job_a.get("status") != JobStatus.COMPLETE:
+        raise HTTPException(status_code=400, detail=f"Job {req.job_id_a} is not complete")
+    if job_b.get("status") != JobStatus.COMPLETE:
+        raise HTTPException(status_code=400, detail=f"Job {req.job_id_b} is not complete")
+    job_id = str(uuid.uuid4())
+    create_job(job_id, job_a["url"], req.model, JobType.COMPARE)
+    _run_in_thread(run_comparer, job_id, req.job_id_a, req.job_id_b, req.model)
+    return {"jobId": job_id, "status": "processing"}
+```
+
+Validation is synchronous and returns 400/404 before any job is created — the client gets an immediate error, not a failing job.
+
+---
+
+### `_run_in_thread` helper
+
+The crawl endpoint uses `ThreadPoolExecutor` to start two agents in parallel. Single-agent endpoints (report, compare) use a simpler helper:
+
+```python
+from threading import Thread
+
+def _run_in_thread(fn, *args) -> None:
+    """Starts fn(*args) in a daemon thread. Used for single-agent background jobs."""
+    Thread(target=fn, args=args, daemon=True).start()
+```
+
+---
+
 ## Local Development
 
 ```bash
@@ -229,12 +308,18 @@ FastAPI interactive docs available at `http://localhost:8000/docs`.
 ## Acceptance Criteria
 
 - Single `POST /crawl` starts both agents under the same `job_id`
-- Both agents run in parallel via `ThreadPoolExecutor`
+- Both crawl agents run in parallel via `ThreadPoolExecutor`
 - `GET /job` returns per-artifact status for `llmsTxt` and `plan`
 - `GET /job/{id}/llms-txt` and `GET /job/{id}/plan` return raw artifact content or 404 if not ready
 - `GET /jobs` lists jobs without artifact content
-- Missing `url` returns 422 (FastAPI built-in validation)
-- `model=codex` returns 501
+- `POST /report` returns 404 if the URL has not been crawled yet
+- `POST /report` returns 202 and starts the reporter in a background thread
+- `POST /compare` returns 400 if both job IDs are the same
+- `POST /compare` returns 404 if either job ID does not exist
+- `POST /compare` returns 400 if either job is not complete
+- `POST /compare` returns 202 and starts the comparer in a background thread
+- Missing `url` or required fields returns 422 (FastAPI built-in validation)
+- `model=codex` on `/crawl` returns 501 (until plan 18 is implemented)
 - Unknown job ID returns 404
 - 404 for unknown routes (FastAPI built-in)
 
@@ -259,3 +344,9 @@ client = TestClient(app)
 | `test_get_artifact_returns_content` | happy | GET /job/{id}/llms-txt returns content when artifact is complete |
 | `test_get_artifact_not_ready_returns_404` | unhappy | GET /job/{id}/plan returns 404 when not yet complete |
 | `test_missing_url_returns_422` | unhappy | POST /crawl without `url` returns 422 |
+| `test_report_returns_404_if_not_crawled` | unhappy | POST /report returns 404 when URL has no site record |
+| `test_report_starts_reporter_and_returns_202` | happy | POST /report returns 202 with jobId when site exists |
+| `test_compare_same_id_returns_400` | unhappy | POST /compare returns 400 when job_id_a == job_id_b |
+| `test_compare_missing_job_returns_404` | unhappy | POST /compare returns 404 when either job ID does not exist |
+| `test_compare_incomplete_job_returns_400` | unhappy | POST /compare returns 400 when either job is not complete |
+| `test_compare_starts_comparer_and_returns_202` | happy | POST /compare returns 202 with jobId when both jobs are complete |

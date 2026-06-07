@@ -28,7 +28,7 @@ src/
 
 ### Tab Navigation
 
-Tabs: **Crawl**, **Search**, **History**
+Tabs: **Crawl**, **Search**, **Report**, **Compare**, **History**
 
 ### Model Selector
 
@@ -63,6 +63,25 @@ The string values (`"claude"`, `"codex"`) match `ModelName` enum values from `sr
 - Submit calls `GET /search?q=...`
 - Results display immediately (synchronous, no polling needed)
 - Each result shows: URL, model, similarity score, download link
+
+### Report Tab
+
+- URL input field (required)
+- Model selector (which model generates the report)
+- Submit button — calls `POST /report`, gets back `jobId`
+- Shows spinner while polling `GET /job?id=...` every 3 seconds
+- Job is done when `job.status !== "processing"`
+- Displays the report artifact when ready: rendered markdown, Download button
+- If site has not been crawled, backend returns 404 — display message "This site has not been crawled yet. Go to the Crawl tab first."
+
+### Compare Tab
+
+- Two inputs: **Job ID A** and **Job ID B**
+- Model selector (which model generates the comparison)
+- Submit button — calls `POST /compare`, gets back `jobId`
+- Shows spinner while polling `GET /job?id=...` every 3 seconds
+- Displays the comparison artifact when ready: rendered markdown with table formatting, Download button
+- On 400/404 errors, display the error message from the backend directly (same-ID, job not found, job not complete)
 
 ### History Tab
 
@@ -243,13 +262,16 @@ Inline styles for `.markdown-body` to keep the file self-contained:
 - Polling stops when job status is `"complete"` or `"partial"` (not just `"complete"`)
 - Both artifacts fetched and displayed individually after polling ends
 - Per-artifact error shown if one artifact failed while the other succeeded
-- Model selector value included in POST /crawl body
+- Model selector value included in POST /crawl, POST /report, and POST /compare bodies
 - Shows spinner while polling, clears on completion or error
 - No leaked `setInterval` — always cleared before returning
+- Report tab displays 404 message if site has not been crawled
+- Compare tab displays backend error message (same-ID, not found, not complete) directly
 - History tab loads on open and displays all past jobs with per-artifact statuses
 - Clicking a history row fetches and displays both artifacts
 - Status string constants defined in one place to match backend enum values
 - No external dependencies
-- Artifact content rendered as markdown (headings, code blocks, lists, bold, italic, links)
-- Download button triggers a client-side blob download of the raw content (`.txt` for llms.txt, `.md` for plan)
+- Artifact content rendered as markdown (headings, code blocks, lists, bold, italic, links, tables)
+- Download button triggers a client-side blob download of the raw content (`.txt` for llms.txt, `.md` for plan/report/comparison)
 - `renderMarkdown` escapes HTML before processing to prevent XSS from crawled content
+- Tabs: Crawl, Search, Report, Compare, History
