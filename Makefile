@@ -1,5 +1,8 @@
 .PHONY: setup format lint test run build tf-init tf-plan tf-apply
 
+-include .env
+export
+
 setup:
 	uv venv --clear
 	uv sync
