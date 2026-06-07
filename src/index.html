@@ -1,0 +1,1142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>llms.txt Crawler</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #f8f9fa;
+      color: #212529;
+      padding: 1rem;
+    }
+
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+    }
+
+    h1 {
+      font-size: 1.6rem;
+      margin-bottom: 1.5rem;
+      color: #1a1a2e;
+    }
+
+    /* --- Tab nav --- */
+    .tab-nav {
+      display: flex;
+      gap: 0.25rem;
+      border-bottom: 2px solid #dee2e6;
+      margin-bottom: 1.5rem;
+      flex-wrap: wrap;
+    }
+
+    .tab-btn {
+      background: none;
+      border: none;
+      padding: 0.6rem 1rem;
+      cursor: pointer;
+      font-size: 0.95rem;
+      color: #6c757d;
+      border-bottom: 2px solid transparent;
+      margin-bottom: -2px;
+      transition: color 0.15s, border-color 0.15s;
+    }
+
+    .tab-btn:hover { color: #343a40; }
+    .tab-btn.active { color: #0066cc; border-bottom-color: #0066cc; font-weight: 600; }
+
+    /* --- Tab panels --- */
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+
+    /* --- Forms --- */
+    .form-group {
+      margin-bottom: 1rem;
+    }
+
+    label {
+      display: block;
+      font-size: 0.9rem;
+      font-weight: 600;
+      margin-bottom: 0.35rem;
+      color: #495057;
+    }
+
+    input[type="text"],
+    select {
+      width: 100%;
+      padding: 0.5rem 0.75rem;
+      border: 1px solid #ced4da;
+      border-radius: 4px;
+      font-size: 0.95rem;
+      background: #fff;
+      color: #212529;
+    }
+
+    input[type="text"]:focus,
+    select:focus {
+      outline: none;
+      border-color: #0066cc;
+      box-shadow: 0 0 0 2px rgba(0,102,204,0.15);
+    }
+
+    .btn-primary {
+      background: #0066cc;
+      color: #fff;
+      border: none;
+      padding: 0.55rem 1.25rem;
+      border-radius: 4px;
+      font-size: 0.95rem;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+
+    .btn-primary:hover { background: #0052a3; }
+    .btn-primary:disabled { background: #6c9dcf; cursor: default; }
+
+    /* --- Spinner --- */
+    .spinner {
+      display: none;
+      align-items: center;
+      gap: 0.75rem;
+      margin: 1rem 0;
+      color: #6c757d;
+      font-size: 0.9rem;
+    }
+
+    .spinner.visible { display: flex; }
+
+    .spinner-ring {
+      width: 22px;
+      height: 22px;
+      border: 3px solid #dee2e6;
+      border-top-color: #0066cc;
+      border-radius: 50%;
+      animation: spin 0.75s linear infinite;
+      flex-shrink: 0;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* --- Messages --- */
+    .error-msg {
+      background: #fff3cd;
+      border: 1px solid #ffc107;
+      border-radius: 4px;
+      padding: 0.75rem 1rem;
+      margin: 1rem 0;
+      font-size: 0.9rem;
+      color: #856404;
+    }
+
+    .info-msg {
+      background: #e8f4fd;
+      border: 1px solid #bee5eb;
+      border-radius: 4px;
+      padding: 0.75rem 1rem;
+      margin: 1rem 0;
+      font-size: 0.9rem;
+      color: #0c5460;
+    }
+
+    /* --- Artifact cards --- */
+    .artifact-card {
+      background: #fff;
+      border: 1px solid #dee2e6;
+      border-radius: 6px;
+      padding: 1rem;
+      margin-bottom: 1rem;
+    }
+
+    .artifact-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 0.5rem;
+    }
+
+    .artifact-header h3 {
+      font-size: 1rem;
+      color: #343a40;
+    }
+
+    .btn-download {
+      font-size: 0.8rem;
+      padding: 4px 10px;
+      cursor: pointer;
+      background: #f8f9fa;
+      border: 1px solid #ced4da;
+      border-radius: 4px;
+      color: #495057;
+      transition: background 0.15s;
+    }
+
+    .btn-download:hover { background: #e9ecef; }
+
+    .artifact-error {
+      color: #842029;
+      font-size: 0.9rem;
+      padding: 0.5rem 0;
+    }
+
+    /* --- Markdown body --- */
+    .markdown-body { line-height: 1.6; }
+    .markdown-body h1 { font-size: 1.5rem; margin: 1rem 0 0.5rem; }
+    .markdown-body h2 { font-size: 1.2rem; margin: 1rem 0 0.4rem; border-bottom: 1px solid #e0e0e0; padding-bottom: 0.2rem; }
+    .markdown-body h3 { font-size: 1rem; margin: 0.8rem 0 0.3rem; }
+    .markdown-body pre { background: #f5f5f5; padding: 0.75rem; border-radius: 4px; overflow-x: auto; }
+    .markdown-body code { background: #f0f0f0; padding: 2px 4px; border-radius: 3px; font-size: 0.9em; font-family: 'SFMono-Regular', Consolas, monospace; }
+    .markdown-body pre code { background: none; padding: 0; }
+    .markdown-body blockquote { border-left: 3px solid #ccc; margin: 0.5rem 0; padding-left: 1rem; color: #555; }
+    .markdown-body li { margin: 0.25rem 0; }
+    .markdown-body a { color: #0066cc; }
+    .markdown-body table { border-collapse: collapse; width: 100%; margin: 0.5rem 0; }
+    .markdown-body td, .markdown-body th { border: 1px solid #ddd; padding: 6px 12px; text-align: left; }
+    .markdown-body th { background: #f5f5f5; font-weight: 600; }
+    .markdown-body ul, .markdown-body ol { padding-left: 1.5rem; margin: 0.5rem 0; }
+    .markdown-body p { margin: 0.5rem 0; }
+
+    /* --- Search results --- */
+    .search-results { margin-top: 1rem; }
+    .search-result-item {
+      background: #fff;
+      border: 1px solid #dee2e6;
+      border-radius: 6px;
+      padding: 0.75rem 1rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .search-result-url {
+      font-weight: 600;
+      color: #0066cc;
+      word-break: break-all;
+      margin-bottom: 0.25rem;
+    }
+
+    .search-result-meta {
+      font-size: 0.85rem;
+      color: #6c757d;
+      display: flex;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+
+    /* --- History --- */
+    .history-controls {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      margin-bottom: 1rem;
+      flex-wrap: wrap;
+    }
+
+    .history-controls label {
+      margin-bottom: 0;
+      white-space: nowrap;
+    }
+
+    .history-controls select {
+      width: auto;
+      min-width: 160px;
+    }
+
+    .history-table-wrap {
+      overflow-x: auto;
+    }
+
+    .history-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.9rem;
+      background: #fff;
+    }
+
+    .history-table th {
+      background: #f5f5f5;
+      padding: 0.6rem 0.75rem;
+      text-align: left;
+      font-weight: 600;
+      border-bottom: 2px solid #dee2e6;
+      white-space: nowrap;
+    }
+
+    .history-table td {
+      padding: 0.6rem 0.75rem;
+      border-bottom: 1px solid #dee2e6;
+      vertical-align: top;
+      word-break: break-all;
+    }
+
+    .history-table tbody tr {
+      cursor: pointer;
+      transition: background 0.1s;
+    }
+
+    .history-table tbody tr:hover { background: #f0f4ff; }
+
+    .history-table tbody tr.expanded { background: #f0f4ff; }
+
+    .history-row-detail {
+      background: #fafafa;
+    }
+
+    .history-row-detail td {
+      padding: 1rem;
+      border-bottom: 2px solid #dee2e6;
+    }
+
+    .status-badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 12px;
+      font-size: 0.78rem;
+      font-weight: 600;
+      text-transform: capitalize;
+    }
+
+    .status-processing { background: #fff3cd; color: #856404; }
+    .status-complete   { background: #d1e7dd; color: #0f5132; }
+    .status-partial    { background: #fde8d8; color: #7a3e0a; }
+    .status-failed     { background: #f8d7da; color: #842029; }
+
+    .no-results {
+      text-align: center;
+      color: #6c757d;
+      padding: 2rem;
+      font-size: 0.95rem;
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+  <h1>llms.txt Crawler</h1>
+
+  <!-- Tab nav -->
+  <nav class="tab-nav" role="tablist">
+    <button class="tab-btn active" data-tab="crawl" role="tab" aria-selected="true">Crawl</button>
+    <button class="tab-btn" data-tab="search" role="tab" aria-selected="false">Search</button>
+    <button class="tab-btn" data-tab="report" role="tab" aria-selected="false">Report</button>
+    <button class="tab-btn" data-tab="compare" role="tab" aria-selected="false">Compare</button>
+    <button class="tab-btn" data-tab="history" role="tab" aria-selected="false">History</button>
+  </nav>
+
+  <!-- Crawl tab -->
+  <section class="tab-panel active" id="tab-crawl">
+    <form id="crawl-form">
+      <div class="form-group">
+        <label for="crawl-url">Website URL</label>
+        <input type="text" id="crawl-url" placeholder="https://example.com" required />
+      </div>
+      <div class="form-group">
+        <label for="crawl-model">Model</label>
+        <select id="crawl-model">
+          <option value="claude">Claude (Bedrock)</option>
+          <option value="openai">OpenAI</option>
+        </select>
+      </div>
+      <button type="submit" class="btn-primary">Start Crawl</button>
+    </form>
+
+    <div class="spinner" id="crawl-spinner">
+      <div class="spinner-ring"></div>
+      <span>Crawling and generating artifacts…</span>
+    </div>
+    <div id="crawl-error"></div>
+    <div id="crawl-artifacts"></div>
+  </section>
+
+  <!-- Search tab -->
+  <section class="tab-panel" id="tab-search">
+    <form id="search-form">
+      <div class="form-group">
+        <label for="search-query">Search Query</label>
+        <input type="text" id="search-query" placeholder="e.g. authentication, pricing page…" required />
+      </div>
+      <button type="submit" class="btn-primary">Search</button>
+    </form>
+    <div id="search-error"></div>
+    <div class="search-results" id="search-results"></div>
+  </section>
+
+  <!-- Report tab -->
+  <section class="tab-panel" id="tab-report">
+    <form id="report-form">
+      <div class="form-group">
+        <label for="report-url">Website URL</label>
+        <input type="text" id="report-url" placeholder="https://example.com" required />
+      </div>
+      <div class="form-group">
+        <label for="report-model">Model</label>
+        <select id="report-model">
+          <option value="claude">Claude (Bedrock)</option>
+          <option value="openai">OpenAI</option>
+        </select>
+      </div>
+      <button type="submit" class="btn-primary">Generate Report</button>
+    </form>
+
+    <div class="spinner" id="report-spinner">
+      <div class="spinner-ring"></div>
+      <span>Generating report…</span>
+    </div>
+    <div id="report-error"></div>
+    <div id="report-artifact"></div>
+  </section>
+
+  <!-- Compare tab -->
+  <section class="tab-panel" id="tab-compare">
+    <form id="compare-form">
+      <div class="form-group">
+        <label for="compare-job-a">Job ID A</label>
+        <input type="text" id="compare-job-a" placeholder="e.g. abc123…" required />
+      </div>
+      <div class="form-group">
+        <label for="compare-job-b">Job ID B</label>
+        <input type="text" id="compare-job-b" placeholder="e.g. def456…" required />
+      </div>
+      <div class="form-group">
+        <label for="compare-model">Model</label>
+        <select id="compare-model">
+          <option value="claude">Claude (Bedrock)</option>
+          <option value="openai">OpenAI</option>
+        </select>
+      </div>
+      <button type="submit" class="btn-primary">Compare</button>
+    </form>
+
+    <div class="spinner" id="compare-spinner">
+      <div class="spinner-ring"></div>
+      <span>Generating comparison…</span>
+    </div>
+    <div id="compare-error"></div>
+    <div id="compare-artifact"></div>
+  </section>
+
+  <!-- History tab -->
+  <section class="tab-panel" id="tab-history">
+    <div class="history-controls">
+      <label for="history-model-filter">Filter by model:</label>
+      <select id="history-model-filter">
+        <option value="">All models</option>
+        <option value="claude">Claude (Bedrock)</option>
+        <option value="openai">OpenAI</option>
+      </select>
+    </div>
+    <div id="history-error"></div>
+    <div id="history-content"></div>
+  </section>
+</div>
+
+<script>
+'use strict'
+
+// ---------------------------------------------------------------------------
+// Status constants — match Python enum values exactly
+// ---------------------------------------------------------------------------
+const STATUS = {
+  PROCESSING: 'processing',
+  COMPLETE: 'complete',
+  PARTIAL: 'partial',
+  FAILED: 'failed',
+}
+
+// ---------------------------------------------------------------------------
+// API helper
+// ---------------------------------------------------------------------------
+async function callApi(path, method, body) {
+  const res = await fetch(path, {
+    method,
+    headers: { 'Content-Type': 'application/json' },
+    body: body ? JSON.stringify(body) : undefined,
+  })
+  if (!res.ok) {
+    let detail = res.statusText
+    try { const data = await res.json(); detail = data.detail ?? detail } catch {}
+    throw new Error(`${res.status}: ${detail}`)
+  }
+  return res.json()
+}
+
+// ---------------------------------------------------------------------------
+// Download helper
+// ---------------------------------------------------------------------------
+function downloadFile(filename, content) {
+  const blob = new Blob([content], { type: 'text/plain' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = filename
+  a.click()
+  URL.revokeObjectURL(url)
+}
+
+// ---------------------------------------------------------------------------
+// Markdown renderer — XSS-safe, handles common Claude output
+// ---------------------------------------------------------------------------
+function renderMarkdown(md) {
+  // Escape HTML first to prevent XSS from crawled content
+  let escaped = md
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+
+  const lines = escaped.split('\n')
+  const output = []
+  let inFence = false
+  let fenceContent = []
+  let inList = false
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i]
+
+    // Fenced code blocks
+    if (/^```/.test(line)) {
+      if (!inFence) {
+        if (inList) { output.push('</ul>'); inList = false }
+        inFence = true
+        fenceContent = []
+      } else {
+        inFence = false
+        output.push('<pre><code>' + fenceContent.join('\n') + '</code></pre>')
+      }
+      continue
+    }
+
+    if (inFence) {
+      fenceContent.push(line)
+      continue
+    }
+
+    // Table rows — lines starting and ending with |
+    if (/^\|.*\|$/.test(line.trim())) {
+      if (inList) { output.push('</ul>'); inList = false }
+      // Separator rows (e.g. |---|---|) become <thead>/<tbody> boundary — skip them
+      if (/^\|[\s\-:|]+\|$/.test(line.trim())) {
+        // Convert the previous <tr> to a header row if it exists
+        if (output.length > 0) {
+          const last = output[output.length - 1]
+          if (last.startsWith('<tr>')) {
+            output[output.length - 1] = '<thead>' + last.replace(/<td>/g, '<th>').replace(/<\/td>/g, '</th>') + '</tr></thead><tbody>'
+          }
+        }
+        continue
+      }
+      const cells = line.trim().replace(/^\||\|$/g, '').split('|')
+      const row = '<tr>' + cells.map(c => '<td>' + applyInline(c.trim()) + '</td>').join('') + '</tr>'
+      output.push(row)
+      continue
+    }
+
+    // Close table if open
+    if (output.length > 0 && (output[output.length - 1].startsWith('<tr>') || output[output.length - 1].endsWith('</tr>'))) {
+      // Wrap preceding rows in a table
+      const tableRows = []
+      while (output.length > 0) {
+        const top = output[output.length - 1]
+        if (top.startsWith('<tr>') || top.endsWith('</tr>') || top.startsWith('<thead>') || top === '<tbody>') {
+          tableRows.unshift(output.pop())
+        } else {
+          break
+        }
+      }
+      let tableHtml = '<table>'
+      const hasHead = tableRows.some(r => r.startsWith('<thead>'))
+      if (hasHead) {
+        tableHtml += tableRows.join('')
+        tableHtml += '</tbody>'
+      } else {
+        tableHtml += tableRows.join('')
+      }
+      tableHtml += '</table>'
+      output.push(tableHtml)
+    }
+
+    // ATX headings
+    const h3 = line.match(/^### (.+)$/)
+    const h2 = line.match(/^## (.+)$/)
+    const h1 = line.match(/^# (.+)$/)
+    if (h3) { if (inList) { output.push('</ul>'); inList = false } output.push('<h3>' + applyInline(h3[1]) + '</h3>'); continue }
+    if (h2) { if (inList) { output.push('</ul>'); inList = false } output.push('<h2>' + applyInline(h2[1]) + '</h2>'); continue }
+    if (h1) { if (inList) { output.push('</ul>'); inList = false } output.push('<h1>' + applyInline(h1[1]) + '</h1>'); continue }
+
+    // Blockquotes
+    const bq = line.match(/^&gt; (.+)$/)
+    if (bq) { if (inList) { output.push('</ul>'); inList = false } output.push('<blockquote>' + applyInline(bq[1]) + '</blockquote>'); continue }
+
+    // Unordered list items (- or *)
+    const li = line.match(/^[-*] (.+)$/)
+    if (li) {
+      if (!inList) { output.push('<ul>'); inList = true }
+      output.push('<li>' + applyInline(li[1]) + '</li>')
+      continue
+    }
+
+    // Blank line
+    if (line.trim() === '') {
+      if (inList) { output.push('</ul>'); inList = false }
+      output.push('<p></p>')
+      continue
+    }
+
+    // Close list before a paragraph
+    if (inList) { output.push('</ul>'); inList = false }
+
+    output.push('<p>' + applyInline(line) + '</p>')
+  }
+
+  // Close any open list
+  if (inList) output.push('</ul>')
+  // Close any open fence
+  if (inFence) output.push('<pre><code>' + fenceContent.join('\n') + '</code></pre>')
+
+  // Wrap any trailing loose table rows
+  const lastTableCheck = output[output.length - 1]
+  if (lastTableCheck && (lastTableCheck.startsWith('<tr>') || lastTableCheck.endsWith('</tr>'))) {
+    const tableRows = []
+    while (output.length > 0) {
+      const top = output[output.length - 1]
+      if (top.startsWith('<tr>') || top.endsWith('</tr>') || top.startsWith('<thead>') || top === '<tbody>') {
+        tableRows.unshift(output.pop())
+      } else {
+        break
+      }
+    }
+    let tableHtml = '<table>'
+    const hasHead = tableRows.some(r => r.startsWith('<thead>'))
+    if (hasHead) {
+      tableHtml += tableRows.join('')
+      tableHtml += '</tbody>'
+    } else {
+      tableHtml += tableRows.join('')
+    }
+    tableHtml += '</table>'
+    output.push(tableHtml)
+  }
+
+  return output.join('\n')
+}
+
+/** Apply inline Markdown transformations (bold, italic, code, links). */
+function applyInline(text) {
+  return text
+    // Bold (must come before italic)
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    // Italic
+    .replace(/\*(.+?)\*/g, '<em>$1</em>')
+    // Inline code
+    .replace(/`([^`]+)`/g, '<code>$1</code>')
+    // Links
+    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>')
+}
+
+// ---------------------------------------------------------------------------
+// Status badge helper
+// ---------------------------------------------------------------------------
+function statusBadge(status) {
+  return `<span class="status-badge status-${status}">${status}</span>`
+}
+
+// ---------------------------------------------------------------------------
+// Show / hide helpers
+// ---------------------------------------------------------------------------
+function showSpinner(id) {
+  document.getElementById(id).classList.add('visible')
+}
+
+function hideSpinner(id) {
+  document.getElementById(id).classList.remove('visible')
+}
+
+function setError(id, html) {
+  document.getElementById(id).innerHTML = html
+}
+
+function clearEl(id) {
+  document.getElementById(id).innerHTML = ''
+}
+
+// ---------------------------------------------------------------------------
+// Artifact card builder
+// ---------------------------------------------------------------------------
+function buildArtifactCard(title, content, filename) {
+  const card = document.createElement('div')
+  card.className = 'artifact-card'
+
+  const header = document.createElement('div')
+  header.className = 'artifact-header'
+
+  const h3 = document.createElement('h3')
+  h3.textContent = title
+  header.appendChild(h3)
+
+  const btn = document.createElement('button')
+  btn.className = 'btn-download'
+  btn.textContent = 'Download'
+  btn.addEventListener('click', () => downloadFile(filename, content))
+  header.appendChild(btn)
+
+  const body = document.createElement('div')
+  body.className = 'markdown-body'
+  body.innerHTML = renderMarkdown(content)
+
+  card.appendChild(header)
+  card.appendChild(body)
+  return card
+}
+
+// ---------------------------------------------------------------------------
+// Generic job poller — returns a Promise that resolves with the completed job
+// ---------------------------------------------------------------------------
+function pollJob(jobId, spinnerId, errorId) {
+  return new Promise((resolve, reject) => {
+    const poll = setInterval(async () => {
+      let job
+      try {
+        job = await callApi(`/api/job?id=${jobId}`, 'GET')
+      } catch (err) {
+        clearInterval(poll)
+        hideSpinner(spinnerId)
+        setError(errorId, `<div class="error-msg">${err.message}</div>`)
+        reject(err)
+        return
+      }
+
+      if (job.status !== STATUS.PROCESSING) {
+        clearInterval(poll)
+        hideSpinner(spinnerId)
+        resolve(job)
+      }
+    }, 3000)
+  })
+}
+
+// ---------------------------------------------------------------------------
+// Crawl tab
+// ---------------------------------------------------------------------------
+document.getElementById('crawl-form').addEventListener('submit', async (e) => {
+  e.preventDefault()
+  clearEl('crawl-error')
+  clearEl('crawl-artifacts')
+
+  const url = document.getElementById('crawl-url').value.trim()
+  const model = document.getElementById('crawl-model').value
+  const submitBtn = e.target.querySelector('button[type=submit]')
+
+  submitBtn.disabled = true
+  showSpinner('crawl-spinner')
+
+  let jobId
+  try {
+    const res = await callApi('/api/crawl', 'POST', { url, model })
+    jobId = res.jobId
+  } catch (err) {
+    hideSpinner('crawl-spinner')
+    submitBtn.disabled = false
+    setError('crawl-error', `<div class="error-msg">${err.message}</div>`)
+    return
+  }
+
+  let job
+  try {
+    job = await pollJob(jobId, 'crawl-spinner', 'crawl-error')
+  } catch {
+    submitBtn.disabled = false
+    return
+  }
+
+  submitBtn.disabled = false
+  await displayCrawlArtifacts(jobId, job.artifacts)
+})
+
+async function displayCrawlArtifacts(jobId, artifacts) {
+  const container = document.getElementById('crawl-artifacts')
+
+  const artifactDefs = [
+    { key: 'llmsTxt', path: 'llms-txt', title: 'llms.txt', filename: 'llms.txt' },
+    { key: 'plan',    path: 'plan',     title: 'UI Plan',   filename: 'ui-plan.md' },
+  ]
+
+  for (const def of artifactDefs) {
+    const info = artifacts[def.key]
+
+    if (info && info.status === STATUS.COMPLETE) {
+      let data
+      try {
+        data = await callApi(`/api/job/${jobId}/${def.path}`, 'GET')
+      } catch (err) {
+        const errorDiv = document.createElement('div')
+        errorDiv.className = 'artifact-card'
+        errorDiv.innerHTML = `<div class="artifact-header"><h3>${def.title}</h3></div><p class="artifact-error">Failed to load: ${err.message}</p>`
+        container.appendChild(errorDiv)
+        continue
+      }
+      container.appendChild(buildArtifactCard(def.title, data.content, def.filename))
+    } else {
+      const errorDiv = document.createElement('div')
+      errorDiv.className = 'artifact-card'
+      const errorMsg = info ? (info.error || 'Artifact failed') : 'Artifact not found'
+      errorDiv.innerHTML = `<div class="artifact-header"><h3>${def.title}</h3></div><p class="artifact-error">${errorMsg}</p>`
+      container.appendChild(errorDiv)
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Search tab
+// ---------------------------------------------------------------------------
+document.getElementById('search-form').addEventListener('submit', async (e) => {
+  e.preventDefault()
+  clearEl('search-error')
+  clearEl('search-results')
+
+  const query = document.getElementById('search-query').value.trim()
+  const submitBtn = e.target.querySelector('button[type=submit]')
+  submitBtn.disabled = true
+
+  let data
+  try {
+    data = await callApi(`/api/search?q=${encodeURIComponent(query)}`, 'GET')
+  } catch (err) {
+    setError('search-error', `<div class="error-msg">${err.message}</div>`)
+    submitBtn.disabled = false
+    return
+  }
+
+  submitBtn.disabled = false
+  renderSearchResults(data.results)
+})
+
+function renderSearchResults(results) {
+  const container = document.getElementById('search-results')
+
+  if (!results || results.length === 0) {
+    container.innerHTML = '<div class="no-results">No results found.</div>'
+    return
+  }
+
+  results.forEach(r => {
+    const item = document.createElement('div')
+    item.className = 'search-result-item'
+
+    const scoreStr = typeof r.score === 'number' ? (r.score * 100).toFixed(1) + '%' : 'N/A'
+    const downloadLink = r.downloadUrl
+      ? `<a href="${r.downloadUrl}" target="_blank" rel="noopener">Download</a>`
+      : ''
+
+    item.innerHTML = `
+      <div class="search-result-url">${escapeHtml(r.url)}</div>
+      <div class="search-result-meta">
+        <span>Model: ${escapeHtml(r.model)}</span>
+        <span>Similarity: ${scoreStr}</span>
+        ${downloadLink ? `<span>${downloadLink}</span>` : ''}
+      </div>
+    `
+    container.appendChild(item)
+  })
+}
+
+function escapeHtml(str) {
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+}
+
+// ---------------------------------------------------------------------------
+// Report tab
+// ---------------------------------------------------------------------------
+document.getElementById('report-form').addEventListener('submit', async (e) => {
+  e.preventDefault()
+  clearEl('report-error')
+  clearEl('report-artifact')
+
+  const url = document.getElementById('report-url').value.trim()
+  const model = document.getElementById('report-model').value
+  const submitBtn = e.target.querySelector('button[type=submit]')
+
+  submitBtn.disabled = true
+  showSpinner('report-spinner')
+
+  let jobId
+  try {
+    const res = await callApi('/api/report', 'POST', { url, model })
+    jobId = res.jobId
+  } catch (err) {
+    hideSpinner('report-spinner')
+    submitBtn.disabled = false
+
+    if (err.message.startsWith('404:')) {
+      setError('report-error', `<div class="info-msg">This site has not been crawled yet. Go to the Crawl tab first.</div>`)
+    } else {
+      setError('report-error', `<div class="error-msg">${err.message}</div>`)
+    }
+    return
+  }
+
+  let job
+  try {
+    job = await pollJob(jobId, 'report-spinner', 'report-error')
+  } catch {
+    submitBtn.disabled = false
+    return
+  }
+
+  submitBtn.disabled = false
+  await displayReportArtifact(jobId, job.artifacts)
+})
+
+async function displayReportArtifact(jobId, artifacts) {
+  const container = document.getElementById('report-artifact')
+  const info = artifacts && artifacts.report
+
+  if (info && info.status === STATUS.COMPLETE) {
+    let data
+    try {
+      data = await callApi(`/api/job/${jobId}/report`, 'GET')
+    } catch (err) {
+      container.innerHTML = `<div class="error-msg">Failed to load report: ${err.message}</div>`
+      return
+    }
+    container.appendChild(buildArtifactCard('Report', data.content, 'report.md'))
+  } else {
+    const errorMsg = info ? (info.error || 'Report generation failed') : 'Report not found'
+    container.innerHTML = `<div class="error-msg">${errorMsg}</div>`
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Compare tab
+// ---------------------------------------------------------------------------
+document.getElementById('compare-form').addEventListener('submit', async (e) => {
+  e.preventDefault()
+  clearEl('compare-error')
+  clearEl('compare-artifact')
+
+  const jobIdA = document.getElementById('compare-job-a').value.trim()
+  const jobIdB = document.getElementById('compare-job-b').value.trim()
+  const model = document.getElementById('compare-model').value
+  const submitBtn = e.target.querySelector('button[type=submit]')
+
+  submitBtn.disabled = true
+  showSpinner('compare-spinner')
+
+  let jobId
+  try {
+    const res = await callApi('/api/compare', 'POST', { job_id_a: jobIdA, job_id_b: jobIdB, model })
+    jobId = res.jobId
+  } catch (err) {
+    hideSpinner('compare-spinner')
+    submitBtn.disabled = false
+    // Show backend error message directly for 400/404
+    const detail = err.message.replace(/^\d+:\s*/, '')
+    setError('compare-error', `<div class="error-msg">${detail}</div>`)
+    return
+  }
+
+  let job
+  try {
+    job = await pollJob(jobId, 'compare-spinner', 'compare-error')
+  } catch {
+    submitBtn.disabled = false
+    return
+  }
+
+  submitBtn.disabled = false
+  await displayCompareArtifact(jobId, job.artifacts)
+})
+
+async function displayCompareArtifact(jobId, artifacts) {
+  const container = document.getElementById('compare-artifact')
+  const info = artifacts && artifacts.comparison
+
+  if (info && info.status === STATUS.COMPLETE) {
+    let data
+    try {
+      data = await callApi(`/api/job/${jobId}/comparison`, 'GET')
+    } catch (err) {
+      container.innerHTML = `<div class="error-msg">Failed to load comparison: ${err.message}</div>`
+      return
+    }
+    container.appendChild(buildArtifactCard('Comparison', data.content, 'comparison.md'))
+  } else {
+    const errorMsg = info ? (info.error || 'Comparison generation failed') : 'Comparison not found'
+    container.innerHTML = `<div class="error-msg">${errorMsg}</div>`
+  }
+}
+
+// ---------------------------------------------------------------------------
+// History tab
+// ---------------------------------------------------------------------------
+let allHistoryJobs = []
+
+async function loadHistory() {
+  clearEl('history-error')
+  clearEl('history-content')
+
+  let data
+  try {
+    data = await callApi('/api/jobs', 'GET')
+  } catch (err) {
+    setError('history-error', `<div class="error-msg">${err.message}</div>`)
+    return
+  }
+
+  allHistoryJobs = data.jobs || []
+  renderHistory(document.getElementById('history-model-filter').value)
+}
+
+function renderHistory(modelFilter) {
+  const container = document.getElementById('history-content')
+  container.innerHTML = ''
+
+  const filtered = modelFilter
+    ? allHistoryJobs.filter(j => j.model === modelFilter)
+    : allHistoryJobs
+
+  if (filtered.length === 0) {
+    container.innerHTML = '<div class="no-results">No jobs yet.</div>'
+    return
+  }
+
+  const wrap = document.createElement('div')
+  wrap.className = 'history-table-wrap'
+
+  const table = document.createElement('table')
+  table.className = 'history-table'
+
+  table.innerHTML = `
+    <thead>
+      <tr>
+        <th>URL</th>
+        <th>Model</th>
+        <th>Status</th>
+        <th>Artifacts</th>
+        <th>Created</th>
+      </tr>
+    </thead>
+    <tbody id="history-tbody"></tbody>
+  `
+
+  wrap.appendChild(table)
+  container.appendChild(wrap)
+
+  const tbody = table.querySelector('tbody')
+
+  filtered.forEach(job => {
+    const tr = document.createElement('tr')
+    tr.dataset.jobId = job.jobId
+
+    const createdAt = job.createdAt ? new Date(job.createdAt).toLocaleString() : '—'
+    const artifactCells = Object.entries(job.artifacts || {})
+      .map(([key, status]) => `<span style="white-space:nowrap">${escapeHtml(key)}: ${statusBadge(status)}</span>`)
+      .join('<br>')
+
+    tr.innerHTML = `
+      <td style="word-break:break-all">${escapeHtml(job.url)}</td>
+      <td>${escapeHtml(job.model)}</td>
+      <td>${statusBadge(job.status)}</td>
+      <td>${artifactCells || '—'}</td>
+      <td style="white-space:nowrap">${createdAt}</td>
+    `
+
+    tr.addEventListener('click', () => toggleHistoryRow(tr, job))
+    tbody.appendChild(tr)
+  })
+}
+
+async function toggleHistoryRow(tr, job) {
+  const existingDetail = tr.nextElementSibling
+  if (existingDetail && existingDetail.classList.contains('history-row-detail')) {
+    existingDetail.remove()
+    tr.classList.remove('expanded')
+    return
+  }
+
+  tr.classList.add('expanded')
+
+  const detailTr = document.createElement('tr')
+  detailTr.className = 'history-row-detail'
+  const detailTd = document.createElement('td')
+  detailTd.colSpan = 5
+  detailTd.innerHTML = '<div class="spinner visible"><div class="spinner-ring"></div><span>Loading artifacts…</span></div>'
+  detailTr.appendChild(detailTd)
+  tr.insertAdjacentElement('afterend', detailTr)
+
+  const artifactDefs = buildArtifactDefsForJob(job)
+  const detailContainer = document.createElement('div')
+
+  for (const def of artifactDefs) {
+    const info = job.artifacts && job.artifacts[def.key]
+    if (info === STATUS.COMPLETE || (info && info.status === STATUS.COMPLETE)) {
+      let data
+      try {
+        data = await callApi(`/api/job/${job.jobId}/${def.path}`, 'GET')
+        detailContainer.appendChild(buildArtifactCard(def.title, data.content, def.filename))
+      } catch (err) {
+        const errDiv = document.createElement('div')
+        errDiv.className = 'artifact-card'
+        errDiv.innerHTML = `<div class="artifact-header"><h3>${def.title}</h3></div><p class="artifact-error">Failed to load: ${err.message}</p>`
+        detailContainer.appendChild(errDiv)
+      }
+    } else {
+      const statusStr = typeof info === 'string' ? info : (info ? info.status : 'unknown')
+      const errDiv = document.createElement('div')
+      errDiv.className = 'artifact-card'
+      errDiv.innerHTML = `<div class="artifact-header"><h3>${def.title}</h3></div><p class="artifact-error">Status: ${escapeHtml(statusStr)}</p>`
+      detailContainer.appendChild(errDiv)
+    }
+  }
+
+  detailTd.innerHTML = ''
+  if (detailContainer.children.length === 0) {
+    detailTd.innerHTML = '<p style="color:#6c757d;font-size:0.9rem;">No artifacts available.</p>'
+  } else {
+    detailTd.appendChild(detailContainer)
+  }
+}
+
+/** Returns artifact fetch definitions for a job based on its artifact keys. */
+function buildArtifactDefsForJob(job) {
+  const all = [
+    { key: 'llmsTxt',    path: 'llms-txt',    title: 'llms.txt',    filename: 'llms.txt' },
+    { key: 'plan',       path: 'plan',         title: 'UI Plan',     filename: 'ui-plan.md' },
+    { key: 'report',     path: 'report',       title: 'Report',      filename: 'report.md' },
+    { key: 'comparison', path: 'comparison',   title: 'Comparison',  filename: 'comparison.md' },
+  ]
+  return all.filter(def => job.artifacts && def.key in job.artifacts)
+}
+
+document.getElementById('history-model-filter').addEventListener('change', (e) => {
+  renderHistory(e.target.value)
+})
+
+// ---------------------------------------------------------------------------
+// Tab switching
+// ---------------------------------------------------------------------------
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const tabName = btn.dataset.tab
+
+    document.querySelectorAll('.tab-btn').forEach(b => {
+      b.classList.remove('active')
+      b.setAttribute('aria-selected', 'false')
+    })
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'))
+
+    btn.classList.add('active')
+    btn.setAttribute('aria-selected', 'true')
+    document.getElementById(`tab-${tabName}`).classList.add('active')
+
+    if (tabName === 'history') {
+      loadHistory()
+    }
+  })
+})
+</script>
+</body>
+</html>
