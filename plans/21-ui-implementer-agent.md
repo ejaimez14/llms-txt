@@ -15,12 +15,13 @@ the agent finishes.
 
 ### Why claude-agent-sdk instead of the agent factory
 
-The crawl, report, and compare agents each produce one structured document in a single LLM call.
-The implementer is different: it must write multiple files, read them back, revise components,
-verify the output coheres, and then create a GitHub PR — a genuine end-to-end coding workflow.
-The `claude-agent-sdk` gives Claude built-in `Write`, `Read`, `Edit`, `Bash`, and `Glob` tools
-and manages the full multi-turn loop automatically. The agent factory's submit-tool pattern
-would produce all files in a single generation step with no ability to iterate or verify.
+The crawl, report, and compare agents each produce one structured document in a single LLM call —
+the agent factory calls the model once via `instructor` and extracts a validated Pydantic model
+from the response. The implementer is different: it must write multiple files, read them back,
+revise components, verify the output coheres, and then create a GitHub PR — a genuine end-to-end
+coding workflow. The `claude-agent-sdk` gives Claude built-in `Write`, `Read`, `Edit`, `Bash`,
+and `Glob` tools and manages the full multi-turn loop automatically. A single-call factory
+invocation cannot iterate or self-verify.
 
 Because the `claude-agent-sdk` runs the Claude Code CLI as a subprocess, it cannot run inside
 a Lambda invocation. The handler dispatches to an **ECS Fargate task** instead of a thread.
