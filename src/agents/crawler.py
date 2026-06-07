@@ -19,10 +19,7 @@ CRAWL_TOOLS = [
 
 
 def run_crawler(job_id: str, url: str, model: str) -> dict:
-    """
-    Creates agent via factory, runs it, returns the submit tool output.
-    Hooks fire automatically — do not call storage functions here.
-    """
+    """Runs the crawl agent against url and returns structured llms.txt content and site metadata."""
     agent = create_agent(
         model=model,
         agent_type="crawl",
