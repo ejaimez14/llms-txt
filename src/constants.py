@@ -35,7 +35,7 @@ class AgentType(str, Enum):
 
 class ModelName(str, Enum):
     CLAUDE = "claude"
-    CODEX = "codex"
+    OPENAI = "openai"
 
 
 # --- Runtime Constants ---
@@ -53,8 +53,8 @@ ANTHROPIC_SECRET_NAME = "secrets/anthropic-api-key"
 PINECONE_SECRET_NAME = "secrets/pinecone-api-key"
 OPENAI_SECRET_NAME = "secrets/openai-api-key"
 
-CODEX_CRAWL_MODEL = "gpt-4o-mini"
-CODEX_UI_PLAN_MODEL = "gpt-4o"
+OPENAI_CRAWL_MODEL = "gpt-4o-mini"
+OPENAI_UI_PLAN_MODEL = "gpt-4o"
 
 CLAUDE_AGENT_MODELS = {
     "crawl": CLAUDE_CRAWL_MODEL,
@@ -64,8 +64,8 @@ CLAUDE_AGENT_MODELS = {
 }
 
 OPENAI_AGENT_MODELS = {
-    "crawl": CODEX_CRAWL_MODEL,
-    "ui-plan": CODEX_UI_PLAN_MODEL,
-    "report": CODEX_CRAWL_MODEL,
-    "compare": CODEX_CRAWL_MODEL,
+    "crawl": OPENAI_CRAWL_MODEL,
+    "ui-plan": OPENAI_UI_PLAN_MODEL,
+    "report": OPENAI_CRAWL_MODEL,
+    "compare": OPENAI_CRAWL_MODEL,
 }

@@ -150,19 +150,19 @@ def test_on_error_maps_agent_type_to_artifact_key(mocker: MockerFixture) -> None
 
 
 def test_create_agent_codex_returns_openai_provider() -> None:
-    ctx = create_agent("codex", "crawl", "job-1", "https://example.com", "prompt")
+    ctx = create_agent("openai", "crawl", "job-1", "https://example.com", "prompt")
     assert ctx["provider"] == "openai"
 
 
 def test_create_agent_codex_crawl_includes_web_tools() -> None:
-    ctx = create_agent("codex", "crawl", "job-1", "https://example.com", "prompt")
+    ctx = create_agent("openai", "crawl", "job-1", "https://example.com", "prompt")
     tools = ctx["agent"].tools
     assert len(tools) == 2
     assert any(isinstance(t, WebSearchTool) for t in tools)
 
 
 def test_create_agent_codex_report_has_no_web_tools() -> None:
-    ctx = create_agent("codex", "report", "job-1", "https://example.com", "prompt")
+    ctx = create_agent("openai", "report", "job-1", "https://example.com", "prompt")
     assert ctx["agent"].tools == []
 
 

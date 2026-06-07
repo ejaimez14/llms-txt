@@ -1,8 +1,6 @@
-import os
-
 from anthropic import Anthropic
 from agents import Agent, Runner, WebSearchTool, set_default_openai_client
-from openai import AsyncOpenAI as _AsyncOpenAIClient
+from openai import AsyncOpenAI
 
 from src.constants import (
     ANTHROPIC_SECRET_NAME,
@@ -38,10 +36,10 @@ def create_agent(
         return _create_claude_agent(
             system_prompt, job_id, agent_type, url, model, tools, submit_tool_name
         )
-    elif model == "codex":
+    elif model == "openai":
         return _create_openai_agent(system_prompt, job_id, agent_type, url, model)
     else:
-        raise ValueError(f"Unknown model: {model!r}. Supported: 'claude', 'codex'")
+        raise ValueError(f"Unknown model: {model!r}. Supported: 'claude', 'openai'")
 
 
 def run_agent(agent_ctx: dict, user_content: str) -> dict | str:
@@ -157,10 +155,6 @@ def _run_openai(agent_ctx: dict, user_content: str) -> dict:
         raise
 
 
-_anthropic_client = Anthropic(
-    api_key=os.environ.get("ANTHROPIC_API_KEY") or fetch_secret(ANTHROPIC_SECRET_NAME)
-)
-_openai_raw_client = _AsyncOpenAIClient(
-    api_key=os.environ.get("OPENAI_API_KEY") or fetch_secret(OPENAI_SECRET_NAME)
-)
-set_default_openai_client(_openai_raw_client)
+_anthropic_client = Anthropic(api_key=fetch_secret(ANTHROPIC_SECRET_NAME))
+_openai_client = AsyncOpenAI(api_key=fetch_secret(OPENAI_SECRET_NAME))
+set_default_openai_client(_openai_client)
