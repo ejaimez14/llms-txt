@@ -18,10 +18,7 @@ UI_PLAN_TOOLS = [
 
 
 def run_ui_planner(job_id: str, url: str, model: str) -> dict:
-    """
-    Creates agent via factory, runs it, returns the submit tool output.
-    Hooks fire automatically — do not call storage functions here.
-    """
+    """Fetches url and returns a structured UI implementation plan with design tokens."""
     agent = create_agent(
         model=model,
         agent_type="ui-plan",
