@@ -35,6 +35,7 @@ class AgentType(str, Enum):
 
 class ModelName(str, Enum):
     CLAUDE = "claude"
+    OPENAI = "openai"
 
 
 # --- Runtime Constants ---
@@ -50,3 +51,21 @@ TITAN_MAX_INPUT_CHARS = 25000
 
 ANTHROPIC_SECRET_NAME = "secrets/anthropic-api-key"
 PINECONE_SECRET_NAME = "secrets/pinecone-api-key"
+OPENAI_SECRET_NAME = "secrets/openai-api-key"
+
+OPENAI_CRAWL_MODEL = "gpt-4o-mini"
+OPENAI_UI_PLAN_MODEL = "gpt-4o"
+
+CLAUDE_AGENT_MODELS = {
+    "crawl": CLAUDE_CRAWL_MODEL,
+    "ui-plan": CLAUDE_UI_PLAN_MODEL,
+    "report": CLAUDE_REPORT_MODEL,
+    "compare": CLAUDE_COMPARE_MODEL,
+}
+
+OPENAI_AGENT_MODELS = {
+    "crawl": OPENAI_CRAWL_MODEL,
+    "ui-plan": OPENAI_UI_PLAN_MODEL,
+    "report": OPENAI_CRAWL_MODEL,
+    "compare": OPENAI_CRAWL_MODEL,
+}
