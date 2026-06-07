@@ -1,3 +1,5 @@
+import os
+
 from anthropic import Anthropic
 from agents import Agent, Runner, WebSearchTool, set_default_openai_client
 from openai import AsyncOpenAI
@@ -155,6 +157,12 @@ def _run_openai(agent_ctx: dict, user_content: str) -> dict:
         raise
 
 
-_anthropic_client = Anthropic(api_key=fetch_secret(ANTHROPIC_SECRET_NAME))
-_openai_client = AsyncOpenAI(api_key=fetch_secret(OPENAI_SECRET_NAME))
+# In Lambda the extension serves secrets from localhost:2773.
+# Locally that port doesn't exist, so fall back to env vars for development.
+_anthropic_client = Anthropic(
+    api_key=os.environ.get("ANTHROPIC_API_KEY") or fetch_secret(ANTHROPIC_SECRET_NAME)
+)
+_openai_client = AsyncOpenAI(
+    api_key=os.environ.get("OPENAI_API_KEY") or fetch_secret(OPENAI_SECRET_NAME)
+)
 set_default_openai_client(_openai_client)
