@@ -78,7 +78,7 @@ All six plans can run simultaneously — each produces only its own new files wi
 |------|--------|------------|
 | [08-crawl-agent.md](08-crawl-agent.md) | `src/agents/crawler.py` | Phase 2 only |
 | [10-ui-planner-agent.md](10-ui-planner-agent.md) | `src/agents/ui_planner.py` | Phase 2 only |
-| [13-search-endpoint.md](13-search-endpoint.md) | `src/agents/search.py` | Phase 2 only |
+| [13-search-endpoint.md](13-search-endpoint.md) | `src/services/search.py` | Phase 2 only |
 | [11-reporter-agent.md](11-reporter-agent.md) | `src/agents/reporter.py` | Phase 3A |
 | [12-comparer-agent.md](12-comparer-agent.md) | `src/agents/comparer.py` | Phase 3A |
 | [18-codex-support.md](18-codex-support.md) | Amends `constants.py`, `llm.py`, `hooks.py`, `pyproject.toml` | Phase 3A |
