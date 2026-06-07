@@ -163,3 +163,26 @@ When you have finished your analysis, call the `submit_comparison` tool with:
 
 Do not return a text response. Always submit via the tool.
 """.strip()
+
+
+# --- Internal ---
+
+
+def _build_compare_message(
+    job_a: dict, content_a: str, job_b: dict, content_b: str
+) -> str:
+    """Formats both llms.txt outputs into a labeled comparison message for the agent."""
+    model_a = job_a.get("model", "unknown")
+    model_b = job_b.get("model", "unknown")
+    url_a = job_a.get("url", "")
+    url_b = job_b.get("url", "")
+
+    url_note = ""
+    if url_a != url_b:
+        url_note = f"\nNote: Job A is for {url_a} and Job B is for {url_b} — these are different URLs.\n"
+
+    return (
+        f"Compare these two llms.txt outputs for the same website.{url_note}\n\n"
+        f"--- Model A ({model_a}) ---\n{content_a}\n\n"
+        f"--- Model B ({model_b}) ---\n{content_b}"
+    )

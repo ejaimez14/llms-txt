@@ -1,11 +1,12 @@
 from pytest_mock import MockerFixture
 
-from src.agents.comparer import COMPARE_TOOLS, _build_compare_message, run_comparer
+from src.agents.comparer import COMPARE_TOOLS, run_comparer
+from src.prompts import _build_compare_message
 
 
 def test_comparer_runs_agent_with_both_contents(mocker: MockerFixture) -> None:
-    job_a = {"url": "https://example.com", "model": "claude"}
-    job_b = {"url": "https://example.com", "model": "claude"}
+    job_a = {"url": "https://example.com", "model": "model-alpha"}
+    job_b = {"url": "https://example.com", "model": "model-beta"}
     mocker.patch("src.agents.comparer.get_job", side_effect=[job_a, job_b])
     mocker.patch(
         "src.agents.comparer.get_artifact_content",
@@ -16,10 +17,11 @@ def test_comparer_runs_agent_with_both_contents(mocker: MockerFixture) -> None:
 
     run_comparer("job-compare-1", "job-a-1", "job-b-1", "claude")
 
-    call_args = mock_run.call_args
-    message = call_args[0][1]
+    message = mock_run.call_args[0][1]
     assert "# Content A" in message
     assert "# Content B" in message
+    assert "model-alpha" in message
+    assert "model-beta" in message
 
 
 def test_comparer_passes_submit_tool_to_agent(mocker: MockerFixture) -> None:
@@ -44,16 +46,6 @@ def test_comparer_passes_submit_tool_to_agent(mocker: MockerFixture) -> None:
         tools=COMPARE_TOOLS,
         submit_tool_name="submit_comparison",
     )
-
-
-def test_comparer_message_includes_model_names() -> None:
-    job_a = {"url": "https://example.com", "model": "model-alpha"}
-    job_b = {"url": "https://example.com", "model": "model-beta"}
-
-    message = _build_compare_message(job_a, "content a", job_b, "content b")
-
-    assert "model-alpha" in message
-    assert "model-beta" in message
 
 
 def test_comparer_notes_different_urls() -> None:

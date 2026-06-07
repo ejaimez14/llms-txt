@@ -1,6 +1,6 @@
 from src.constants import AgentType, ArtifactType
 from src.models import CompareOutput
-from src.prompts import COMPARE_SYSTEM_PROMPT
+from src.prompts import COMPARE_SYSTEM_PROMPT, _build_compare_message
 from src.services.llm import create_agent, run_agent
 from src.services.storage import fail_artifact, get_artifact_content, get_job
 
@@ -43,26 +43,3 @@ def run_comparer(job_id: str, job_id_a: str, job_id_b: str, model: str) -> None:
         submit_tool_name="submit_comparison",
     )
     run_agent(agent, user_message)
-
-
-# --- Internal ---
-
-
-def _build_compare_message(
-    job_a: dict, content_a: str, job_b: dict, content_b: str
-) -> str:
-    """Formats both llms.txt outputs into a labeled comparison message for the agent."""
-    model_a = job_a.get("model", "unknown")
-    model_b = job_b.get("model", "unknown")
-    url_a = job_a.get("url", "")
-    url_b = job_b.get("url", "")
-
-    url_note = ""
-    if url_a != url_b:
-        url_note = f"\nNote: Job A is for {url_a} and Job B is for {url_b} — these are different URLs.\n"
-
-    return (
-        f"Compare these two llms.txt outputs for the same website.{url_note}\n\n"
-        f"--- Model A ({model_a}) ---\n{content_a}\n\n"
-        f"--- Model B ({model_b}) ---\n{content_b}"
-    )
