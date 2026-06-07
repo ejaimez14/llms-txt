@@ -1,7 +1,7 @@
 import hashlib
 import time
 
-from src.models import CrawlOutput, UIPlanOutput
+from src.models import CompareOutput, CrawlOutput, ReportOutput, UIPlanOutput
 from src.services.embeddings import embed_text
 from src.services.logger import get_logger, log_job_event
 from src.services.pinecone_client import upsert_vector
@@ -83,12 +83,12 @@ class CrawlerClaudeHooks(AgentHooks):
             # UI plan is saved to S3 only — not embedded or indexed in Pinecone.
 
         elif self.agent_type == "report":
-            s3_key = save_report(self.job_id, raw_output)
-            # Report is saved to S3 only — no embedding or Pinecone indexing.
+            output = ReportOutput.model_validate(raw_output)
+            s3_key = save_report(self.job_id, output.report_markdown)
 
         elif self.agent_type == "compare":
-            s3_key = save_comparison(self.job_id, raw_output)
-            # Comparison is saved to S3 only — no embedding or Pinecone indexing.
+            output = CompareOutput.model_validate(raw_output)
+            s3_key = save_comparison(self.job_id, output.comparison_markdown)
 
         input_tokens = getattr(usage, "input_tokens", 0) or 0
         output_tokens = getattr(usage, "output_tokens", 0) or 0

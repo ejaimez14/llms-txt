@@ -100,6 +100,18 @@ class UIPlanOutput(BaseModel):
     design_tokens: DesignTokens  # stored as Pinecone metadata for UI similarity search
 
 
+class ReportOutput(BaseModel):
+    """Structured output returned by the reporter agent's submit tool."""
+
+    report_markdown: str
+
+
+class CompareOutput(BaseModel):
+    """Structured output returned by the comparer agent's submit tool."""
+
+    comparison_markdown: str
+
+
 # --- Search ---
 
 
