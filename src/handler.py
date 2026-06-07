@@ -6,13 +6,11 @@ from fastapi import APIRouter, FastAPI, HTTPException, Query
 from mangum import Mangum
 
 from src.agents.comparer import run_comparer
-from src.agents.crawler import CRAWL_TOOLS
+from src.agents.crawler import run_crawler
 from src.agents.reporter import run_reporter
-from src.agents.ui_planner import UI_PLAN_TOOLS
+from src.agents.ui_planner import run_ui_planner
 from src.constants import ArtifactType, JobStatus, JobType
 from src.models import CompareRequest, CrawlRequest, ReportRequest, SearchResponse
-from src.prompts import CRAWL_SYSTEM_PROMPT, UI_PLAN_SYSTEM_PROMPT
-from src.services.llm import create_agent, run_agent
 from src.services.logger import get_logger
 from src.services.search import run_search
 from src.services.storage import (
@@ -154,27 +152,10 @@ def compare(req: CompareRequest) -> dict:
 
 
 def _run_crawl_agents(job_id: str, url: str, model: str) -> None:
-    """Runs crawl and ui-plan agents in parallel."""
-    tasks = [
-        ("crawl", CRAWL_SYSTEM_PROMPT, CRAWL_TOOLS, "submit_crawl_results"),
-        ("ui-plan", UI_PLAN_SYSTEM_PROMPT, UI_PLAN_TOOLS, "submit_ui_plan"),
-    ]
-
-    def _run_one(task: tuple) -> None:
-        agent_type, system_prompt, tools, submit_tool_name = task
-        agent = create_agent(
-            model,
-            agent_type,
-            job_id,
-            url,
-            system_prompt,
-            tools=tools,
-            submit_tool_name=submit_tool_name,
-        )
-        run_agent(agent, url)
-
+    """Runs crawler and UI planner agents in parallel under the same job."""
     with ThreadPoolExecutor(max_workers=2) as pool:
-        pool.map(_run_one, tasks)
+        pool.submit(run_crawler, job_id, url, model)
+        pool.submit(run_ui_planner, job_id, url, model)
 
 
 def _run_in_thread(fn, *args) -> None:
