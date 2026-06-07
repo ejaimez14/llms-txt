@@ -7,7 +7,7 @@ from pytest_mock import MockerFixture
 from agents import WebSearchTool
 from src.models import CrawlOutput, SiteMetadata
 from src.services.hooks import JobHooks
-from src.services.llm import _run_openai, _web_fetch, create_agent, run_agent
+from src.services.llm import _run_openai, create_agent, run_agent
 
 
 @pytest.fixture()
@@ -193,21 +193,3 @@ def test_run_openai_returns_structured_output() -> None:
     assert output == crawl_output.model_dump()
     mock_hooks.on_start.assert_called_once()
     mock_hooks.on_complete.assert_called_once()
-
-
-def test_web_fetch_returns_text_on_success() -> None:
-    mock_response = MagicMock()
-    mock_response.text = "<html><body><h1>Hello</h1></body></html>"
-
-    with patch("src.services.llm.httpx.get", return_value=mock_response):
-        result = _web_fetch("https://example.com")
-
-    assert isinstance(result, str)
-    assert len(result) > 0
-
-
-def test_web_fetch_returns_error_string_on_failure() -> None:
-    with patch("src.services.llm.httpx.get", side_effect=ConnectionError("refused")):
-        result = _web_fetch("https://example.com")
-
-    assert result.startswith("Failed to fetch")

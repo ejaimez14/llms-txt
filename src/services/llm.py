@@ -1,45 +1,20 @@
 import os
 
-import html2text as _html2text
-import httpx
 from anthropic import Anthropic
-from agents import (
-    Agent,
-    Runner,
-    WebSearchTool,
-    function_tool,
-    set_default_openai_client,
-)
+from agents import Agent, Runner, WebSearchTool, set_default_openai_client
 from openai import AsyncOpenAI as _AsyncOpenAIClient
 
 from src.constants import (
     ANTHROPIC_SECRET_NAME,
-    CLAUDE_COMPARE_MODEL,
-    CLAUDE_CRAWL_MODEL,
+    CLAUDE_AGENT_MODELS,
     CLAUDE_MAX_OUTPUT_TOKENS,
-    CLAUDE_REPORT_MODEL,
-    CLAUDE_UI_PLAN_MODEL,
-    CODEX_CRAWL_MODEL,
-    CODEX_UI_PLAN_MODEL,
+    OPENAI_AGENT_MODELS,
     OPENAI_SECRET_NAME,
 )
 from src.models import CompareOutput, CrawlOutput, ReportOutput, UIPlanOutput
 from src.services.helpers import fetch_secret
 from src.services.hooks import JobHooks
-
-_AGENT_MODEL = {
-    "crawl": CLAUDE_CRAWL_MODEL,
-    "ui-plan": CLAUDE_UI_PLAN_MODEL,
-    "report": CLAUDE_REPORT_MODEL,
-    "compare": CLAUDE_COMPARE_MODEL,
-}
-
-_OPENAI_AGENT_MODEL = {
-    "crawl": CODEX_CRAWL_MODEL,
-    "ui-plan": CODEX_UI_PLAN_MODEL,
-    "report": CODEX_CRAWL_MODEL,
-    "compare": CODEX_CRAWL_MODEL,
-}
+from src.services.tools import web_fetch_tool
 
 _OPENAI_OUTPUT_TYPE = {
     "crawl": CrawlOutput,
@@ -90,7 +65,7 @@ def _create_claude_agent(
     tools: list | None = None,
     submit_tool_name: str | None = None,
 ) -> dict:
-    model_id = _AGENT_MODEL.get(agent_type)
+    model_id = CLAUDE_AGENT_MODELS.get(agent_type)
     if not model_id:
         raise ValueError(f"No Claude model configured for agent_type={agent_type!r}")
     hooks = JobHooks(job_id, agent_type, url, model)
@@ -113,12 +88,12 @@ def _create_openai_agent(
     model: str,
 ) -> dict:
     """Builds an OpenAI Agents SDK context dict with hooks pre-attached."""
-    model_id = _OPENAI_AGENT_MODEL.get(agent_type)
+    model_id = OPENAI_AGENT_MODELS.get(agent_type)
     if not model_id:
         raise ValueError(f"No OpenAI model configured for agent_type={agent_type!r}")
     # Crawl and UI plan need live web access; report and compare receive content as text.
     web_tools = (
-        [WebSearchTool(), _web_fetch_tool] if agent_type in ("crawl", "ui-plan") else []
+        [WebSearchTool(), web_fetch_tool] if agent_type in ("crawl", "ui-plan") else []
     )
     agent = Agent(
         name=agent_type,
@@ -180,18 +155,6 @@ def _run_openai(agent_ctx: dict, user_content: str) -> dict:
     except Exception as exc:
         hooks.on_error(exc)
         raise
-
-
-def _web_fetch(url: str) -> str:
-    """Fetch the content of a URL and return it as plain text markdown."""
-    try:
-        response = httpx.get(url, follow_redirects=True, timeout=30)
-        return _html2text.html2text(response.text)
-    except Exception as exc:
-        return f"Failed to fetch {url}: {exc}"
-
-
-_web_fetch_tool = function_tool(_web_fetch)
 
 
 _anthropic_client = Anthropic(

@@ -55,3 +55,17 @@ OPENAI_SECRET_NAME = "secrets/openai-api-key"
 
 CODEX_CRAWL_MODEL = "gpt-4o-mini"
 CODEX_UI_PLAN_MODEL = "gpt-4o"
+
+CLAUDE_AGENT_MODELS = {
+    "crawl": CLAUDE_CRAWL_MODEL,
+    "ui-plan": CLAUDE_UI_PLAN_MODEL,
+    "report": CLAUDE_REPORT_MODEL,
+    "compare": CLAUDE_COMPARE_MODEL,
+}
+
+OPENAI_AGENT_MODELS = {
+    "crawl": CODEX_CRAWL_MODEL,
+    "ui-plan": CODEX_UI_PLAN_MODEL,
+    "report": CODEX_CRAWL_MODEL,
+    "compare": CODEX_CRAWL_MODEL,
+}
