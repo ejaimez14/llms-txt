@@ -16,8 +16,6 @@ def test_run_ui_planner_passes_correct_params(mocker: MockerFixture) -> None:
         job_id="job-1",
         url="https://example.com",
         system_prompt=mocker.ANY,
-        tools=mocker.ANY,
-        submit_tool_name="submit_ui_plan",
     )
 
 
