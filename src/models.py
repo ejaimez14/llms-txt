@@ -12,6 +12,17 @@ class CrawlRequest(BaseModel):
     model: ModelName = ModelName.CLAUDE
 
 
+class ReportRequest(BaseModel):
+    url: str
+    model: ModelName = ModelName.CLAUDE
+
+
+class CompareRequest(BaseModel):
+    job_id_a: str
+    job_id_b: str
+    model: ModelName = ModelName.CLAUDE
+
+
 # --- Job / artifact models ---
 
 

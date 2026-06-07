@@ -6,7 +6,7 @@ import pytest
 from moto import mock_aws
 
 import src.services.storage as storage
-from src.constants import ArtifactStatus, ArtifactType, JobStatus
+from src.constants import ArtifactStatus, ArtifactType, JobStatus, JobType
 
 
 @pytest.fixture(autouse=True)
@@ -28,14 +28,16 @@ def aws_env() -> Generator[None, None, None]:
                 {"AttributeName": "createdAt", "AttributeType": "S"},
             ],
             BillingMode="PAY_PER_REQUEST",
-            GlobalSecondaryIndexes=[{
-                "IndexName": "url-createdAt-index",
-                "KeySchema": [
-                    {"AttributeName": "url", "KeyType": "HASH"},
-                    {"AttributeName": "createdAt", "KeyType": "RANGE"},
-                ],
-                "Projection": {"ProjectionType": "ALL"},
-            }],
+            GlobalSecondaryIndexes=[
+                {
+                    "IndexName": "url-createdAt-index",
+                    "KeySchema": [
+                        {"AttributeName": "url", "KeyType": "HASH"},
+                        {"AttributeName": "createdAt", "KeyType": "RANGE"},
+                    ],
+                    "Projection": {"ProjectionType": "ALL"},
+                }
+            ],
         )
         ddb.create_table(
             TableName=os.environ["SITES_TABLE"],
@@ -53,7 +55,9 @@ def test_create_job_initializes_all_artifacts() -> None:
 
     job = storage.get_job("job-1")
     assert job["status"] == JobStatus.PROCESSING
-    assert job["artifacts"][ArtifactType.LLMS_TXT]["status"] == ArtifactStatus.PROCESSING
+    assert (
+        job["artifacts"][ArtifactType.LLMS_TXT]["status"] == ArtifactStatus.PROCESSING
+    )
     assert job["artifacts"][ArtifactType.PLAN]["status"] == ArtifactStatus.PROCESSING
 
 
@@ -91,7 +95,9 @@ def test_get_artifact_content_returns_content_when_complete() -> None:
     storage.save_llms_txt("job-5", "hello llms.txt")
     storage.complete_artifact("job-5", ArtifactType.LLMS_TXT, "results/job-5/llms.txt")
 
-    assert storage.get_artifact_content("job-5", ArtifactType.LLMS_TXT) == "hello llms.txt"
+    assert (
+        storage.get_artifact_content("job-5", ArtifactType.LLMS_TXT) == "hello llms.txt"
+    )
 
 
 def test_save_llms_txt_returns_correct_key() -> None:
@@ -124,13 +130,76 @@ def test_list_jobs_for_url_returns_sorted_history() -> None:
 
 def test_upsert_site_overwrites_previous() -> None:
     """Second upsert for same URL replaces the first — one row per URL always."""
-    metadata = {"tech_stack": ["React"], "audience": "devs", "tone": None, "business_model": None, "integrations": [], "content_types": []}
-    storage.upsert_site("https://example.com", "job-a", "results/job-a/llms.txt", metadata)
+    metadata = {
+        "tech_stack": ["React"],
+        "audience": "devs",
+        "tone": None,
+        "business_model": None,
+        "integrations": [],
+        "content_types": [],
+    }
+    storage.upsert_site(
+        "https://example.com", "job-a", "results/job-a/llms.txt", metadata
+    )
 
     metadata["tech_stack"] = ["Vue"]
-    storage.upsert_site("https://example.com", "job-b", "results/job-b/llms.txt", metadata)
+    storage.upsert_site(
+        "https://example.com", "job-b", "results/job-b/llms.txt", metadata
+    )
 
     sites = storage.list_sites()
     assert len(sites) == 1
     assert sites[0]["latestJobId"] == "job-b"
     assert sites[0]["tech_stack"] == ["Vue"]
+
+
+def test_create_report_job_initializes_single_artifact() -> None:
+    """Report job gets only a 'report' artifact — not llmsTxt or plan."""
+    storage.create_job("job-r1", "https://example.com", "claude", JobType.REPORT)
+
+    job = storage.get_job("job-r1")
+    assert job["type"] == JobType.REPORT
+    assert ArtifactType.REPORT in job["artifacts"]
+    assert ArtifactType.LLMS_TXT not in job["artifacts"]
+    assert ArtifactType.PLAN not in job["artifacts"]
+    assert job["artifacts"][ArtifactType.REPORT]["status"] == ArtifactStatus.PROCESSING
+
+
+def test_create_compare_job_initializes_single_artifact() -> None:
+    """Compare job gets only a 'comparison' artifact — not llmsTxt or plan."""
+    storage.create_job("job-c1", "https://example.com", "claude", JobType.COMPARE)
+
+    job = storage.get_job("job-c1")
+    assert job["type"] == JobType.COMPARE
+    assert ArtifactType.COMPARISON in job["artifacts"]
+    assert ArtifactType.LLMS_TXT not in job["artifacts"]
+    assert ArtifactType.PLAN not in job["artifacts"]
+    assert (
+        job["artifacts"][ArtifactType.COMPARISON]["status"] == ArtifactStatus.PROCESSING
+    )
+
+
+def test_report_job_resolves_complete_on_single_artifact() -> None:
+    """Report job status becomes 'complete' when its single artifact completes."""
+    storage.create_job("job-r2", "https://example.com", "claude", JobType.REPORT)
+    storage.complete_artifact("job-r2", ArtifactType.REPORT, "results/job-r2/report.md")
+
+    assert storage.get_job("job-r2")["status"] == JobStatus.COMPLETE
+
+
+def test_compare_job_resolves_partial_on_failure() -> None:
+    """Compare job status becomes 'partial' when its single artifact fails."""
+    storage.create_job("job-c2", "https://example.com", "claude", JobType.COMPARE)
+    storage.fail_artifact("job-c2", ArtifactType.COMPARISON, "timeout")
+
+    assert storage.get_job("job-c2")["status"] == JobStatus.PARTIAL
+
+
+def test_save_report_returns_correct_key() -> None:
+    assert storage.save_report("job-r3", "content") == "results/job-r3/report.md"
+
+
+def test_save_comparison_returns_correct_key() -> None:
+    assert (
+        storage.save_comparison("job-c3", "content") == "results/job-c3/comparison.md"
+    )
