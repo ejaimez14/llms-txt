@@ -8,7 +8,7 @@ dependencies = [
     "fastapi",
     "mangum",              # ASGI adapter — lets API Gateway invoke the FastAPI app as Lambda
     "uvicorn[standard]",   # local dev server
-    "pinecone-client",
+    "pinecone",
     "openai-agents>=0.0.9",
     "httpx>=0.27.0",
     "html2text>=2020.1.16",
