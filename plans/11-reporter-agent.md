@@ -2,10 +2,12 @@
 
 ## How to Use This Plan
 
-You are implementing **Component 11: Reporter Agent**. Your job is to produce `src/agents/reporter.py`. This agent fetches the latest llms.txt for a URL from S3 and generates a structured analysis report.
+You are implementing **Component 11: Reporter Agent**. Your job is to produce `src/agents/reporter.py` and amend three existing files (`models.py`, `prompts.py`, `hooks.py`) to wire up the submit tool.
+
+The reporter fetches the latest llms.txt for a URL from S3 and generates a structured analysis report via a submit tool — matching the same pattern used by crawler and ui_planner.
 
 Dependencies:
-- [09-report-compare-foundations.md](09-report-compare-foundations.md) — must be implemented first. Provides `AgentType.REPORT`, `ArtifactType.REPORT`, `ReportRequest`, `REPORT_SYSTEM_PROMPT`, `save_report`, `get_site`.
+- [09-report-compare-foundations.md](09-report-compare-foundations.md) — must be implemented first. Provides `AgentType.REPORT`, `ArtifactType.REPORT`, `ReportRequest`, `save_report`, `get_site`.
 - [07-agent-factory-hooks.md](07-agent-factory-hooks.md) — `create_agent` and `run_agent` must be available.
 
 Related plans:
@@ -23,9 +25,13 @@ Backend subagent
 ```
 src/
   agents/
-    reporter.py
+    reporter.py          ← new file
+  models.py              ← add ReportOutput
+  prompts.py             ← update REPORT_SYSTEM_PROMPT to use submit tool
+  services/
+    hooks.py             ← extract report_markdown from submit tool output
 tests/
-  test_reporter.py
+  test_reporter.py       ← new file
 ```
 
 ---
@@ -51,20 +57,58 @@ def run_reporter(job_id: str, url: str, model: str) -> None:
 3. Call `get_artifact_content(site["latestJobId"], ArtifactType.LLMS_TXT)` to fetch the llms.txt content.
 4. If content is `None`, call `fail_artifact(job_id, ArtifactType.REPORT, "llms.txt content unavailable")` and return.
 5. Build the user message: `f"Generate a report for this site:\n\n{content}"`
-6. Call `create_agent(model, AgentType.REPORT, job_id, url, REPORT_SYSTEM_PROMPT)` — no tools, no submit tool (plain text output).
+6. Call `create_agent(model, AgentType.REPORT, job_id, url, REPORT_SYSTEM_PROMPT, tools=REPORT_TOOLS, submit_tool_name="submit_report")`.
 7. Call `run_agent(agent, user_message)`.
-8. The hook's `on_complete` saves the output via `save_report` and calls `complete_artifact`.
+8. The hook's `on_complete` extracts `report_markdown` from the submit tool output, saves it via `save_report`, and calls `complete_artifact`.
 9. The hook's `on_error` calls `fail_artifact` if the LLM call fails.
 
 ---
 
-## Implementation
+## Part A: `src/models.py`
+
+Add `ReportOutput` alongside the other agent output models:
+
+```python
+class ReportOutput(BaseModel):
+    """Structured output returned by the reporter agent's submit tool."""
+
+    report_markdown: str
+```
+
+---
+
+## Part B: `src/prompts.py`
+
+Update `REPORT_SYSTEM_PROMPT` to instruct the agent to submit via the tool instead of returning plain text. Replace the closing rules section with:
+
+```
+When you have finished your analysis, call the `submit_report` tool with:
+- `report_markdown`: the complete report in the format above
+
+Do not return a text response. Always submit via the tool.
+```
+
+---
+
+## Part C: `src/agents/reporter.py`
 
 ```python
 from src.constants import AgentType, ArtifactType
+from src.models import ReportOutput
 from src.prompts import REPORT_SYSTEM_PROMPT
 from src.services.llm import create_agent, run_agent
 from src.services.storage import fail_artifact, get_artifact_content, get_site
+
+SUBMIT_TOOL = {
+    "name": "submit_report",
+    "description": (
+        "Call this when you have finished your analysis and are ready to submit. "
+        "Provide the complete report as markdown."
+    ),
+    "input_schema": ReportOutput.model_json_schema(),
+}
+
+REPORT_TOOLS = [SUBMIT_TOOL]
 
 
 def run_reporter(job_id: str, url: str, model: str) -> None:
@@ -82,11 +126,31 @@ def run_reporter(job_id: str, url: str, model: str) -> None:
         fail_artifact(job_id, ArtifactType.REPORT, "llms.txt content unavailable")
         return
 
-    agent = create_agent(model, AgentType.REPORT, job_id, url, REPORT_SYSTEM_PROMPT)
+    agent = create_agent(
+        model,
+        AgentType.REPORT,
+        job_id,
+        url,
+        REPORT_SYSTEM_PROMPT,
+        tools=REPORT_TOOLS,
+        submit_tool_name="submit_report",
+    )
     run_agent(agent, f"Generate a report for this site:\n\n{content}")
 ```
 
-No tools are passed to `create_agent` — the reporter receives content directly in the user message and returns plain text. `submit_tool_name` is not set, so `run_agent` returns the text and the hook saves it.
+---
+
+## Part D: `src/services/hooks.py`
+
+The `on_complete` report branch currently passes `raw_output` (a string) directly to `save_report`. Update it to extract the `report_markdown` field from the submit tool's structured output:
+
+```python
+elif self.agent_type == "report":
+    output = ReportOutput.model_validate(raw_output)
+    s3_key = save_report(self.job_id, output.report_markdown)
+```
+
+Add `ReportOutput` to the import from `src.models`.
 
 ---
 
@@ -94,8 +158,10 @@ No tools are passed to `create_agent` — the reporter receives content directly
 
 - `run_reporter` calls `fail_artifact` with a descriptive error if the site has not been crawled
 - `run_reporter` calls `fail_artifact` if the llms.txt content is unavailable in S3
-- On success, the agent is called with the full llms.txt content and `REPORT_SYSTEM_PROMPT`
-- No tools or submit tool are passed — plain text output is expected
+- On success, the agent is called with `REPORT_TOOLS` and `submit_tool_name="submit_report"`
+- `ReportOutput` is defined in `models.py` and used as the tool's `input_schema`
+- `hooks.py` extracts `report_markdown` from the submit output before saving to S3
+- `REPORT_SYSTEM_PROMPT` instructs the agent to call `submit_report` — no plain text response
 - The function does not raise — all failure paths call `fail_artifact` and return
 - The hook handles saving and status updates — `run_reporter` does not touch S3 or DynamoDB directly
 
@@ -104,11 +170,11 @@ No tools are passed to `create_agent` — the reporter receives content directly
 ## Tests
 
 **File:** `tests/test_reporter.py`
-Use `pytest`. Mock AWS with `moto[s3,dynamodb]`. Mock `create_agent` and `run_agent` with `pytest-mock`.
+Use `pytest`. Mock `create_agent` and `run_agent` with `pytest-mock`.
 
 | Test | Type | Verifies |
 |------|------|----------|
 | `test_reporter_runs_agent_with_llms_txt_content` | happy | `run_agent` is called with the llms.txt content when site and content exist |
+| `test_reporter_passes_submit_tool_to_agent` | happy | `create_agent` receives `submit_tool_name="submit_report"` and `tools=REPORT_TOOLS` |
 | `test_reporter_fails_if_site_not_crawled` | unhappy | `fail_artifact` called with descriptive error when `get_site` returns `None` |
 | `test_reporter_fails_if_content_unavailable` | unhappy | `fail_artifact` called when `get_artifact_content` returns `None` |
-| `test_reporter_does_not_raise_on_preflight_failure` | unhappy | function returns normally (no exception) when site is missing |
