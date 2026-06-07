@@ -35,6 +35,7 @@ class AgentType(str, Enum):
 
 class ModelName(str, Enum):
     CLAUDE = "claude"
+    CODEX = "codex"
 
 
 # --- Runtime Constants ---
@@ -50,3 +51,7 @@ TITAN_MAX_INPUT_CHARS = 25000
 
 ANTHROPIC_SECRET_NAME = "secrets/anthropic-api-key"
 PINECONE_SECRET_NAME = "secrets/pinecone-api-key"
+OPENAI_SECRET_NAME = "secrets/openai-api-key"
+
+CODEX_CRAWL_MODEL = "gpt-4o-mini"
+CODEX_UI_PLAN_MODEL = "gpt-4o"
