@@ -6,12 +6,20 @@ _PINECONE_MATCHES = [
     {
         "id": "job-1",
         "score": 0.95,
-        "metadata": {"url": "https://example.com", "s3Key": "results/job-1/llms.txt", "model": "claude"},
+        "metadata": {
+            "url": "https://example.com",
+            "s3Key": "results/job-1/llms.txt",
+            "model": "claude",
+        },
     },
     {
         "id": "job-2",
         "score": 0.80,
-        "metadata": {"url": "https://other.com", "s3Key": "results/job-2/llms.txt", "model": "claude"},
+        "metadata": {
+            "url": "https://other.com",
+            "s3Key": "results/job-2/llms.txt",
+            "model": "claude",
+        },
     },
 ]
 

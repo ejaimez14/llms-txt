@@ -99,6 +99,11 @@ Rules:
 - Quote specific page titles or descriptions when relevant
 - Be concise — each section should be 2-5 bullet points or sentences
 - If a section cannot be addressed from the available content, omit it
+
+When you have finished your analysis, call the `submit_report` tool with:
+- `report_markdown`: the complete report in the format above
+
+Do not return a text response. Always submit via the tool.
 """.strip()
 
 COMPARE_SYSTEM_PROMPT = """
@@ -152,4 +157,9 @@ Rules:
 - Focus on differences — agreements get one short section
 - Quote from the actual documents when comparing specific descriptions
 - "Model A is more detailed" is not useful without citing what it includes that B does not
+
+When you have finished your analysis, call the `submit_comparison` tool with:
+- `comparison_markdown`: the complete comparison in the format above
+
+Do not return a text response. Always submit via the tool.
 """.strip()

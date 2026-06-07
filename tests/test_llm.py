@@ -114,7 +114,7 @@ def test_non_crawl_on_complete_does_not_embed(mocker: MockerFixture) -> None:
 
     hooks = CrawlerClaudeHooks("job-1", "report", "https://example.com", "claude")
     hooks.on_start()
-    hooks.on_complete("# Report")
+    hooks.on_complete({"report_markdown": "# Report"})
 
     mock_embed.assert_not_called()
 
