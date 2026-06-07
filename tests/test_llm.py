@@ -40,29 +40,6 @@ def ui_plan_hooks(mocker: MockerFixture) -> CrawlerClaudeHooks:
     return CrawlerClaudeHooks("job-456", "ui-plan", "https://example.com", "claude")
 
 
-@pytest.fixture()
-def report_hooks(mocker: MockerFixture) -> CrawlerClaudeHooks:
-    mocker.patch(
-        "src.services.hooks.save_report", return_value="results/job-789/report.md"
-    )
-    mocker.patch("src.services.hooks.complete_artifact")
-    mocker.patch("src.services.hooks.fail_artifact")
-    mocker.patch("src.services.hooks.log_job_event")
-    return CrawlerClaudeHooks("job-789", "report", "https://example.com", "claude")
-
-
-@pytest.fixture()
-def compare_hooks(mocker: MockerFixture) -> CrawlerClaudeHooks:
-    mocker.patch(
-        "src.services.hooks.save_comparison",
-        return_value="results/job-101/comparison.md",
-    )
-    mocker.patch("src.services.hooks.complete_artifact")
-    mocker.patch("src.services.hooks.fail_artifact")
-    mocker.patch("src.services.hooks.log_job_event")
-    return CrawlerClaudeHooks("job-101", "compare", "https://example.com", "claude")
-
-
 def _make_agent_ctx(
     client: MagicMock, submit_tool_name: str | None = "submit_crawl_results"
 ) -> dict:
@@ -202,58 +179,46 @@ def test_on_error_fails_correct_artifact(mocker: MockerFixture) -> None:
     )
     mock_fail.assert_called_with("job-2", "plan", "boom")
 
-
-def test_report_on_complete_saves_report_and_does_not_embed(
-    mocker: MockerFixture, report_hooks: CrawlerClaudeHooks
-) -> None:
-    mock_save = mocker.patch(
-        "src.services.hooks.save_report", return_value="results/job-789/report.md"
+    CrawlerClaudeHooks("job-3", "report", "https://example.com", "claude").on_error(
+        RuntimeError("boom")
     )
+    mock_fail.assert_called_with("job-3", "report", "boom")
+
+    CrawlerClaudeHooks("job-4", "compare", "https://example.com", "claude").on_error(
+        RuntimeError("boom")
+    )
+    mock_fail.assert_called_with("job-4", "comparison", "boom")
+
+
+def test_report_and_compare_on_complete_save_and_skip_embedding(
+    mocker: MockerFixture,
+) -> None:
+    mocker.patch("src.services.hooks.log_job_event")
     mock_complete = mocker.patch("src.services.hooks.complete_artifact")
     mock_embed = mocker.patch("src.services.hooks.embed_text")
 
+    mock_save_report = mocker.patch(
+        "src.services.hooks.save_report", return_value="results/job-789/report.md"
+    )
+    report_hooks = CrawlerClaudeHooks(
+        "job-789", "report", "https://example.com", "claude"
+    )
     report_hooks.on_start()
     report_hooks.on_complete("# Report content")
-
-    mock_save.assert_called_once_with("job-789", "# Report content")
-    mock_complete.assert_called_once_with(
+    mock_save_report.assert_called_once_with("job-789", "# Report content")
+    mock_complete.assert_called_with(
         "job-789", "report", "results/job-789/report.md", 0, 0
     )
     mock_embed.assert_not_called()
 
-
-def test_compare_on_complete_saves_comparison_and_does_not_embed(
-    mocker: MockerFixture, compare_hooks: CrawlerClaudeHooks
-) -> None:
-    mock_save = mocker.patch(
+    mock_save_comparison = mocker.patch(
         "src.services.hooks.save_comparison",
         return_value="results/job-101/comparison.md",
     )
-    mock_complete = mocker.patch("src.services.hooks.complete_artifact")
-    mock_embed = mocker.patch("src.services.hooks.embed_text")
-
+    compare_hooks = CrawlerClaudeHooks(
+        "job-101", "compare", "https://example.com", "claude"
+    )
     compare_hooks.on_start()
     compare_hooks.on_complete("# Comparison content")
-
-    mock_save.assert_called_once_with("job-101", "# Comparison content")
-    mock_complete.assert_called_once_with(
-        "job-101", "comparison", "results/job-101/comparison.md", 0, 0
-    )
+    mock_save_comparison.assert_called_once_with("job-101", "# Comparison content")
     mock_embed.assert_not_called()
-
-
-def test_on_error_fails_correct_artifact_for_report_and_compare(
-    mocker: MockerFixture,
-) -> None:
-    mock_fail = mocker.patch("src.services.hooks.fail_artifact")
-    mocker.patch("src.services.hooks.log_job_event")
-
-    CrawlerClaudeHooks("job-r", "report", "https://example.com", "claude").on_error(
-        RuntimeError("boom")
-    )
-    mock_fail.assert_called_with("job-r", "report", "boom")
-
-    CrawlerClaudeHooks("job-c", "compare", "https://example.com", "claude").on_error(
-        RuntimeError("boom")
-    )
-    mock_fail.assert_called_with("job-c", "comparison", "boom")

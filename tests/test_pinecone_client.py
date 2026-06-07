@@ -18,7 +18,11 @@ def mock_index(mocker: MockerFixture) -> MagicMock:
 
 def test_upsert_vector_calls_index(mock_index: MagicMock) -> None:
     vector = [0.1, 0.2, 0.3]
-    metadata = {"url": "https://example.com", "s3Key": "results/abc123/llms.txt", "model": "claude"}
+    metadata = {
+        "url": "https://example.com",
+        "s3Key": "results/abc123/llms.txt",
+        "model": "claude",
+    }
 
     pinecone_module.upsert_vector("job-abc123", vector, metadata)
 
@@ -30,8 +34,16 @@ def test_upsert_vector_calls_index(mock_index: MagicMock) -> None:
 def test_query_vectors_returns_ranked_results(mock_index: MagicMock) -> None:
     mock_index.query.return_value = {
         "matches": [
-            {"id": "job-1", "score": 0.95, "metadata": {"url": "https://example.com", "s3Key": "k1"}},
-            {"id": "job-2", "score": 0.80, "metadata": {"url": "https://other.com", "s3Key": "k2"}},
+            {
+                "id": "job-1",
+                "score": 0.95,
+                "metadata": {"url": "https://example.com", "s3Key": "k1"},
+            },
+            {
+                "id": "job-2",
+                "score": 0.80,
+                "metadata": {"url": "https://other.com", "s3Key": "k2"},
+            },
         ]
     }
 

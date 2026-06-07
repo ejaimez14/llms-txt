@@ -123,6 +123,18 @@ The same pages described differently — quote both where useful.
 ### Structure
 How each model organized and categorized the content differently.
 
+## Sentiment
+
+### Model A
+How Model A characterizes the site's tone and emotional register — confident, cautious,
+authoritative, approachable, technical, etc. Quote specific language from the document.
+
+### Model B
+The same assessment for Model B.
+
+### Comparison
+Where the two models diverge in how they perceive the site's emotional positioning.
+
 ## Side-by-Side
 
 | Aspect | Model A | Model B |
@@ -130,6 +142,7 @@ How each model organized and categorized the content differently.
 | Total links | N | N |
 | Section count | N | N |
 | Dominant focus | ... | ... |
+| Sentiment | ... | ... |
 
 ## Assessment
 Which output is more complete or useful for understanding the site — and why.
