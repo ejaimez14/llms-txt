@@ -1,5 +1,4 @@
 import uuid
-from concurrent.futures import ThreadPoolExecutor
 from threading import Thread
 
 from fastapi import APIRouter, FastAPI, HTTPException, Query
@@ -33,7 +32,8 @@ def crawl(req: CrawlRequest) -> dict:
     """Crawls the given URL and generates an llms.txt and UI implementation plan in parallel."""
     job_id = str(uuid.uuid4())
     create_job(job_id, req.url, req.model, JobType.CRAWL)
-    _run_in_thread(_run_crawl_agents, job_id, req.url, req.model)
+    _run_in_thread(run_crawler, job_id, req.url, req.model)
+    _run_in_thread(run_ui_planner, job_id, req.url, req.model)
     return {"jobId": job_id, "status": "processing"}
 
 
@@ -149,13 +149,6 @@ def compare(req: CompareRequest) -> dict:
 
 
 # --- Internal ---
-
-
-def _run_crawl_agents(job_id: str, url: str, model: str) -> None:
-    """Runs crawler and UI planner agents in parallel under the same job."""
-    with ThreadPoolExecutor(max_workers=2) as pool:
-        pool.submit(run_crawler, job_id, url, model)
-        pool.submit(run_ui_planner, job_id, url, model)
 
 
 def _run_in_thread(fn, *args) -> None:
