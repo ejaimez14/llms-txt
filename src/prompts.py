@@ -17,12 +17,10 @@ Rules:
 - Be concise but complete
 - Follow the format exactly — no extra headings, no deviations
 
-When you have gathered enough information, call the `submit_crawl_results` tool with:
+Produce your output as valid JSON with two fields:
 - `llms_txt`: the complete document in the format above
 - `metadata`: structured site metadata you observed during crawling.
   Use null for any field you cannot determine — never guess.
-
-Do not return a text response. Always submit via the tool.
 """.strip()
 
 UI_PLAN_SYSTEM_PROMPT = """
@@ -63,12 +61,10 @@ Rules:
 - If CSS is not available, note it explicitly and describe structure only
 - Be specific enough that an engineer can implement without seeing the site
 
-When you have finished analyzing the site, call the `submit_ui_plan` tool with:
+Produce your output as valid JSON with two fields:
 - `plan_markdown`: the complete implementation plan in the format above
 - `design_tokens`: exact CSS values extracted from the stylesheets.
   Use null for any token you cannot find — never guess.
-
-Do not return a text response. Always submit via the tool.
 """.strip()
 
 REPORT_SYSTEM_PROMPT = """
@@ -100,10 +96,8 @@ Rules:
 - Be concise — each section should be 2-5 bullet points or sentences
 - If a section cannot be addressed from the available content, omit it
 
-When you have finished your analysis, call the `submit_report` tool with:
+Produce your output as valid JSON with one field:
 - `report_markdown`: the complete report in the format above
-
-Do not return a text response. Always submit via the tool.
 """.strip()
 
 COMPARE_SYSTEM_PROMPT = """
@@ -158,10 +152,8 @@ Rules:
 - Quote from the actual documents when comparing specific descriptions
 - "Model A is more detailed" is not useful without citing what it includes that B does not
 
-When you have finished your analysis, call the `submit_comparison` tool with:
+Produce your output as valid JSON with one field:
 - `comparison_markdown`: the complete comparison in the format above
-
-Do not return a text response. Always submit via the tool.
 """.strip()
 
 

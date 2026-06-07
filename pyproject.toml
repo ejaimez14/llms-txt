@@ -4,6 +4,7 @@ version = "0.1.0"
 requires-python = ">=3.11"
 dependencies = [
     "anthropic",           # direct Anthropic API; built-in web_search/web_fetch run server-side
+    "instructor[anthropic]",  # structured output from Anthropic models via Pydantic response_model
     "boto3",               # S3, DynamoDB, Secrets Manager, Bedrock Titan embeddings
     "fastapi",
     "mangum",              # ASGI adapter — lets API Gateway invoke the FastAPI app as Lambda

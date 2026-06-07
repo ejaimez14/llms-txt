@@ -1,19 +1,7 @@
-from src.constants import AgentType, ArtifactType
-from src.models import CompareOutput
+from src.constants import ArtifactType
 from src.prompts import COMPARE_SYSTEM_PROMPT, _build_compare_message
 from src.services.llm import create_agent, run_agent
 from src.services.storage import fail_artifact, get_artifact_content, get_job
-
-SUBMIT_TOOL = {
-    "name": "submit_comparison",
-    "description": (
-        "Call this when you have finished your comparison and are ready to submit. "
-        "Provide the complete comparison as markdown."
-    ),
-    "input_schema": CompareOutput.model_json_schema(),
-}
-
-COMPARE_TOOLS = [SUBMIT_TOOL]
 
 
 def run_comparer(job_id: str, job_id_a: str, job_id_b: str, model: str) -> None:
@@ -35,11 +23,9 @@ def run_comparer(job_id: str, job_id_a: str, job_id_b: str, model: str) -> None:
     user_message = _build_compare_message(job_a, content_a, job_b, content_b)
     agent = create_agent(
         model=model,
-        agent_type=AgentType.COMPARE,
+        agent_type="compare",
         job_id=job_id,
         url=job_a["url"],
         system_prompt=COMPARE_SYSTEM_PROMPT,
-        tools=COMPARE_TOOLS,
-        submit_tool_name="submit_comparison",
     )
     run_agent(agent, user_message)
