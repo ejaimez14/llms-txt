@@ -28,8 +28,8 @@ class AgentHooks:
     def on_error(self, error: Exception) -> None: ...
 
 
-class CrawlerClaudeHooks(AgentHooks):
-    """Lifecycle hooks for Claude-backed crawl and ui-plan agents.
+class JobHooks(AgentHooks):
+    """Lifecycle hooks for crawl and ui-plan agents (provider-agnostic).
 
     Handles all persistence (S3, DynamoDB, Pinecone) and structured logging
     so agents stay focused on their task.
