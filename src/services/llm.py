@@ -1,12 +1,21 @@
 from anthropic import Anthropic
 
-from src.constants import ANTHROPIC_SECRET_NAME, CLAUDE_CRAWL_MODEL, CLAUDE_MAX_OUTPUT_TOKENS, CLAUDE_UI_PLAN_MODEL
+from src.constants import (
+    ANTHROPIC_SECRET_NAME,
+    CLAUDE_COMPARE_MODEL,
+    CLAUDE_CRAWL_MODEL,
+    CLAUDE_MAX_OUTPUT_TOKENS,
+    CLAUDE_REPORT_MODEL,
+    CLAUDE_UI_PLAN_MODEL,
+)
 from src.services.hooks import CrawlerClaudeHooks
 from src.services.helpers import fetch_secret
 
 _AGENT_MODEL = {
     "crawl": CLAUDE_CRAWL_MODEL,
     "ui-plan": CLAUDE_UI_PLAN_MODEL,
+    "report": CLAUDE_REPORT_MODEL,
+    "compare": CLAUDE_COMPARE_MODEL,
 }
 
 
@@ -21,7 +30,9 @@ def create_agent(
 ) -> dict:
     """Returns an agent context dict with hooks pre-attached, ready for run_agent()."""
     if model == "claude":
-        return _create_claude_agent(system_prompt, job_id, agent_type, url, model, tools, submit_tool_name)
+        return _create_claude_agent(
+            system_prompt, job_id, agent_type, url, model, tools, submit_tool_name
+        )
     elif model == "codex":
         raise NotImplementedError("Codex support is not yet implemented")
     else:
@@ -85,7 +96,9 @@ def _run_claude(agent_ctx: dict, user_content: str) -> dict | str:
                 if block.type == "tool_use" and block.name == submit_tool_name:
                     hooks.on_complete(block.input, response.usage)
                     return block.input
-            raise ValueError(f"Expected submit tool call '{submit_tool_name}' not found in response")
+            raise ValueError(
+                f"Expected submit tool call '{submit_tool_name}' not found in response"
+            )
 
         # Reached only when submit_tool_name is None — caller receives plain text directly.
         output = next(b.text for b in response.content if hasattr(b, "text"))

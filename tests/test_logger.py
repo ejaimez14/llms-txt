@@ -1,13 +1,18 @@
 import json
 import logging
 
-from src.services.logger import _JsonFormatter, get_logger, log_job_event
+from src.services.logger import _JsonFormatter, get_logger
 
 
 def _make_record(msg: object) -> logging.LogRecord:
     record = logging.LogRecord(
-        name="test", level=logging.INFO, pathname="", lineno=0,
-        msg=msg, args=(), exc_info=None,
+        name="test",
+        level=logging.INFO,
+        pathname="",
+        lineno=0,
+        msg=msg,
+        args=(),
+        exc_info=None,
     )
     return record
 

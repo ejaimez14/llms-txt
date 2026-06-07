@@ -5,7 +5,15 @@ from src.models import CrawlOutput, UIPlanOutput
 from src.services.embeddings import embed_text
 from src.services.logger import get_logger, log_job_event
 from src.services.pinecone_client import upsert_vector
-from src.services.storage import complete_artifact, fail_artifact, save_llms_txt, save_plan, upsert_site
+from src.services.storage import (
+    complete_artifact,
+    fail_artifact,
+    save_comparison,
+    save_llms_txt,
+    save_plan,
+    save_report,
+    upsert_site,
+)
 
 logger = get_logger(__name__)
 
@@ -36,7 +44,13 @@ class CrawlerClaudeHooks(AgentHooks):
 
     def on_start(self) -> None:
         self._start_time = time.time()
-        log_job_event(logger, f"{self.agent_type}_started", self.job_id, url=self.url, model=self.model)
+        log_job_event(
+            logger,
+            f"{self.agent_type}_started",
+            self.job_id,
+            url=self.url,
+            model=self.model,
+        )
 
     def on_complete(self, raw_output: dict | str, usage: object | None = None) -> None:
         """Persist agent output to S3, DynamoDB, and (for crawl) Pinecone."""
@@ -68,9 +82,23 @@ class CrawlerClaudeHooks(AgentHooks):
             s3_key = save_plan(self.job_id, output.plan_markdown)
             # UI plan is saved to S3 only — not embedded or indexed in Pinecone.
 
+        elif self.agent_type == "report":
+            s3_key = save_report(self.job_id, raw_output)
+            # Report is saved to S3 only — no embedding or Pinecone indexing.
+
+        elif self.agent_type == "compare":
+            s3_key = save_comparison(self.job_id, raw_output)
+            # Comparison is saved to S3 only — no embedding or Pinecone indexing.
+
         input_tokens = getattr(usage, "input_tokens", 0) or 0
         output_tokens = getattr(usage, "output_tokens", 0) or 0
-        complete_artifact(self.job_id, _artifact_key(self.agent_type), s3_key, input_tokens, output_tokens)
+        complete_artifact(
+            self.job_id,
+            _artifact_key(self.agent_type),
+            s3_key,
+            input_tokens,
+            output_tokens,
+        )
         log_job_event(
             logger,
             f"{self.agent_type}_completed",
@@ -84,7 +112,9 @@ class CrawlerClaudeHooks(AgentHooks):
     def on_error(self, error: Exception) -> None:
         artifact_key = _artifact_key(self.agent_type)
         fail_artifact(self.job_id, artifact_key, str(error))
-        log_job_event(logger, f"{self.agent_type}_failed", self.job_id, error=str(error))
+        log_job_event(
+            logger, f"{self.agent_type}_failed", self.job_id, error=str(error)
+        )
 
 
 # --- Internal ---
@@ -94,6 +124,8 @@ def _artifact_key(agent_type: str) -> str:
     return {
         "crawl": "llmsTxt",
         "ui-plan": "plan",
+        "report": "report",
+        "compare": "comparison",
     }[agent_type]
 
 

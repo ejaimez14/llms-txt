@@ -70,3 +70,86 @@ When you have finished analyzing the site, call the `submit_ui_plan` tool with:
 
 Do not return a text response. Always submit via the tool.
 """.strip()
+
+REPORT_SYSTEM_PROMPT = """
+You are a site analyst that produces structured reports based on llms.txt navigation files.
+
+Given an llms.txt document for a website, produce a concise analysis in this format:
+
+## Overview
+What the site is and what it does — one paragraph.
+
+## Target Audience
+Who the site is built for, based on the content and framing in the document.
+
+## Content Structure
+The main sections and how they are organized. What kinds of pages exist.
+
+## Notable Pages
+3-5 specific pages or sections that stand out as central to the site's purpose.
+
+## Tech & Integrations
+Any technical details, frameworks, or integrations evident from the content.
+
+## Summary Assessment
+One paragraph: what makes this site distinctive, and how well the llms.txt represents the site's content.
+
+Rules:
+- Base everything strictly on what the llms.txt contains — do not speculate
+- Quote specific page titles or descriptions when relevant
+- Be concise — each section should be 2-5 bullet points or sentences
+- If a section cannot be addressed from the available content, omit it
+""".strip()
+
+COMPARE_SYSTEM_PROMPT = """
+You are an analyst comparing two llms.txt files for the same website — each produced by a different AI model.
+
+Given two llms.txt documents labeled Model A and Model B, produce a comparison focused on differences:
+
+## Summary
+2-3 sentences on the most significant differences between the two outputs.
+
+## Agreement
+What both models included and described consistently — keep this section brief.
+
+## Differences
+
+### Coverage
+Pages or sections that one model included but the other omitted.
+
+### Descriptions
+The same pages described differently — quote both where useful.
+
+### Structure
+How each model organized and categorized the content differently.
+
+## Sentiment
+
+### Model A
+How Model A characterizes the site's tone and emotional register — confident, cautious,
+authoritative, approachable, technical, etc. Quote specific language from the document.
+
+### Model B
+The same assessment for Model B.
+
+### Comparison
+Where the two models diverge in how they perceive the site's emotional positioning.
+
+## Side-by-Side
+
+| Aspect | Model A | Model B |
+|--------|---------|---------|
+| Total links | N | N |
+| Section count | N | N |
+| Dominant focus | ... | ... |
+| Sentiment | ... | ... |
+
+## Assessment
+Which output is more complete or useful for understanding the site — and why.
+Be specific and evidence-based; do not give a blanket verdict without quoting the documents.
+
+Rules:
+- Focus on differences — agreements get one short section
+- Quote from the actual documents when comparing specific descriptions
+- "Model A is more detailed" is not useful without citing what it includes that B does not
+""".strip()

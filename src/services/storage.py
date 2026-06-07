@@ -6,7 +6,7 @@ import boto3
 import boto3.dynamodb.conditions as dynamo_conditions
 from botocore.exceptions import ClientError
 
-from src.constants import ArtifactStatus, ArtifactType, JobStatus
+from src.constants import ArtifactStatus, ArtifactType, JobStatus, JobType
 from src.services.logger import get_logger
 
 _s3 = boto3.client("s3")
@@ -14,7 +14,11 @@ _dynamodb = boto3.resource("dynamodb")
 
 logger = get_logger(__name__)
 
-_ARTIFACT_TYPES = [ArtifactType.LLMS_TXT, ArtifactType.PLAN]
+_JOB_ARTIFACTS: dict[str, list[str]] = {
+    JobType.CRAWL: [ArtifactType.LLMS_TXT, ArtifactType.PLAN],
+    JobType.REPORT: [ArtifactType.REPORT],
+    JobType.COMPARE: [ArtifactType.COMPARISON],
+}
 
 
 # --- S3 Operations ---
@@ -30,6 +34,20 @@ def save_llms_txt(job_id: str, content: str) -> str:
 def save_plan(job_id: str, content: str) -> str:
     """Saves plan markdown to S3. Returns the S3 key."""
     s3_key = f"results/{job_id}/plan.md"
+    _put_s3_object(s3_key, content)
+    return s3_key
+
+
+def save_report(job_id: str, content: str) -> str:
+    """Saves report markdown to S3. Returns the S3 key."""
+    s3_key = f"results/{job_id}/report.md"
+    _put_s3_object(s3_key, content)
+    return s3_key
+
+
+def save_comparison(job_id: str, content: str) -> str:
+    """Saves comparison markdown to S3. Returns the S3 key."""
+    s3_key = f"results/{job_id}/comparison.md"
     _put_s3_object(s3_key, content)
     return s3_key
 
@@ -66,25 +84,27 @@ def generate_download_url(s3_key: str, expiry: int = 3600) -> str:
 # --- DynamoDB Operations ---
 
 
-def create_job(job_id: str, url: str, model: str) -> None:
+def create_job(
+    job_id: str, url: str, model: str, job_type: str = JobType.CRAWL
+) -> None:
     """
-    Writes the initial job record with overall status 'processing'
-    and both artifact statuses set to 'processing'.
+    Writes the initial job record with overall status 'processing'.
+    Initializes artifacts based on job_type — crawl gets llmsTxt + plan,
+    report and compare each get a single artifact.
     """
     table = _jobs_table()
     processing_artifact = {"status": ArtifactStatus.PROCESSING}
+    artifact_types = _JOB_ARTIFACTS.get(job_type, [])
     try:
         table.put_item(
             Item={
                 "jobId": job_id,
                 "url": url,
                 "model": model,
+                "type": job_type,
                 "createdAt": _utc_now(),
                 "status": JobStatus.PROCESSING,
-                "artifacts": {
-                    ArtifactType.LLMS_TXT: processing_artifact,
-                    ArtifactType.PLAN: processing_artifact,
-                },
+                "artifacts": {t: processing_artifact for t in artifact_types},
             }
         )
     except ClientError as exc:
@@ -105,7 +125,7 @@ def complete_artifact(
     """
     table = _jobs_table()
     try:
-        table.update_item(
+        response = table.update_item(
             Key={"jobId": job_id},
             UpdateExpression="SET artifacts.#artifact = :artifact_val",
             ExpressionAttributeNames={"#artifact": artifact_type},
@@ -117,11 +137,12 @@ def complete_artifact(
                     "outputTokens": output_tokens,
                 },
             },
+            ReturnValues="ALL_NEW",
         )
     except ClientError as exc:
         logger.error({"event": "complete_artifact_failed", "error": str(exc)})
         raise
-    _recalculate_job_status(job_id)
+    _recalculate_job_status(response["Attributes"])
 
 
 def fail_artifact(job_id: str, artifact_type: str, error: str) -> None:
@@ -131,18 +152,19 @@ def fail_artifact(job_id: str, artifact_type: str, error: str) -> None:
     """
     table = _jobs_table()
     try:
-        table.update_item(
+        response = table.update_item(
             Key={"jobId": job_id},
             UpdateExpression="SET artifacts.#artifact = :artifact_val",
             ExpressionAttributeNames={"#artifact": artifact_type},
             ExpressionAttributeValues={
                 ":artifact_val": {"status": ArtifactStatus.FAILED, "error": error},
             },
+            ReturnValues="ALL_NEW",
         )
     except ClientError as exc:
         logger.error({"event": "fail_artifact_failed", "error": str(exc)})
         raise
-    _recalculate_job_status(job_id)
+    _recalculate_job_status(response["Attributes"])
 
 
 def get_job(job_id: str) -> dict | None:
@@ -312,18 +334,15 @@ def _get_s3_object(s3_key: str) -> str | None:
         raise
 
 
-def _recalculate_job_status(job_id: str) -> None:
+def _recalculate_job_status(job: dict) -> None:
     """
-    Reads the current artifact statuses and updates the overall job status.
-    Writes 'complete' only when all artifacts succeed; 'partial' when all are
-    done but at least one failed; leaves 'processing' while any are still running.
+    Updates overall status and token totals based on the job's current artifact map.
+    Accepts the full job record returned by update_item to avoid a redundant get_item call.
     """
-    job = get_job(job_id)
-    if job is None:
-        return
-
+    job_id = job["jobId"]
     artifacts = job.get("artifacts", {})
-    statuses = [artifacts.get(t, {}).get("status") for t in _ARTIFACT_TYPES]
+    artifact_records = list(artifacts.values())
+    statuses = [artifact.get("status") for artifact in artifact_records]
 
     if any(s == ArtifactStatus.PROCESSING for s in statuses):
         return  # still in flight — no overall status change yet
@@ -334,8 +353,12 @@ def _recalculate_job_status(job_id: str) -> None:
         else JobStatus.PARTIAL
     )
 
-    total_input_tokens = sum(artifacts.get(t, {}).get("inputTokens", 0) for t in _ARTIFACT_TYPES)
-    total_output_tokens = sum(artifacts.get(t, {}).get("outputTokens", 0) for t in _ARTIFACT_TYPES)
+    total_input_tokens = sum(
+        artifact.get("inputTokens", 0) for artifact in artifact_records
+    )
+    total_output_tokens = sum(
+        artifact.get("outputTokens", 0) for artifact in artifact_records
+    )
 
     try:
         _jobs_table().update_item(
