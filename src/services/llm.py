@@ -8,6 +8,7 @@ from openai import AsyncOpenAI
 from src.constants import (
     ANTHROPIC_SECRET_NAME,
     CLAUDE_AGENT_MODELS,
+    CLAUDE_EXTRA_TOOLS,
     CLAUDE_MAX_OUTPUT_TOKENS,
     OPENAI_AGENT_MODELS,
     OPENAI_SECRET_NAME,
@@ -22,17 +23,6 @@ _AGENT_OUTPUT_MODEL = {
     "ui-plan": UIPlanOutput,
     "report": ReportOutput,
     "compare": CompareOutput,
-}
-
-# web_search and web_fetch are Anthropic server-side tools — no client-side execution needed.
-_CLAUDE_EXTRA_TOOLS = {
-    "crawl": [
-        {"type": "web_search_20250305", "name": "web_search"},
-        {"type": "web_fetch_20250305", "name": "web_fetch"},
-    ],
-    "ui-plan": [
-        {"type": "web_fetch_20250305", "name": "web_fetch"},
-    ],
 }
 
 
@@ -85,7 +75,7 @@ def _create_claude_agent(
         "system_prompt": system_prompt,
         "hooks": hooks,
         "response_model": response_model,
-        "extra_tools": _CLAUDE_EXTRA_TOOLS.get(agent_type, []),
+        "extra_tools": CLAUDE_EXTRA_TOOLS.get(agent_type, []),
     }
 
 

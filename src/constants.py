@@ -62,3 +62,14 @@ OPENAI_AGENT_MODELS = {
     "report": OPENAI_CRAWL_MODEL,
     "compare": OPENAI_CRAWL_MODEL,
 }
+
+# Anthropic server-side tools passed per agent type. Only crawl and ui-plan need web access.
+CLAUDE_EXTRA_TOOLS: dict[str, list[dict]] = {
+    "crawl": [
+        {"type": "web_search_20250305", "name": "web_search"},
+        {"type": "web_fetch_20250305", "name": "web_fetch"},
+    ],
+    "ui-plan": [
+        {"type": "web_fetch_20250305", "name": "web_fetch"},
+    ],
+}
