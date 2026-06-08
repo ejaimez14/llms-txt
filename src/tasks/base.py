@@ -1,8 +1,9 @@
 import asyncio
 import tempfile
+from collections.abc import AsyncIterator
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from claude_agent_sdk import ClaudeAgentOptions, query
 
@@ -81,7 +82,7 @@ async def _run_sdk(hooks: JobHooks, url: str, config: TaskConfig) -> None:
         hooks.on_complete(output.model_dump())
 
 
-async def _exhaust(gen) -> None:
+async def _exhaust(gen: AsyncIterator[Any]) -> None:
     async for _ in gen:
         pass
 

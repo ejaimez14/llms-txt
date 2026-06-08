@@ -1,3 +1,5 @@
+from unittest.mock import MagicMock
+
 import pytest
 from pytest_mock import MockerFixture
 
@@ -15,11 +17,11 @@ from src.services.fargate import (
 
 
 @pytest.fixture
-def mock_ecs(mocker: MockerFixture):
+def mock_ecs(mocker: MockerFixture) -> MagicMock:
     return mocker.patch.object(fargate_module, "_ecs", autospec=True)
 
 
-def _get_container_override(mock_ecs):
+def _get_container_override(mock_ecs: MagicMock) -> dict:
     call_kwargs = mock_ecs.run_task.call_args[1]
     return call_kwargs["overrides"]["containerOverrides"][0]
 
