@@ -23,8 +23,3 @@ output "api_url" {
   value       = module.api_gateway.api_url
 }
 
-output "api_key" {
-  description = "API key value injected by CloudFront as x-api-key; consumed by the cloudfront module."
-  value       = module.api_gateway.api_key
-  sensitive   = true
-}

@@ -1,3 +1,15 @@
+locals {
+  routes = [
+    "POST /api/crawl",
+    "GET /api/job",
+    "GET /api/job/{id}/llms-txt",
+    "GET /api/job/{id}/plan",
+    "GET /api/jobs",
+    "GET /api/site",
+    "GET /api/search",
+  ]
+}
+
 resource "random_password" "api_key" {
   length  = 32
   special = false
@@ -18,18 +30,6 @@ resource "aws_apigatewayv2_integration" "lambda" {
   integration_type       = "AWS_PROXY"
   integration_uri        = var.lambda_invoke_arn
   payload_format_version = "2.0"
-}
-
-locals {
-  routes = [
-    "POST /api/crawl",
-    "GET /api/job",
-    "GET /api/job/{id}/llms-txt",
-    "GET /api/job/{id}/plan",
-    "GET /api/jobs",
-    "GET /api/site",
-    "GET /api/search",
-  ]
 }
 
 # REQUEST authorizer validates the x-api-key header; CloudFront injects the key
