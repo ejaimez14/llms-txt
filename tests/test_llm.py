@@ -29,6 +29,11 @@ def test_create_agent_unsupported_model_raises() -> None:
         create_agent("gpt-4", "crawl", "job-1", "https://example.com", "prompt")
 
 
+def test_create_agent_unknown_agent_type_raises() -> None:
+    with pytest.raises(ValueError):
+        create_agent("claude", "unknown", "job-1", "https://example.com", "prompt")
+
+
 # --- run_agent (claude) ---
 
 

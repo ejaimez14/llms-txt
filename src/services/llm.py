@@ -33,8 +33,6 @@ _CLAUDE_EXTRA_TOOLS = {
     "ui-plan": [
         {"type": "web_fetch_20250305", "name": "web_fetch"},
     ],
-    "report": [],
-    "compare": [],
 }
 
 
@@ -73,6 +71,7 @@ def _create_claude_agent(
     url: str,
     model: str,
 ) -> dict:
+    """Builds a Claude instructor context dict with hooks pre-attached."""
     model_id = CLAUDE_AGENT_MODELS.get(agent_type)
     if not model_id:
         raise ValueError(f"No Claude model configured for agent_type={agent_type!r}")
