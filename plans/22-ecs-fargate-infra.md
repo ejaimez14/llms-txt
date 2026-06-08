@@ -1,29 +1,37 @@
-# Component: ECS Fargate Infrastructure (Plan 22)
+# Component: ECS Fargate Infrastructure & Agent Migration (Plan 22)
 
 ## How to Use This Plan
 
-You are implementing the Terraform infrastructure for the UI implementer agent (Plan 21).
-This adds an `infra/modules/ecs/` module for the brand-new ECS resources, and extends the
-existing `infra/modules/observability/` module with a CloudWatch log group for task logs.
+You are doing two related things:
+
+1. **Terraform infrastructure** — Add `infra/modules/ecs/` for the brand-new ECS resources and
+   extend `infra/modules/observability/` with a CloudWatch log group.
+2. **Agent migration** — Move the Claude path for the crawler and UI planner agents from Lambda
+   threads to ECS Fargate tasks, using the `claude-agent-sdk` for a true multi-turn loop.
+
+The UI implementer (Plan 21) already uses Fargate. The crawler and UI planner join it in this plan.
+The OpenAI path for both agents is unchanged — it stays in Lambda via the agent factory.
+Report and compare agents are not migrated — single-call structured output via `instructor`
+is the right fit for pure analysis tasks.
 
 The IAM role already exists outside of Terraform — it is passed as a variable and reused for
 both the ECS task execution role and the task role. No IAM resources are created here.
 
 Dependencies:
 - [17-terraform-hosting.md](17-terraform-hosting.md) — lambda and observability modules must exist first
-- [21-ui-implementer-agent.md](21-ui-implementer-agent.md) — the code this infrastructure runs
+- [21-ui-implementer-agent.md](21-ui-implementer-agent.md) — established the Fargate agent pattern
 
 ---
 
 ## Owner
 
-Infra subagent
+Infra subagent (Terraform sections) + Backend subagent (agent migration sections)
 
 ## Output Files
 
 ```
 infra/
-  main.tf                    ← extend (add ecs module)
+  main.tf                    ← extend (add ecs module, update lambda env vars)
   variables.tf               ← extend (add ecs variables)
   outputs.tf                 ← extend (add ecr_repository_url output)
   modules/
@@ -34,6 +42,19 @@ infra/
     observability/
       main.tf                ← extend (add ECS log group)
       variables.tf           ← extend (add ecs_log_group_name variable)
+src/
+  agents/
+    crawler.py               ← rewrite (claude-agent-sdk path)
+    ui_planner.py            ← rewrite (claude-agent-sdk path)
+  services/
+    fargate.py               ← extend (add trigger_crawler_task, trigger_ui_planner_task)
+  tasks/
+    crawler.py               ← new (Fargate entry point)
+    ui_planner.py            ← new (Fargate entry point)
+  handler.py                 ← extend (dual-path routing for crawl and ui-plan)
+tests/
+  test_crawler.py            ← update
+  test_ui_planner.py         ← update
 ```
 
 ---
@@ -41,18 +62,26 @@ infra/
 ## What Is Brand New vs. What Extends Existing
 
 **New module — `infra/modules/ecs/`:**
-- ECR repository (Docker image storage)
-- ECS cluster
-- ECS task definition (container config, env vars, secrets, log routing)
+- One ECR repository (all three Fargate agents share the same Docker image)
+- One ECS cluster
+- Three ECS task definitions: implementer, crawler, ui-planner
 - Security group for Fargate tasks (outbound internet only)
 
 **Extends existing — `infra/modules/observability/`:**
-- CloudWatch log group for ECS task stdout/stderr
+- CloudWatch log group for all ECS task stdout/stderr (shared)
+
+**New code:**
+- `src/tasks/crawler.py` and `src/tasks/ui_planner.py` — Fargate entry points
+- Two new trigger functions in `src/services/fargate.py`
+
+**Rewrites:**
+- `src/agents/crawler.py` — Claude path now delegates to the SDK; OpenAI path unchanged
+- `src/agents/ui_planner.py` — same pattern
 
 **Manual IAM addition (outside Terraform):**
-The existing IAM role needs two additional permissions for the Lambda function to dispatch
-Fargate tasks. Add these to the role policy outside of Terraform:
-- `ecs:RunTask` scoped to the implementer task definition ARN
+The existing IAM role needs these additional permissions for the Lambda function to dispatch
+Fargate tasks. Add them to the role policy outside of Terraform:
+- `ecs:RunTask` scoped to all three task definition ARNs
 - `iam:PassRole` scoped to the same IAM role ARN (required by AWS when ECS assumes it)
 
 ---
@@ -67,33 +96,37 @@ variable "iam_role_arn" {
 }
 
 variable "ecr_repository_name" {
-  description = "Name of the ECR repository for the implementer Docker image"
+  description = "Name of the ECR repository shared by all Fargate agents"
 }
 
 variable "cluster_name" {
   description = "Name of the ECS cluster"
 }
 
-variable "task_family" {
-  description = "ECS task definition family name"
+variable "implementer_task_family" {
+  description = "ECS task definition family name for the UI implementer"
+}
+
+variable "crawler_task_family" {
+  description = "ECS task definition family name for the crawler agent"
+}
+
+variable "ui_planner_task_family" {
+  description = "ECS task definition family name for the UI planner agent"
 }
 
 variable "task_cpu" {
-  description = "vCPU units for the Fargate task (1024 = 1 vCPU)"
+  description = "vCPU units for Fargate tasks (1024 = 1 vCPU)"
   default     = 1024
 }
 
 variable "task_memory" {
-  description = "Memory in MB for the Fargate task"
+  description = "Memory in MB for Fargate tasks"
   default     = 2048
 }
 
-variable "container_name" {
-  description = "Name of the container inside the task definition"
-}
-
 variable "log_group_name" {
-  description = "CloudWatch log group name for task stdout/stderr"
+  description = "CloudWatch log group name for all Fargate task stdout/stderr"
 }
 
 variable "aws_region" {
@@ -101,7 +134,7 @@ variable "aws_region" {
 }
 
 variable "bucket_name" {
-  description = "S3 bucket name passed to the container as an environment variable"
+  description = "S3 bucket name passed to containers as an environment variable"
 }
 
 variable "jobs_table_name" {
@@ -121,7 +154,7 @@ variable "anthropic_secret_arn" {
 }
 
 variable "github_secret_arn" {
-  description = "Secrets Manager ARN for the GitHub token"
+  description = "Secrets Manager ARN for the GitHub token (implementer only)"
 }
 
 variable "pinecone_secret_arn" {
@@ -135,8 +168,25 @@ variable "vpc_id" {
 
 ### `modules/ecs/main.tf`
 
+All three task definitions use the same ECR image. Only the implementer mounts `GITHUB_TOKEN`.
+
 ```hcl
-resource "aws_ecr_repository" "implementer" {
+locals {
+  base_environment = [
+    { name = "TABLE",              value = var.jobs_table_name },
+    { name = "SITES_TABLE",        value = var.sites_table_name },
+    { name = "BUCKET",             value = var.bucket_name },
+    { name = "PINECONE_INDEX",     value = var.pinecone_index },
+    { name = "AWS_DEFAULT_REGION", value = var.aws_region },
+  ]
+
+  base_secrets = [
+    { name = "ANTHROPIC_API_KEY", valueFrom = var.anthropic_secret_arn },
+    { name = "PINECONE_API_KEY",  valueFrom = var.pinecone_secret_arn },
+  ]
+}
+
+resource "aws_ecr_repository" "agents" {
   name                 = var.ecr_repository_name
   image_tag_mutability = "MUTABLE"
 
@@ -151,7 +201,7 @@ resource "aws_ecs_cluster" "main" {
 
 resource "aws_security_group" "fargate_tasks" {
   name        = "${var.cluster_name}-fargate-tasks"
-  description = "Outbound internet access for Fargate implementer tasks"
+  description = "Outbound internet access for Fargate agent tasks"
   vpc_id      = var.vpc_id
 
   egress {
@@ -163,7 +213,7 @@ resource "aws_security_group" "fargate_tasks" {
 }
 
 resource "aws_ecs_task_definition" "implementer" {
-  family                   = var.task_family
+  family                   = var.implementer_task_family
   requires_compatibilities = ["FARGATE"]
   network_mode             = "awsvpc"
   cpu                      = var.task_cpu
@@ -171,36 +221,82 @@ resource "aws_ecs_task_definition" "implementer" {
   execution_role_arn       = var.iam_role_arn
   task_role_arn            = var.iam_role_arn
 
-  container_definitions = jsonencode([
-    {
-      name    = var.container_name
-      image   = "${aws_ecr_repository.implementer.repository_url}:latest"
-      command = ["python", "-m", "src.tasks.implementer"]
+  container_definitions = jsonencode([{
+    name    = "implementer"
+    image   = "${aws_ecr_repository.agents.repository_url}:latest"
+    command = ["python", "-m", "src.tasks.implementer"]
 
-      environment = [
-        { name = "TABLE",              value = var.jobs_table_name },
-        { name = "SITES_TABLE",        value = var.sites_table_name },
-        { name = "BUCKET",             value = var.bucket_name },
-        { name = "PINECONE_INDEX",     value = var.pinecone_index },
-        { name = "AWS_DEFAULT_REGION", value = var.aws_region },
-      ]
+    environment = local.base_environment
 
-      secrets = [
-        { name = "ANTHROPIC_API_KEY", valueFrom = var.anthropic_secret_arn },
-        { name = "GITHUB_TOKEN",      valueFrom = var.github_secret_arn },
-        { name = "PINECONE_API_KEY",  valueFrom = var.pinecone_secret_arn },
-      ]
+    secrets = concat(local.base_secrets, [
+      { name = "GITHUB_TOKEN", valueFrom = var.github_secret_arn },
+    ])
 
-      logConfiguration = {
-        logDriver = "awslogs"
-        options = {
-          "awslogs-group"         = var.log_group_name
-          "awslogs-region"        = var.aws_region
-          "awslogs-stream-prefix" = "implementer"
-        }
+    logConfiguration = {
+      logDriver = "awslogs"
+      options = {
+        "awslogs-group"         = var.log_group_name
+        "awslogs-region"        = var.aws_region
+        "awslogs-stream-prefix" = "implementer"
       }
     }
-  ])
+  }])
+}
+
+resource "aws_ecs_task_definition" "crawler" {
+  family                   = var.crawler_task_family
+  requires_compatibilities = ["FARGATE"]
+  network_mode             = "awsvpc"
+  cpu                      = var.task_cpu
+  memory                   = var.task_memory
+  execution_role_arn       = var.iam_role_arn
+  task_role_arn            = var.iam_role_arn
+
+  container_definitions = jsonencode([{
+    name    = "crawler"
+    image   = "${aws_ecr_repository.agents.repository_url}:latest"
+    command = ["python", "-m", "src.tasks.crawler"]
+
+    environment = local.base_environment
+    secrets     = local.base_secrets
+
+    logConfiguration = {
+      logDriver = "awslogs"
+      options = {
+        "awslogs-group"         = var.log_group_name
+        "awslogs-region"        = var.aws_region
+        "awslogs-stream-prefix" = "crawler"
+      }
+    }
+  }])
+}
+
+resource "aws_ecs_task_definition" "ui_planner" {
+  family                   = var.ui_planner_task_family
+  requires_compatibilities = ["FARGATE"]
+  network_mode             = "awsvpc"
+  cpu                      = var.task_cpu
+  memory                   = var.task_memory
+  execution_role_arn       = var.iam_role_arn
+  task_role_arn            = var.iam_role_arn
+
+  container_definitions = jsonencode([{
+    name    = "ui-planner"
+    image   = "${aws_ecr_repository.agents.repository_url}:latest"
+    command = ["python", "-m", "src.tasks.ui_planner"]
+
+    environment = local.base_environment
+    secrets     = local.base_secrets
+
+    logConfiguration = {
+      logDriver = "awslogs"
+      options = {
+        "awslogs-group"         = var.log_group_name
+        "awslogs-region"        = var.aws_region
+        "awslogs-stream-prefix" = "ui-planner"
+      }
+    }
+  }])
 }
 ```
 
@@ -215,20 +311,24 @@ output "cluster_arn" {
   value = aws_ecs_cluster.main.arn
 }
 
-output "task_definition_arn" {
+output "implementer_task_definition_arn" {
   value = aws_ecs_task_definition.implementer.arn
+}
+
+output "crawler_task_definition_arn" {
+  value = aws_ecs_task_definition.crawler.arn
+}
+
+output "ui_planner_task_definition_arn" {
+  value = aws_ecs_task_definition.ui_planner.arn
 }
 
 output "security_group_id" {
   value = aws_security_group.fargate_tasks.id
 }
 
-output "container_name" {
-  value = var.container_name
-}
-
 output "ecr_repository_url" {
-  value = aws_ecr_repository.implementer.repository_url
+  value = aws_ecr_repository.agents.repository_url
 }
 ```
 
@@ -263,13 +363,14 @@ resource "aws_cloudwatch_log_group" "ecs_tasks" {
 module "ecs" {
   source = "./modules/ecs"
 
-  iam_role_arn         = var.iam_role_arn
-  ecr_repository_name  = "llms-txt-implementer"
-  cluster_name         = "llms-txt-cluster"
-  task_family          = "llms-txt-implementer"
-  container_name       = "implementer"
-  log_group_name       = "/ecs/llms-txt-implementer"
-  aws_region           = var.aws_region
+  iam_role_arn            = var.iam_role_arn
+  ecr_repository_name     = "llms-txt-agents"
+  cluster_name            = "llms-txt-cluster"
+  implementer_task_family = "llms-txt-implementer"
+  crawler_task_family     = "llms-txt-crawler"
+  ui_planner_task_family  = "llms-txt-ui-planner"
+  log_group_name          = "/ecs/llms-txt"
+  aws_region              = var.aws_region
 
   bucket_name          = module.s3.bucket_name
   jobs_table_name      = module.dynamodb.jobs_table_name
@@ -281,16 +382,26 @@ module "ecs" {
   pinecone_secret_arn  = var.pinecone_secret_arn
   vpc_id               = var.vpc_id
 }
-```
 
-Also pass `ecs_log_group_name` when the observability module is wired in:
-
-```hcl
 module "observability" {
   source               = "./modules/observability"
   lambda_function_name = module.lambda.function_name
   api_gateway_id       = module.api_gateway.api_id
-  ecs_log_group_name   = "/ecs/llms-txt-implementer"
+  ecs_log_group_name   = "/ecs/llms-txt"
+}
+```
+
+Pass all ECS env vars to the Lambda module so the handler can dispatch tasks:
+
+```hcl
+module "lambda" {
+  ...
+  ecs_cluster                    = module.ecs.cluster_name
+  ecs_implementer_task_definition = module.ecs.implementer_task_definition_arn
+  ecs_crawler_task_definition    = module.ecs.crawler_task_definition_arn
+  ecs_ui_planner_task_definition = module.ecs.ui_planner_task_definition_arn
+  ecs_security_group             = module.ecs.security_group_id
+  ecs_subnet_ids                 = var.subnet_ids
 }
 ```
 
@@ -319,22 +430,8 @@ variable "subnet_ids" {
 
 ```hcl
 output "ecr_repository_url" {
-  description = "Push Docker images here before running Fargate tasks"
+  description = "Push agent Docker images here before running Fargate tasks"
   value       = module.ecs.ecr_repository_url
-}
-```
-
-The Lambda handler also needs these env vars to dispatch tasks. Add them to the lambda module
-call in `infra/main.tf`:
-
-```hcl
-module "lambda" {
-  ...
-  ecs_cluster          = module.ecs.cluster_name
-  ecs_task_definition  = module.ecs.task_definition_arn
-  ecs_container_name   = module.ecs.container_name
-  ecs_security_group   = module.ecs.security_group_id
-  ecs_subnet_ids       = var.subnet_ids
 }
 ```
 
@@ -342,13 +439,18 @@ module "lambda" {
 
 ## Manual IAM Additions (Outside Terraform)
 
-Add these two statements to the existing IAM role policy after `terraform apply`:
+Add these statements to the existing IAM role policy after `terraform apply`. Use
+`terraform output` to get the task definition ARNs:
 
 ```json
 {
   "Effect": "Allow",
   "Action": ["ecs:RunTask"],
-  "Resource": "<task_definition_arn>"
+  "Resource": [
+    "<implementer_task_definition_arn>",
+    "<crawler_task_definition_arn>",
+    "<ui_planner_task_definition_arn>"
+  ]
 },
 {
   "Effect": "Allow",
@@ -360,14 +462,15 @@ Add these two statements to the existing IAM role policy after `terraform apply`
 }
 ```
 
-Use `terraform output` to get the `task_definition_arn` after applying.
-
 ---
 
-## Dockerfile Requirements
+## Dockerfile
 
-The implementer Docker image must include `git` and `gh` (GitHub CLI). Base your Dockerfile
-on the existing Lambda image or a standard Python 3.11 image and add:
+All three Fargate agents share one Docker image. The implementer needs `git` and `gh`
+(GitHub CLI) for branch creation and PR opening. Crawler and UI planner only need the
+`claude-agent-sdk` and Python dependencies, but they use the same image for simplicity.
+
+Add `Dockerfile.agent` at the repo root:
 
 ```dockerfile
 FROM python:3.11-slim
@@ -385,13 +488,358 @@ WORKDIR /app
 RUN pip install -e .
 ```
 
-Add a `Dockerfile.implementer` at the repo root. The build and push step is manual for now
-(Phase 5 CI/CD concern):
+Build and push (manual for now — Phase 5 CI/CD concern):
 
 ```bash
-docker build -f Dockerfile.implementer -t <ecr_repository_url>:latest .
+docker build -f Dockerfile.agent -t <ecr_repository_url>:latest .
 docker push <ecr_repository_url>:latest
 ```
+
+---
+
+## Crawler Fargate Task
+
+### Design
+
+The crawler runs the `claude-agent-sdk` loop with `WebFetch` and `Write` tools. Claude
+discovers pages starting from the root URL via `WebFetch`, then writes `crawl-output.json`
+to the workspace. The entry point validates the JSON against `CrawlOutput` and calls
+`JobHooks.on_complete`, which handles S3 save, Pinecone upsert, and artifact completion.
+
+Note: Anthropic's server-side `web_search_20250305` tool is not available through the SDK.
+Claude discovers pages by fetching the root URL and following links — no keyword search.
+This is still a quality improvement over the single-call path because Claude can iteratively
+decide which linked pages to fetch based on what it finds.
+
+### `src/tasks/crawler.py`
+
+```python
+import asyncio
+import os
+import tempfile
+from pathlib import Path
+
+from claude_agent_sdk import ClaudeAgentOptions, query
+
+from src.constants import CLAUDE_CRAWL_MODEL
+from src.models import CrawlOutput
+from src.prompts import CRAWL_SYSTEM_PROMPT
+from src.services.hooks import JobHooks
+from src.services.logger import get_logger
+
+logger = get_logger(__name__)
+
+CRAWL_MAX_TURNS = 30
+CRAWL_TIMEOUT_SECONDS = 1800
+OUTPUT_FILE = "crawl-output.json"
+
+
+def run_crawler_task(job_id: str, url: str) -> None:
+    """Fargate entry point: runs the SDK-based crawl agent and saves the result."""
+    hooks = JobHooks(job_id, "crawl", url, "claude")
+    hooks.on_start()
+    try:
+        asyncio.run(_run_agent(hooks, url))
+    except Exception as exc:
+        logger.error({"event": "crawler_task_failed", "error": str(exc)})
+        hooks.on_error(exc)
+
+
+async def _run_agent(hooks: JobHooks, url: str) -> None:
+    """Runs the SDK loop, reads crawl-output.json, and completes the artifact."""
+    with tempfile.TemporaryDirectory() as workspace:
+        options = ClaudeAgentOptions(
+            cwd=workspace,
+            model=CLAUDE_CRAWL_MODEL,
+            permission_mode="bypassPermissions",
+            allowed_tools=["WebFetch", "Write"],
+            max_turns=CRAWL_MAX_TURNS,
+        )
+        await asyncio.wait_for(
+            _exhaust(query(prompt=_build_prompt(url), options=options)),
+            timeout=CRAWL_TIMEOUT_SECONDS,
+        )
+        output = CrawlOutput.model_validate_json(
+            Path(workspace, OUTPUT_FILE).read_text()
+        )
+        hooks.on_complete(output.model_dump())
+
+
+async def _exhaust(gen) -> None:
+    async for message in gen:
+        logger.info({"event": "crawler_message", "type": type(message).__name__})
+
+
+def _build_prompt(url: str) -> str:
+    """Combines system instructions with the file-writing requirement and target URL."""
+    return (
+        f"{CRAWL_SYSTEM_PROMPT}\n\n"
+        f"After completing your analysis, write your output as a JSON object to "
+        f"`{OUTPUT_FILE}` in the working directory. "
+        f"The JSON must have exactly two fields: `llms_txt` (string) and `metadata` (object).\n\n"
+        f"Crawl this website: {url}"
+    )
+
+
+if __name__ == "__main__":
+    run_crawler_task(
+        job_id=os.environ["CRAWLER_JOB_ID"],
+        url=os.environ["CRAWLER_URL"],
+    )
+```
+
+### `src/agents/crawler.py` — rewrite
+
+The crawler agent now routes based on model. The Claude path dispatches a Fargate task and
+returns immediately; the OpenAI path uses the agent factory as before.
+
+```python
+from src.constants import ArtifactType
+from src.prompts import CRAWL_SYSTEM_PROMPT
+from src.services.fargate import trigger_crawler_task
+from src.services.llm import create_agent, run_agent
+from src.services.storage import create_job_agent, fail_artifact
+
+
+def run_crawler(job_id: str, url: str, model: str) -> dict | None:
+    """Routes crawl to Fargate (Claude) or the agent factory (OpenAI)."""
+    if model == "claude":
+        trigger_crawler_task(job_id, url)
+        return None
+    agent = create_agent(
+        model=model,
+        agent_type="crawl",
+        job_id=job_id,
+        url=url,
+        system_prompt=CRAWL_SYSTEM_PROMPT,
+    )
+    return run_agent(agent, f"Crawl this website and produce an llms.txt file: {url}")
+```
+
+---
+
+## UI Planner Fargate Task
+
+### Design
+
+Identical pattern to the crawler. Claude fetches the target URL via `WebFetch` and writes
+`ui-plan-output.json`. The entry point validates against `UIPlanOutput` and calls
+`JobHooks.on_complete`, which saves the plan to S3 and completes the artifact.
+
+### `src/tasks/ui_planner.py`
+
+```python
+import asyncio
+import os
+import tempfile
+from pathlib import Path
+
+from claude_agent_sdk import ClaudeAgentOptions, query
+
+from src.constants import CLAUDE_UI_PLAN_MODEL
+from src.models import UIPlanOutput
+from src.prompts import UI_PLAN_SYSTEM_PROMPT
+from src.services.hooks import JobHooks
+from src.services.logger import get_logger
+
+logger = get_logger(__name__)
+
+UI_PLAN_MAX_TURNS = 20
+UI_PLAN_TIMEOUT_SECONDS = 900
+OUTPUT_FILE = "ui-plan-output.json"
+
+
+def run_ui_planner_task(job_id: str, url: str) -> None:
+    """Fargate entry point: runs the SDK-based UI planner agent and saves the result."""
+    hooks = JobHooks(job_id, "ui-plan", url, "claude")
+    hooks.on_start()
+    try:
+        asyncio.run(_run_agent(hooks, url))
+    except Exception as exc:
+        logger.error({"event": "ui_planner_task_failed", "error": str(exc)})
+        hooks.on_error(exc)
+
+
+async def _run_agent(hooks: JobHooks, url: str) -> None:
+    """Runs the SDK loop, reads ui-plan-output.json, and completes the artifact."""
+    with tempfile.TemporaryDirectory() as workspace:
+        options = ClaudeAgentOptions(
+            cwd=workspace,
+            model=CLAUDE_UI_PLAN_MODEL,
+            permission_mode="bypassPermissions",
+            allowed_tools=["WebFetch", "Write"],
+            max_turns=UI_PLAN_MAX_TURNS,
+        )
+        await asyncio.wait_for(
+            _exhaust(query(prompt=_build_prompt(url), options=options)),
+            timeout=UI_PLAN_TIMEOUT_SECONDS,
+        )
+        output = UIPlanOutput.model_validate_json(
+            Path(workspace, OUTPUT_FILE).read_text()
+        )
+        hooks.on_complete(output.model_dump())
+
+
+async def _exhaust(gen) -> None:
+    async for message in gen:
+        logger.info({"event": "ui_planner_message", "type": type(message).__name__})
+
+
+def _build_prompt(url: str) -> str:
+    """Combines system instructions with the file-writing requirement and target URL."""
+    return (
+        f"{UI_PLAN_SYSTEM_PROMPT}\n\n"
+        f"After completing your analysis, write your output as a JSON object to "
+        f"`{OUTPUT_FILE}` in the working directory. "
+        f"The JSON must have exactly two fields: `plan_markdown` (string) and "
+        f"`design_tokens` (object).\n\n"
+        f"Analyze this website and produce a UI implementation plan: {url}"
+    )
+
+
+if __name__ == "__main__":
+    run_ui_planner_task(
+        job_id=os.environ["UI_PLANNER_JOB_ID"],
+        url=os.environ["UI_PLANNER_URL"],
+    )
+```
+
+### `src/agents/ui_planner.py` — rewrite
+
+```python
+from src.prompts import UI_PLAN_SYSTEM_PROMPT
+from src.services.fargate import trigger_ui_planner_task
+from src.services.llm import create_agent, run_agent
+
+
+def run_ui_planner(job_id: str, url: str, model: str) -> dict | None:
+    """Routes UI planning to Fargate (Claude) or the agent factory (OpenAI)."""
+    if model == "claude":
+        trigger_ui_planner_task(job_id, url)
+        return None
+    agent = create_agent(
+        model=model,
+        agent_type="ui-plan",
+        job_id=job_id,
+        url=url,
+        system_prompt=UI_PLAN_SYSTEM_PROMPT,
+    )
+    return run_agent(
+        agent, f"Analyze this website and produce a UI implementation plan: {url}"
+    )
+```
+
+---
+
+## Fargate Service Extension
+
+Add to `src/services/fargate.py`:
+
+```python
+def trigger_crawler_task(job_id: str, url: str) -> None:
+    """Dispatches a Fargate task that runs run_crawler_task with the given parameters."""
+    try:
+        _ecs.run_task(
+            cluster=os.environ["ECS_CLUSTER"],
+            taskDefinition=os.environ["ECS_CRAWLER_TASK_DEFINITION"],
+            launchType="FARGATE",
+            networkConfiguration={
+                "awsvpcConfiguration": {
+                    "subnets": os.environ["ECS_SUBNET_IDS"].split(","),
+                    "assignPublicIp": "ENABLED",
+                }
+            },
+            overrides={
+                "containerOverrides": [{
+                    "name": "crawler",
+                    "environment": [
+                        {"name": "CRAWLER_JOB_ID", "value": job_id},
+                        {"name": "CRAWLER_URL",    "value": url},
+                    ],
+                }]
+            },
+        )
+    except Exception as exc:
+        logger.error({"event": "fargate_crawler_dispatch_failed", "error": str(exc)})
+        raise
+
+
+def trigger_ui_planner_task(job_id: str, url: str) -> None:
+    """Dispatches a Fargate task that runs run_ui_planner_task with the given parameters."""
+    try:
+        _ecs.run_task(
+            cluster=os.environ["ECS_CLUSTER"],
+            taskDefinition=os.environ["ECS_UI_PLANNER_TASK_DEFINITION"],
+            launchType="FARGATE",
+            networkConfiguration={
+                "awsvpcConfiguration": {
+                    "subnets": os.environ["ECS_SUBNET_IDS"].split(","),
+                    "assignPublicIp": "ENABLED",
+                }
+            },
+            overrides={
+                "containerOverrides": [{
+                    "name": "ui-planner",
+                    "environment": [
+                        {"name": "UI_PLANNER_JOB_ID", "value": job_id},
+                        {"name": "UI_PLANNER_URL",    "value": url},
+                    ],
+                }]
+            },
+        )
+    except Exception as exc:
+        logger.error({"event": "fargate_ui_planner_dispatch_failed", "error": str(exc)})
+        raise
+```
+
+---
+
+## Handler Amendment
+
+The handler's crawl and ui-plan routes now dispatch Fargate for Claude and fall back to the
+Lambda thread for OpenAI. The route no longer calls `_run_in_thread` for Claude.
+
+```python
+# src/handler.py — updated crawl route
+
+@router.post("/crawl", status_code=202, summary="Crawl a website")
+def crawl(req: CrawlRequest) -> dict:
+    """Creates a crawl job and dispatches it — Fargate for Claude, thread for OpenAI."""
+    job_id = str(uuid.uuid4())
+    create_job(job_id, req.url, req.model, JobType.CRAWL)
+    if req.model == ModelName.CLAUDE:
+        trigger_crawler_task(job_id, req.url)
+    else:
+        _run_in_thread(run_crawler, job_id, req.url, req.model.value)
+    return {"jobId": job_id, "status": "processing"}
+
+
+# src/handler.py — updated ui-plan route (if it exists as a route)
+# If ui-plan is currently triggered as part of the crawl job, adjust accordingly.
+# The pattern is the same: Claude → Fargate, OpenAI → thread.
+```
+
+New imports needed in `handler.py`:
+
+```python
+from src.services.fargate import trigger_crawler_task, trigger_implementer_task, trigger_ui_planner_task
+```
+
+### Environment Variables
+
+Add to `.env` for local testing. In Lambda, these come from the lambda module env config:
+
+```
+ECS_CLUSTER=llms-txt-cluster
+ECS_IMPLEMENTER_TASK_DEFINITION=arn:aws:ecs:...
+ECS_CRAWLER_TASK_DEFINITION=arn:aws:ecs:...
+ECS_UI_PLANNER_TASK_DEFINITION=arn:aws:ecs:...
+ECS_SUBNET_IDS=subnet-abc123,subnet-def456
+```
+
+Note: `ECS_TASK_DEFINITION` (used by the existing `trigger_implementer_task`) should be
+renamed to `ECS_IMPLEMENTER_TASK_DEFINITION` for consistency. Update both `fargate.py` and
+the lambda module wiring.
 
 ---
 
@@ -401,35 +849,53 @@ docker push <ecr_repository_url>:latest
 
 | Resource | Cost |
 |---|---|
-| ECR storage (1–2 GB image) | ~$0.15/month |
+| ECR storage (1–2 GB shared image) | ~$0.15/month |
 | ECS cluster | $0 (free) |
-| CloudWatch Logs (task output) | ~$0.05/month |
+| CloudWatch Logs (all task output) | ~$0.10/month |
 | Security group | $0 |
-| Fargate compute (10 runs × 45 min × 1 vCPU / 2 GB) | **~$0.38/month** |
-| **Total infra** | **~$0.58/month** |
+| Fargate compute — implementer (10 runs × 45 min × 1 vCPU / 2 GB) | ~$0.38/month |
+| Fargate compute — crawler (50 runs × 10 min × 1 vCPU / 2 GB) | ~$0.22/month |
+| Fargate compute — ui-planner (20 runs × 5 min × 1 vCPU / 2 GB) | ~$0.04/month |
+| **Total infra** | **~$0.89/month** |
 
-### Token costs (dominant factor)
-
-Each implementation run makes many Claude API calls over 30–60 minutes.
-With prompt caching (plan content is re-read each turn, so cache hit rate is high):
-
-| Scenario | Tokens | Cost per run |
-|---|---|---|
-| Simple single-page UI | ~150K input / 50K output | ~$1.20 |
-| Multi-component UI | ~400K input / 150K output | ~$3.00 |
-| Complex multi-page UI | ~800K input / 300K output | ~$5.50 |
-
-At 10 runs/month, expect **$12–$55/month in token costs** depending on UI complexity.
-Infrastructure cost is negligible compared to tokens.
+Token costs remain the dominant factor. Crawler and UI planner runs are shorter than the
+implementer but still multi-turn. Expect $15–$65/month at moderate usage across all agents.
 
 ---
 
 ## Acceptance Criteria
 
-- `terraform apply` creates ECR repo, ECS cluster, task definition, and security group without modifying S3 or DynamoDB
-- Task definition references the existing IAM role — no new IAM resources created
-- Secrets (Anthropic, GitHub, Pinecone) are injected via `secrets` (not `environment`) so they never appear in CloudWatch logs
-- ECS log group exists in observability module with 14-day retention
+**Terraform:**
+- `terraform apply` creates ECR repo, ECS cluster, three task definitions, and security group without modifying S3 or DynamoDB
+- All three task definitions reference the existing IAM role — no new IAM resources created
+- `GITHUB_TOKEN` secret appears only in the implementer task definition
+- Crawler and UI planner task definitions have only Anthropic and Pinecone secrets
+- ECS log group exists in observability module with 14-day retention, shared by all three tasks
 - `ecr_repository_url` output is available after apply for the Docker push step
-- Lambda module receives the ECS cluster name, task definition ARN, container name, security group ID, and subnet IDs as environment variables
+- Lambda module receives the cluster name, all three task definition ARNs, security group ID, and subnet IDs as environment variables
 - All resources in `us-east-1`
+
+**Crawler Fargate task:**
+- `run_crawler_task` calls `hooks.on_start()` before the SDK loop
+- On agent success and valid JSON, `hooks.on_complete()` is called (which saves to S3, embeds, upserts Pinecone)
+- On any failure (timeout, missing file, invalid JSON, SDK error), `hooks.on_error()` is called and the function does not re-raise
+- Agent is capped at `max_turns=30` and a 30-minute `asyncio.wait_for` timeout
+- The prompt appends the file-writing instruction after the system prompt — `CRAWL_SYSTEM_PROMPT` itself is unchanged
+
+**UI Planner Fargate task:**
+- Same lifecycle pattern as the crawler
+- Agent is capped at `max_turns=20` and a 15-minute timeout
+
+**Agent routing:**
+- `run_crawler("job-1", url, "claude")` calls `trigger_crawler_task` and returns `None`
+- `run_crawler("job-1", url, "openai")` calls `create_agent` / `run_agent` as before
+- `run_ui_planner("job-1", url, "claude")` calls `trigger_ui_planner_task` and returns `None`
+- Handler crawl route creates the job, then dispatches Fargate (Claude) or thread (OpenAI)
+
+**Tests:**
+- `test_run_crawler_dispatches_fargate_for_claude` — `trigger_crawler_task` is called, `run_agent` is not
+- `test_run_crawler_uses_agent_factory_for_openai` — `create_agent` / `run_agent` is called, `trigger_crawler_task` is not
+- Same two tests for `run_ui_planner`
+- `test_run_crawler_task_calls_hooks_on_success` — `hooks.on_complete` called with validated output
+- `test_run_crawler_task_calls_hooks_on_error` — `hooks.on_error` called on exception; no re-raise
+- Same two tests for `run_ui_planner_task`
