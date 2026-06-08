@@ -8,8 +8,8 @@ locals {
   ]
 
   base_secrets = [
-    { name = "ANTHROPIC_API_KEY", valueFrom = var.anthropic_secret_arn },
-    { name = "PINECONE_API_KEY",  valueFrom = var.pinecone_secret_arn },
+    { name = "ANTHROPIC_API_KEY", valueFrom = data.aws_secretsmanager_secret.anthropic.arn },
+    { name = "PINECONE_API_KEY",  valueFrom = data.aws_secretsmanager_secret.pinecone.arn },
   ]
 }
 
@@ -56,7 +56,7 @@ resource "aws_ecs_task_definition" "implementer" {
     environment = local.base_environment
 
     secrets = concat(local.base_secrets, [
-      { name = "GITHUB_TOKEN", valueFrom = var.github_secret_arn },
+      { name = "GITHUB_TOKEN", valueFrom = data.aws_secretsmanager_secret.github.arn },
     ])
 
     logConfiguration = {
