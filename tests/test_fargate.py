@@ -24,7 +24,10 @@ def test_trigger_task_uses_shared_task_definition(mock_ecs: MagicMock) -> None:
     assert call_kwargs["cluster"] == "test-cluster"
     assert "test-agent" in call_kwargs["taskDefinition"]
     assert call_kwargs["launchType"] == "FARGATE"
-    assert "sg-test" in call_kwargs["networkConfiguration"]["awsvpcConfiguration"]["securityGroups"]
+    assert (
+        "sg-test"
+        in call_kwargs["networkConfiguration"]["awsvpcConfiguration"]["securityGroups"]
+    )
 
 
 def test_trigger_task_passes_agent_type_and_env(mock_ecs: MagicMock) -> None:

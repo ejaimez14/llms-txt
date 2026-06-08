@@ -7,7 +7,9 @@ from src.services.logger import get_logger
 
 logger = get_logger(__name__)
 
-_ecs = boto3.client("ecs", region_name=os.environ.get("AWS_DEFAULT_REGION", "us-east-1"))
+_ecs = boto3.client(
+    "ecs", region_name=os.environ.get("AWS_DEFAULT_REGION", "us-east-1")
+)
 
 _TASK_COMMAND = ["python", "-m", "src.tasks"]
 _CONTAINER_NAME = "agent"
@@ -33,9 +35,9 @@ def trigger_task(agent_type: AgentType, job_id: str, url: str, model: str) -> No
                         "name": _CONTAINER_NAME,
                         "command": _TASK_COMMAND,
                         "environment": [
-                            {"name": "AGENT_TYPE",  "value": agent_type.value},
-                            {"name": "AGENT_ID",    "value": job_id},
-                            {"name": "AGENT_URL",   "value": url},
+                            {"name": "AGENT_TYPE", "value": agent_type.value},
+                            {"name": "AGENT_ID", "value": job_id},
+                            {"name": "AGENT_URL", "value": url},
                             {"name": "AGENT_MODEL", "value": model},
                         ],
                     }
@@ -43,5 +45,11 @@ def trigger_task(agent_type: AgentType, job_id: str, url: str, model: str) -> No
             },
         )
     except Exception as exc:
-        logger.error({"event": "fargate_dispatch_failed", "error": str(exc), "agent_type": agent_type.value})
+        logger.error(
+            {
+                "event": "fargate_dispatch_failed",
+                "error": str(exc),
+                "agent_type": agent_type.value,
+            }
+        )
         raise

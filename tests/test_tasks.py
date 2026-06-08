@@ -41,11 +41,15 @@ def test_claude_path_calls_hooks_lifecycle(mocker: MockerFixture) -> None:
     mock_hooks.return_value.on_error.assert_not_called()
 
 
-def test_claude_error_calls_on_error_and_does_not_reraise(mocker: MockerFixture) -> None:
+def test_claude_error_calls_on_error_and_does_not_reraise(
+    mocker: MockerFixture,
+) -> None:
     mock_hooks = mocker.patch.object(tasks_base, "JobHooks", return_value=MagicMock())
     _mock_sdk(mocker, exc=ValueError("SDK error"))
 
-    run_task("job-1", "https://example.com", "claude", _make_config(mocker))  # must not raise
+    run_task(
+        "job-1", "https://example.com", "claude", _make_config(mocker)
+    )  # must not raise
 
     mock_hooks.return_value.on_error.assert_called_once()
     mock_hooks.return_value.on_complete.assert_not_called()
