@@ -1,35 +1,37 @@
+import src.agents.crawler as crawler_module
 from pytest_mock import MockerFixture
 
-from src.agents import crawler
 from src.agents.crawler import run_crawler
 
 
-def test_run_crawler_passes_correct_params(mocker: MockerFixture) -> None:
-    mock_create = mocker.patch("src.agents.crawler.create_agent", return_value={})
-    mocker.patch("src.agents.crawler.run_agent", return_value={})
+def test_run_crawler_dispatches_fargate_for_claude(mocker: MockerFixture) -> None:
+    mock_trigger = mocker.patch("src.agents.crawler.trigger_crawler_task")
 
     run_crawler("job-1", "https://example.com", "claude")
 
-    mock_create.assert_called_once_with(
-        model="claude",
-        agent_type="crawl",
-        job_id="job-1",
-        url="https://example.com",
-        system_prompt=mocker.ANY,
-    )
+    mock_trigger.assert_called_once_with("job-1", "https://example.com", "claude")
 
 
-def test_run_crawler_returns_run_agent_output(mocker: MockerFixture) -> None:
-    expected = {"llms_txt": "# Example", "metadata": {}}
-    mocker.patch("src.agents.crawler.create_agent", return_value={})
-    mocker.patch("src.agents.crawler.run_agent", return_value=expected)
+def test_run_crawler_dispatches_fargate_for_openai(mocker: MockerFixture) -> None:
+    mock_trigger = mocker.patch("src.agents.crawler.trigger_crawler_task")
 
-    result = run_crawler("job-2", "https://example.com", "claude")
+    run_crawler("job-2", "https://example.com", "openai")
 
-    assert result == expected
+    mock_trigger.assert_called_once_with("job-2", "https://example.com", "openai")
+
+
+def test_run_crawler_dispatches_fargate_for_all_models(mocker: MockerFixture) -> None:
+    mock_trigger = mocker.patch("src.agents.crawler.trigger_crawler_task")
+
+    for model in ("claude", "openai"):
+        run_crawler("job-1", "https://example.com", model)
+
+    assert mock_trigger.call_count == 2
+    assert not hasattr(crawler_module, "run_agent")
+    assert not hasattr(crawler_module, "create_agent")
 
 
 def test_crawler_no_direct_storage_calls() -> None:
-    assert not hasattr(crawler, "save_llms_txt")
-    assert not hasattr(crawler, "embed_text")
-    assert not hasattr(crawler, "upsert_vector")
+    assert not hasattr(crawler_module, "save_llms_txt")
+    assert not hasattr(crawler_module, "embed_text")
+    assert not hasattr(crawler_module, "upsert_vector")

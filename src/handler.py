@@ -6,11 +6,10 @@ from fastapi.responses import FileResponse
 from mangum import Mangum
 
 from src.agents.comparer import run_comparer
-from src.agents.crawler import run_crawler
 from src.agents.reporter import run_reporter
-from src.agents.ui_planner import run_ui_planner
 from src.constants import ArtifactType, JobStatus, JobType
 from src.models import CompareRequest, CrawlRequest, ReportRequest, SearchResponse
+from src.services.fargate import trigger_crawler_task, trigger_ui_planner_task
 from src.services.logger import get_logger
 from src.services.search import run_search
 from src.services.storage import (
@@ -30,11 +29,11 @@ router = APIRouter(prefix="/api")
 
 @router.post("/crawl", status_code=202, summary="Start a crawl job")
 def crawl(req: CrawlRequest) -> dict:
-    """Crawls the given URL and generates an llms.txt and UI implementation plan in parallel."""
+    """Creates a crawl job and dispatches crawler and UI planner tasks to Fargate."""
     job_id = str(uuid.uuid4())
     create_job(job_id, req.url, req.model, JobType.CRAWL)
-    _run_in_thread(run_crawler, job_id, req.url, req.model)
-    _run_in_thread(run_ui_planner, job_id, req.url, req.model)
+    trigger_crawler_task(job_id, req.url, req.model.value)
+    trigger_ui_planner_task(job_id, req.url, req.model.value)
     return {"jobId": job_id, "status": "processing"}
 
 

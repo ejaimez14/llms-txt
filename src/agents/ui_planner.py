@@ -1,17 +1,6 @@
-from src.constants import AgentType
-from src.prompts import UI_PLAN_SYSTEM_PROMPT
-from src.services.llm import create_agent, run_agent
+from src.services.fargate import trigger_ui_planner_task
 
 
-def run_ui_planner(job_id: str, url: str, model: str) -> dict:
-    """Fetches url and returns a structured UI implementation plan with design tokens."""
-    agent = create_agent(
-        model=model,
-        agent_type=AgentType.UI_PLAN,
-        job_id=job_id,
-        url=url,
-        system_prompt=UI_PLAN_SYSTEM_PROMPT,
-    )
-    return run_agent(
-        agent, f"Analyze this website and produce a UI implementation plan: {url}"
-    )
+def run_ui_planner(job_id: str, url: str, model: str) -> None:
+    """Dispatches the UI planning job to Fargate for both Claude and OpenAI."""
+    trigger_ui_planner_task(job_id, url, model)

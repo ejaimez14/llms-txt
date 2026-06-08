@@ -1,32 +1,34 @@
+import src.agents.ui_planner as ui_planner_module
 from pytest_mock import MockerFixture
 
-import src.agents.ui_planner as ui_planner_module
 from src.agents.ui_planner import run_ui_planner
 
 
-def test_run_ui_planner_passes_correct_params(mocker: MockerFixture) -> None:
-    mock_create = mocker.patch("src.agents.ui_planner.create_agent", return_value={})
-    mocker.patch("src.agents.ui_planner.run_agent", return_value={})
+def test_run_ui_planner_dispatches_fargate_for_claude(mocker: MockerFixture) -> None:
+    mock_trigger = mocker.patch("src.agents.ui_planner.trigger_ui_planner_task")
 
     run_ui_planner("job-1", "https://example.com", "claude")
 
-    mock_create.assert_called_once_with(
-        model="claude",
-        agent_type="ui-plan",
-        job_id="job-1",
-        url="https://example.com",
-        system_prompt=mocker.ANY,
-    )
+    mock_trigger.assert_called_once_with("job-1", "https://example.com", "claude")
 
 
-def test_run_ui_planner_returns_run_agent_output(mocker: MockerFixture) -> None:
-    expected = {"plan_markdown": "# Plan", "design_tokens": {}}
-    mocker.patch("src.agents.ui_planner.create_agent", return_value={})
-    mocker.patch("src.agents.ui_planner.run_agent", return_value=expected)
+def test_run_ui_planner_dispatches_fargate_for_openai(mocker: MockerFixture) -> None:
+    mock_trigger = mocker.patch("src.agents.ui_planner.trigger_ui_planner_task")
 
-    result = run_ui_planner("job-1", "https://example.com", "claude")
+    run_ui_planner("job-2", "https://example.com", "openai")
 
-    assert result == expected
+    mock_trigger.assert_called_once_with("job-2", "https://example.com", "openai")
+
+
+def test_run_ui_planner_dispatches_fargate_for_all_models(mocker: MockerFixture) -> None:
+    mock_trigger = mocker.patch("src.agents.ui_planner.trigger_ui_planner_task")
+
+    for model in ("claude", "openai"):
+        run_ui_planner("job-1", "https://example.com", model)
+
+    assert mock_trigger.call_count == 2
+    assert not hasattr(ui_planner_module, "run_agent")
+    assert not hasattr(ui_planner_module, "create_agent")
 
 
 def test_ui_planner_no_direct_storage_calls() -> None:
