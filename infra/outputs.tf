@@ -19,22 +19,8 @@ output "ecr_repository_url" {
 }
 
 output "api_url" {
-  description = "Base invoke URL for the HTTP API; consumed by the CloudFront module."
+  description = "Base invoke URL for the HTTP API."
   value       = module.api_gateway.api_url
 }
 
-output "cloudfront_url" {
-  description = "Public URL — share this with interviewers"
-  value       = module.cloudfront.cloudfront_url
-}
-
-output "frontend_bucket_name" {
-  description = "Upload index.html here after terraform apply"
-  value       = module.cloudfront.frontend_bucket_name
-}
-
-output "cloudfront_distribution_id" {
-  description = "Use this ID to invalidate the CloudFront cache after updating index.html"
-  value       = module.cloudfront.cloudfront_distribution_id
-}
 

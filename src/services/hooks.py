@@ -68,7 +68,7 @@ class JobHooks:
                 },
             )
 
-            upsert_site(self.url, self.job_id, s3_key, metadata)
+            upsert_site(self.url, self.job_id, s3_key, metadata, self.model)
 
         elif self.agent_type == "ui-plan":
             output = UIPlanOutput.model_validate(raw_output)

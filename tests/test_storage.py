@@ -139,12 +139,12 @@ def test_upsert_site_overwrites_previous() -> None:
         "content_types": [],
     }
     storage.upsert_site(
-        "https://example.com", "job-a", "results/job-a/llms.txt", metadata
+        "https://example.com", "job-a", "results/job-a/llms.txt", metadata, "claude"
     )
 
     metadata["tech_stack"] = ["Vue"]
     storage.upsert_site(
-        "https://example.com", "job-b", "results/job-b/llms.txt", metadata
+        "https://example.com", "job-b", "results/job-b/llms.txt", metadata, "claude"
     )
 
     sites = storage.list_sites()

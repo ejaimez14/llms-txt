@@ -27,6 +27,8 @@ from src.services.storage import (
 
 logger = get_logger(__name__)
 
+_sqs = boto3.client("sqs")
+
 app = FastAPI(title="llms.txt Crawler")
 router = APIRouter(prefix="/api")
 
@@ -159,11 +161,10 @@ def serve_frontend() -> FileResponse:
 
 def handle_schedule(event: dict, context: object) -> dict:
     """EventBridge cron handler. Scans DynamoDB for all crawled URLs and enqueues one SQS message per URL."""
-    sqs = boto3.client("sqs")
     queue_url = os.environ["RECRAWL_QUEUE_URL"]
     sites = list_sites()
     for site in sites:
-        sqs.send_message(
+        _sqs.send_message(
             QueueUrl=queue_url,
             MessageBody=json.dumps({"url": site["url"], "model": site["model"]}),
         )

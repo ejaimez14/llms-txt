@@ -7,6 +7,7 @@ import pytest
 from moto import mock_aws
 from pytest_mock import MockerFixture
 
+import src.handler as handler
 import src.services.storage as storage
 from src.constants import JobType
 from src.handler import handle_schedule, handle_sqs
@@ -69,37 +70,19 @@ def aws_env() -> Generator[None, None, None]:
 
         sqs_client = boto3.client("sqs", region_name="us-east-1")
         sqs_client.create_queue(QueueName="test-recrawl")
+        handler._sqs = boto3.client("sqs", region_name="us-east-1")
 
         yield
 
 
 def test_handle_schedule_enqueues_one_message_per_url() -> None:
     """N sites in the sites table results in N SQS messages with correct MessageBody structure."""
+    metadata: dict = {"tech_stack": [], "integrations": [], "content_types": []}
     storage.upsert_site(
-        "https://alpha.com",
-        "job-a",
-        "results/job-a/llms.txt",
-        {"tech_stack": [], "integrations": [], "content_types": []},
+        "https://alpha.com", "job-a", "results/job-a/llms.txt", metadata, "claude"
     )
     storage.upsert_site(
-        "https://beta.com",
-        "job-b",
-        "results/job-b/llms.txt",
-        {"tech_stack": [], "integrations": [], "content_types": []},
-    )
-
-    # Manually set model on site records so handle_schedule can read them
-    ddb = boto3.resource("dynamodb", region_name="us-east-1")
-    sites_table = ddb.Table(os.environ["SITES_TABLE"])
-    sites_table.update_item(
-        Key={"url": "https://alpha.com"},
-        UpdateExpression="SET model = :m",
-        ExpressionAttributeValues={":m": "claude"},
-    )
-    sites_table.update_item(
-        Key={"url": "https://beta.com"},
-        UpdateExpression="SET model = :m",
-        ExpressionAttributeValues={":m": "claude"},
+        "https://beta.com", "job-b", "results/job-b/llms.txt", metadata, "claude"
     )
 
     result = handle_schedule(_make_eventbridge_event(), object())
@@ -123,18 +106,10 @@ def test_handle_schedule_enqueues_one_message_per_url() -> None:
 
 
 def test_handle_schedule_returns_count() -> None:
-    """Return dict contains `scheduled` key equal to the number of sites."""
+    """Return dict contains  key equal to the number of sites."""
+    metadata: dict = {"tech_stack": [], "integrations": [], "content_types": []}
     storage.upsert_site(
-        "https://example.com",
-        "job-1",
-        "results/job-1/llms.txt",
-        {"tech_stack": [], "integrations": [], "content_types": []},
-    )
-    ddb = boto3.resource("dynamodb", region_name="us-east-1")
-    ddb.Table(os.environ["SITES_TABLE"]).update_item(
-        Key={"url": "https://example.com"},
-        UpdateExpression="SET model = :m",
-        ExpressionAttributeValues={":m": "claude"},
+        "https://example.com", "job-1", "results/job-1/llms.txt", metadata, "claude"
     )
 
     result = handle_schedule(_make_eventbridge_event(), object())
@@ -143,7 +118,7 @@ def test_handle_schedule_returns_count() -> None:
 
 
 def test_handle_sqs_creates_new_job_id(mocker: MockerFixture) -> None:
-    """Each SQS record creates a new unique job via create_job — old records are not overwritten."""
+    """Each SQS record creates a new unique job via create_job - old records are not overwritten."""
     mocker.patch("src.handler._run_crawl_agents")
     mock_create_job = mocker.patch("src.handler.create_job")
 
