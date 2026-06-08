@@ -494,6 +494,53 @@ docker push <ecr_repository_url>:latest
 
 ---
 
+## Artifact Persistence Design for Fargate Tasks
+
+### Why the task entry point owns persistence (not the agent)
+
+The `claude-agent-sdk` runs Claude Code as a subprocess. The subprocess has no knowledge of
+our storage layer — it only writes files to a local workspace directory. There is no callback
+into Lambda; everything happens inside the Fargate container after the subprocess exits.
+
+For the OpenAI path, `Runner.run_sync` is a blocking call that returns a result object. The
+agent factory already manages persistence via `JobHooks` internally inside `run_agent`. The
+Fargate entry point just calls `run_agent` and the lifecycle completes.
+
+For the Claude path, there is no `run_agent` call — the SDK loop runs autonomously. The task
+entry point must manage the full lifecycle itself:
+
+1. Create `JobHooks` and call `on_start()`
+2. Run the SDK loop (agent writes output file)
+3. Read and validate the output file
+4. Call `hooks.on_complete()` — this triggers all persistence in the correct order
+
+### Write order and completion gate
+
+`JobHooks.on_complete` enforces a specific write order that must not change:
+
+1. **S3** — artifact content written first
+2. **Pinecone** — vector upserted (crawl only)
+3. **DynamoDB `complete_artifact`** — written last
+
+DynamoDB being last is the completion gate. Any caller polling `GET /job/{id}` that sees
+status `complete` can safely fetch from S3 or Pinecone — those writes are guaranteed to have
+already happened. If a retry fires and `on_complete` is called twice, the second `complete_artifact`
+call will overwrite the first record. A future hardening step can add
+`ConditionExpression: attribute_not_exists(job_id)` to make this idempotent, but it is not
+required now.
+
+### Lambda vs. Fargate lifecycle comparison
+
+| | Lambda (report / compare) | Fargate — Claude path | Fargate — OpenAI path |
+|---|---|---|---|
+| Who creates `JobHooks` | `_create_claude_agent` / `_create_openai_agent` inside `create_agent` | Task entry point directly | `create_agent` inside `_run_openai` |
+| Who calls `on_start` | `run_agent` | Task entry point | `run_agent` |
+| Who calls `on_complete` | `run_agent` | Task entry point (after reading output file) | `run_agent` |
+| Who calls `on_error` | `run_agent` | Task entry point (in except block) | `run_agent` |
+| Persistence location | Inside Lambda process | Inside Fargate container | Inside Fargate container |
+
+---
+
 ## Crawler Fargate Task
 
 ### Design
