@@ -1,11 +1,14 @@
 import os
+import time
 from unittest.mock import MagicMock
 
 import pytest
 from pytest_mock import MockerFixture
 
+import src.services.hooks as hooks_module
 import src.tasks.base as tasks_base
 from src.constants import AgentType, ArtifactType
+from src.services.hooks import JobHooks
 from src.tasks.base import _build_implement_prompt, run_task
 from src.tasks.registry import REGISTRY
 
@@ -107,12 +110,9 @@ def test_build_implement_prompt_missing_plan_triggers_on_error(
 
 
 def test_hooks_on_complete_implement_saves_pr_url(mocker: MockerFixture) -> None:
-    import src.services.hooks as hooks_module
-    from src.services.hooks import JobHooks
-
     mock_complete = mocker.patch.object(hooks_module, "complete_artifact")
     hooks = JobHooks("job-6", AgentType.IMPLEMENT, "owner/repo", "claude")
-    hooks._start_time = __import__("time").time()
+    hooks._start_time = time.time()
 
     hooks.on_complete({"pr_url": "https://github.com/owner/repo/pull/42"})
 

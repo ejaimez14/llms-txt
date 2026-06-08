@@ -74,7 +74,7 @@ def _build_prompt(url: str, config: TaskConfig) -> str:
         f"{config.system_prompt}\n\n"
         f"After completing your analysis, write your output as a JSON object to "
         f"`{config.output_file}` in the working directory. "
-        f"The JSON must have exactly one field: {config.output_schema_hint}.\n\n"
+        f"The JSON must have exactly these fields: {config.output_schema_hint}.\n\n"
         f"{config.task_instruction.format(url=url)}"
     )
 
