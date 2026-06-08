@@ -26,9 +26,9 @@ module "ecs" {
   sites_table_name = module.dynamodb.sites_table_name
   pinecone_index   = var.pinecone_index
 
-  anthropic_secret_arn = var.anthropic_secret_arn
-  github_secret_arn    = var.github_secret_arn
-  pinecone_secret_arn  = var.pinecone_secret_arn
+  anthropic_secret_arn = data.aws_secretsmanager_secret.anthropic.arn
+  github_secret_arn    = data.aws_secretsmanager_secret.github.arn
+  pinecone_secret_arn  = data.aws_secretsmanager_secret.pinecone.arn
   vpc_id               = var.vpc_id
 }
 

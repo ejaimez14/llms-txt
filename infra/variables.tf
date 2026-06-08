@@ -16,19 +16,6 @@ variable "pinecone_index" {
   description = "Name of the Pinecone index used for embedding storage and retrieval"
 }
 
-variable "anthropic_secret_arn" {
-  description = "Secrets Manager ARN for the Anthropic API key"
-}
-
-variable "github_secret_arn" {
-  description = "Secrets Manager ARN for the GitHub personal access token"
-  sensitive   = true
-}
-
-variable "pinecone_secret_arn" {
-  description = "Secrets Manager ARN for the Pinecone API key"
-}
-
 variable "vpc_id" {
   description = "VPC ID in which Fargate tasks run"
 }
