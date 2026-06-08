@@ -42,8 +42,3 @@ variable "vpc_id" {
 variable "subnet_ids" {
   description = "Comma-separated subnet IDs for Fargate task networking"
 }
-
-variable "ecs_security_group" {
-  description = "Security group ID attached to Fargate tasks launched by Lambda."
-  type        = string
-}

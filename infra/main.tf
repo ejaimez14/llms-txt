@@ -46,7 +46,7 @@ module "lambda" {
   ecs_implementer_task_definition = module.ecs.implementer_task_definition_arn
   ecs_crawler_task_definition     = module.ecs.crawler_task_definition_arn
   ecs_ui_planner_task_definition  = module.ecs.ui_planner_task_definition_arn
-  ecs_security_group              = var.ecs_security_group
+  ecs_security_group              = module.ecs.security_group_id
   ecs_subnet_ids                  = var.subnet_ids
 }
 
