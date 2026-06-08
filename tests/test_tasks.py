@@ -1,11 +1,12 @@
 import asyncio
+from typing import Any
 from unittest.mock import MagicMock
 
 from pytest_mock import MockerFixture
 
 import src.tasks.base as tasks_base
-from src.tasks.base import TaskConfig, run_task
 from src.constants import AgentType
+from src.tasks.base import TaskConfig, run_task
 
 
 def _make_config(mocker: MockerFixture) -> TaskConfig:
@@ -23,7 +24,7 @@ def _make_config(mocker: MockerFixture) -> TaskConfig:
 
 
 def _mock_sdk(mocker: MockerFixture, exc: Exception | None = None) -> None:
-    async def _sdk(hooks, url, config):
+    async def _sdk(hooks: Any, url: Any, config: Any) -> None:
         if exc:
             raise exc
 
