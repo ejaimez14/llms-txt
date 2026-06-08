@@ -70,6 +70,16 @@ OPENAI_AGENT_MODELS = {
     AgentType.COMPARE: OPENAI_CRAWL_MODEL,
 }
 
+# --- Fargate Task Constants ---
+
+CRAWLER_MAX_TURNS = 30
+CRAWLER_TIMEOUT_SECONDS = 1800
+CRAWLER_OUTPUT_FILE = "crawl-output.json"
+
+UI_PLANNER_MAX_TURNS = 20
+UI_PLANNER_TIMEOUT_SECONDS = 900
+UI_PLANNER_OUTPUT_FILE = "ui-plan-output.json"
+
 # Anthropic server-side tools passed per agent type. Only crawl and ui-plan need web access.
 CLAUDE_EXTRA_TOOLS: dict[AgentType, list[dict]] = {
     AgentType.CRAWL: [

@@ -83,3 +83,5 @@ def test_trigger_implementer_task_calls_run_task(mock_ecs) -> None:
     call_kwargs = mock_ecs.run_task.call_args[1]
     assert call_kwargs["cluster"] == "test-cluster"
     assert "test-implementer" in call_kwargs["taskDefinition"]
+    vpc_config = call_kwargs["networkConfiguration"]["awsvpcConfiguration"]
+    assert "sg-test" in vpc_config["securityGroups"]

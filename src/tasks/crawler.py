@@ -5,7 +5,13 @@ from pathlib import Path
 
 from claude_agent_sdk import ClaudeAgentOptions, query
 
-from src.constants import CLAUDE_CRAWL_MODEL, AgentType
+from src.constants import (
+    CLAUDE_CRAWL_MODEL,
+    CRAWLER_MAX_TURNS,
+    CRAWLER_OUTPUT_FILE,
+    CRAWLER_TIMEOUT_SECONDS,
+    AgentType,
+)
 from src.models import CrawlOutput
 from src.prompts import CRAWL_SYSTEM_PROMPT
 from src.services.hooks import JobHooks
@@ -13,10 +19,6 @@ from src.services.llm import create_agent, run_agent
 from src.services.logger import get_logger
 
 logger = get_logger(__name__)
-
-CRAWL_MAX_TURNS = 30
-CRAWL_TIMEOUT_SECONDS = 1800
-OUTPUT_FILE = "crawl-output.json"
 
 
 def run_crawler_task(job_id: str, url: str, model: str) -> None:
@@ -58,14 +60,14 @@ async def _run_sdk(hooks: JobHooks, url: str) -> None:
             model=CLAUDE_CRAWL_MODEL,
             permission_mode="bypassPermissions",
             allowed_tools=["WebFetch", "Write"],
-            max_turns=CRAWL_MAX_TURNS,
+            max_turns=CRAWLER_MAX_TURNS,
         )
         await asyncio.wait_for(
             _exhaust(query(prompt=_build_prompt(url), options=options)),
-            timeout=CRAWL_TIMEOUT_SECONDS,
+            timeout=CRAWLER_TIMEOUT_SECONDS,
         )
         output = CrawlOutput.model_validate_json(
-            Path(workspace, OUTPUT_FILE).read_text()
+            Path(workspace, CRAWLER_OUTPUT_FILE).read_text()
         )
         hooks.on_complete(output.model_dump())
 
@@ -80,7 +82,7 @@ def _build_prompt(url: str) -> str:
     return (
         f"{CRAWL_SYSTEM_PROMPT}\n\n"
         f"After completing your analysis, write your output as a JSON object to "
-        f"`{OUTPUT_FILE}` in the working directory. "
+        f"`{CRAWLER_OUTPUT_FILE}` in the working directory. "
         f"The JSON must have exactly two fields: `llms_txt` (string) and `metadata` (object).\n\n"
         f"Crawl this website: {url}"
     )

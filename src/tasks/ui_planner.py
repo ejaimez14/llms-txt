@@ -5,7 +5,13 @@ from pathlib import Path
 
 from claude_agent_sdk import ClaudeAgentOptions, query
 
-from src.constants import CLAUDE_UI_PLAN_MODEL, AgentType
+from src.constants import (
+    CLAUDE_UI_PLAN_MODEL,
+    UI_PLANNER_MAX_TURNS,
+    UI_PLANNER_OUTPUT_FILE,
+    UI_PLANNER_TIMEOUT_SECONDS,
+    AgentType,
+)
 from src.models import UIPlanOutput
 from src.prompts import UI_PLAN_SYSTEM_PROMPT
 from src.services.hooks import JobHooks
@@ -13,10 +19,6 @@ from src.services.llm import create_agent, run_agent
 from src.services.logger import get_logger
 
 logger = get_logger(__name__)
-
-UI_PLAN_MAX_TURNS = 20
-UI_PLAN_TIMEOUT_SECONDS = 900
-OUTPUT_FILE = "ui-plan-output.json"
 
 
 def run_ui_planner_task(job_id: str, url: str, model: str) -> None:
@@ -58,14 +60,14 @@ async def _run_sdk(hooks: JobHooks, url: str) -> None:
             model=CLAUDE_UI_PLAN_MODEL,
             permission_mode="bypassPermissions",
             allowed_tools=["WebFetch", "Write"],
-            max_turns=UI_PLAN_MAX_TURNS,
+            max_turns=UI_PLANNER_MAX_TURNS,
         )
         await asyncio.wait_for(
             _exhaust(query(prompt=_build_prompt(url), options=options)),
-            timeout=UI_PLAN_TIMEOUT_SECONDS,
+            timeout=UI_PLANNER_TIMEOUT_SECONDS,
         )
         output = UIPlanOutput.model_validate_json(
-            Path(workspace, OUTPUT_FILE).read_text()
+            Path(workspace, UI_PLANNER_OUTPUT_FILE).read_text()
         )
         hooks.on_complete(output.model_dump())
 
@@ -80,7 +82,7 @@ def _build_prompt(url: str) -> str:
     return (
         f"{UI_PLAN_SYSTEM_PROMPT}\n\n"
         f"After completing your analysis, write your output as a JSON object to "
-        f"`{OUTPUT_FILE}` in the working directory. "
+        f"`{UI_PLANNER_OUTPUT_FILE}` in the working directory. "
         f"The JSON must have exactly two fields: `plan_markdown` (string) and "
         f"`design_tokens` (object).\n\n"
         f"Analyze this website and produce a UI implementation plan: {url}"
