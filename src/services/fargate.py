@@ -12,6 +12,7 @@ _ecs = boto3.client(
 )
 
 _TASK_COMMAND = ["python", "-m", "src.tasks"]
+_IMPLEMENTER_COMMAND = ["python", "-m", "src.tasks.implementer"]
 _CONTAINER_NAME = "agent"
 
 
@@ -52,4 +53,46 @@ def trigger_task(agent_type: AgentType, job_id: str, url: str, model: str) -> No
                 "agent_type": agent_type.value,
             }
         )
+        raise
+
+
+def trigger_implementer_task(
+    job_id: str,
+    source_job_id: str,
+    repo: str,
+    base_branch: str,
+) -> None:
+    """Dispatches a Fargate task that runs the UI implementer agent."""
+    try:
+        _ecs.run_task(
+            cluster=os.environ["ECS_CLUSTER"],
+            taskDefinition=os.environ["ECS_TASK_DEFINITION"],
+            launchType="FARGATE",
+            networkConfiguration={
+                "awsvpcConfiguration": {
+                    "subnets": os.environ["ECS_SUBNET_IDS"].split(","),
+                    "securityGroups": [os.environ["ECS_SECURITY_GROUP"]],
+                    "assignPublicIp": "ENABLED",
+                }
+            },
+            overrides={
+                "containerOverrides": [
+                    {
+                        "name": _CONTAINER_NAME,
+                        "command": _IMPLEMENTER_COMMAND,
+                        "environment": [
+                            {"name": "IMPLEMENTER_JOB_ID", "value": job_id},
+                            {
+                                "name": "IMPLEMENTER_SOURCE_JOB_ID",
+                                "value": source_job_id,
+                            },
+                            {"name": "IMPLEMENTER_REPO", "value": repo},
+                            {"name": "IMPLEMENTER_BASE_BRANCH", "value": base_branch},
+                        ],
+                    }
+                ]
+            },
+        )
+    except Exception as exc:
+        logger.error({"event": "implementer_dispatch_failed", "error": str(exc)})
         raise

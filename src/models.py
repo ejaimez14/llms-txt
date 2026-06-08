@@ -25,6 +25,12 @@ class CompareRequest(BaseModel):
     model: ModelName = ModelName.CLAUDE
 
 
+class ImplementRequest(BaseModel):
+    job_id: str
+    repo: str
+    base_branch: str = "main"
+
+
 # --- Job / artifact models ---
 
 

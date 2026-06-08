@@ -18,6 +18,7 @@ _JOB_ARTIFACTS: dict[str, list[str]] = {
     JobType.CRAWL: [ArtifactType.LLMS_TXT, ArtifactType.PLAN],
     JobType.REPORT: [ArtifactType.REPORT],
     JobType.COMPARE: [ArtifactType.COMPARISON],
+    JobType.IMPLEMENT: [ArtifactType.PR_URL],
 }
 
 
@@ -232,7 +233,7 @@ def list_jobs_for_url(url: str) -> list[dict]:
 # --- Sites Table Operations ---
 
 
-def upsert_site(url: str, job_id: str, s3_key: str, metadata: dict) -> None:
+def upsert_site(url: str, job_id: str, s3_key: str, metadata: dict, model: str) -> None:
     """
     Creates or overwrites the canonical site record for this URL.
     SiteMetadata fields are stored flat so they can be used directly as Pinecone metadata.
@@ -245,6 +246,7 @@ def upsert_site(url: str, job_id: str, s3_key: str, metadata: dict) -> None:
                 "latestJobId": job_id,
                 "latestS3Key": s3_key,
                 "lastCrawledAt": _utc_now(),
+                "model": model,
                 # SiteMetadata fields stored flat (not nested)
                 "tech_stack": metadata.get("tech_stack", []),
                 "audience": metadata.get("audience"),

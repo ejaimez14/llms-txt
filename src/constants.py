@@ -11,6 +11,7 @@ class JobType(str, Enum):
     CRAWL = "crawl"
     REPORT = "report"
     COMPARE = "compare"
+    IMPLEMENT = "implement"
 
 
 class ArtifactStatus(str, Enum):
@@ -24,6 +25,7 @@ class ArtifactType(str, Enum):
     PLAN = "plan"
     REPORT = "report"
     COMPARISON = "comparison"
+    PR_URL = "prUrl"
 
 
 class ModelName(str, Enum):
@@ -56,6 +58,8 @@ OPENAI_SECRET_NAME = "secrets/openai-api-key"
 
 OPENAI_CRAWL_MODEL = "gpt-4o-mini"
 OPENAI_UI_PLAN_MODEL = "gpt-4o"
+
+IMPLEMENT_MODEL = "claude-sonnet-4-6-20250514"
 
 CLAUDE_AGENT_MODELS = {
     AgentType.CRAWL: CLAUDE_CRAWL_MODEL,
