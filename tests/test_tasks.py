@@ -21,6 +21,7 @@ def _make_config(mocker: MockerFixture) -> TaskConfig:
         system_prompt="test prompt",
         output_schema_hint="`field` (string)",
         task_instruction="Do the thing: {url}",
+        allowed_tools=["WebFetch", "Write"],
     )
 
 

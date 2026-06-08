@@ -15,8 +15,23 @@ _TASK_COMMAND = ["python", "-m", "src.tasks"]
 _CONTAINER_NAME = "agent"
 
 
-def trigger_task(agent_type: AgentType, job_id: str, url: str, model: str) -> None:
+def trigger_task(
+    agent_type: AgentType,
+    job_id: str,
+    url: str,
+    model: str,
+    extra_env: list[dict] | None = None,
+) -> None:
     """Dispatches a Fargate task for the given agent type."""
+    environment = [
+        {"name": "AGENT_TYPE", "value": agent_type.value},
+        {"name": "AGENT_ID", "value": job_id},
+        {"name": "AGENT_URL", "value": url},
+        {"name": "AGENT_MODEL", "value": model},
+    ]
+    if extra_env:
+        environment.extend(extra_env)
+
     try:
         _ecs.run_task(
             cluster=os.environ["ECS_CLUSTER"],
@@ -34,12 +49,7 @@ def trigger_task(agent_type: AgentType, job_id: str, url: str, model: str) -> No
                     {
                         "name": _CONTAINER_NAME,
                         "command": _TASK_COMMAND,
-                        "environment": [
-                            {"name": "AGENT_TYPE", "value": agent_type.value},
-                            {"name": "AGENT_ID", "value": job_id},
-                            {"name": "AGENT_URL", "value": url},
-                            {"name": "AGENT_MODEL", "value": model},
-                        ],
+                        "environment": environment,
                     }
                 ]
             },
@@ -52,47 +62,4 @@ def trigger_task(agent_type: AgentType, job_id: str, url: str, model: str) -> No
                 "agent_type": agent_type.value,
             }
         )
-        raise
-
-
-def trigger_implementer_task(
-    job_id: str,
-    source_job_id: str,
-    repo: str,
-    base_branch: str,
-) -> None:
-    """Dispatches a Fargate task that runs the UI implementer agent."""
-    try:
-        _ecs.run_task(
-            cluster=os.environ["ECS_CLUSTER"],
-            taskDefinition=os.environ["ECS_TASK_DEFINITION"],
-            launchType="FARGATE",
-            networkConfiguration={
-                "awsvpcConfiguration": {
-                    "subnets": os.environ["ECS_SUBNET_IDS"].split(","),
-                    "securityGroups": [os.environ["ECS_SECURITY_GROUP"]],
-                    "assignPublicIp": "ENABLED",
-                }
-            },
-            overrides={
-                "containerOverrides": [
-                    {
-                        "name": _CONTAINER_NAME,
-                        "command": _TASK_COMMAND,
-                        "environment": [
-                            {"name": "AGENT_TYPE", "value": AgentType.IMPLEMENT.value},
-                            {"name": "AGENT_ID", "value": job_id},
-                            {
-                                "name": "IMPLEMENTER_SOURCE_JOB_ID",
-                                "value": source_job_id,
-                            },
-                            {"name": "IMPLEMENTER_REPO", "value": repo},
-                            {"name": "IMPLEMENTER_BASE_BRANCH", "value": base_branch},
-                        ],
-                    }
-                ]
-            },
-        )
-    except Exception as exc:
-        logger.error({"event": "implementer_dispatch_failed", "error": str(exc)})
         raise

@@ -120,6 +120,12 @@ class CompareOutput(BaseModel):
     comparison_markdown: str
 
 
+class ImplementOutput(BaseModel):
+    """Structured output returned by the UI implementer agent."""
+
+    pr_url: str
+
+
 # --- Task config ---
 
 
@@ -136,6 +142,7 @@ class TaskConfig:
     system_prompt: str
     output_schema_hint: str
     task_instruction: str
+    allowed_tools: list[str]
 
 
 # --- Search ---

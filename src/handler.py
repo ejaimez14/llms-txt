@@ -22,7 +22,7 @@ from src.models import (
     ReportRequest,
     SearchResponse,
 )
-from src.services.fargate import trigger_implementer_task, trigger_task
+from src.services.fargate import trigger_task
 from src.services.logger import get_logger
 from src.services.search import run_search
 from src.services.storage import (
@@ -173,7 +173,16 @@ def implement(req: ImplementRequest) -> dict:
 
     job_id = str(uuid.uuid4())
     create_job(job_id, req.repo, ModelName.CLAUDE, JobType.IMPLEMENT)
-    trigger_implementer_task(job_id, req.job_id, req.repo, req.base_branch)
+    trigger_task(
+        AgentType.IMPLEMENT,
+        job_id,
+        req.job_id,
+        ModelName.CLAUDE.value,
+        extra_env=[
+            {"name": "IMPLEMENTER_REPO", "value": req.repo},
+            {"name": "IMPLEMENTER_BASE_BRANCH", "value": req.base_branch},
+        ],
+    )
     return {"jobId": job_id, "status": "processing"}
 
 

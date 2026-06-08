@@ -177,12 +177,8 @@ After writing all implementation files, use Bash to:
 3. Copy all your implementation files into the cloned repo
 4. Commit and push the branch
 5. Run `gh pr create` to open the pull request
-6. Write the PR URL (just the URL, nothing else) to a file named `pr-url.txt`
-   in the working directory (not inside the repo subdirectory)
 
 The `GITHUB_TOKEN` environment variable is already set — `gh` will use it automatically.
-
-Stop after writing `pr-url.txt`.
 """.strip()
 
 

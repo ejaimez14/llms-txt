@@ -1,131 +1,121 @@
-from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock
+import os
+from unittest.mock import MagicMock
 
 import pytest
 from pytest_mock import MockerFixture
 
-import src.agents.implementer as implementer_module
-from src.agents.implementer import _run_agent, run_implementer
-from src.constants import ArtifactType
-
-
-def _make_async_query(exc: Exception | None = None):
-    """Returns an async generator factory that either yields nothing or raises exc."""
-
-    async def _gen(*args, **kwargs):
-        if exc is not None:
-            raise exc
-        return
-        yield  # make it an async generator
-
-    return _gen
+import src.tasks.base as tasks_base
+from src.constants import AgentType, ArtifactType
+from src.tasks.base import _build_implement_prompt, run_task
+from src.tasks.registry import REGISTRY
 
 
 @pytest.fixture
 def mock_get_artifact_content(mocker: MockerFixture) -> MagicMock:
     return mocker.patch.object(
-        implementer_module, "get_artifact_content", return_value="## UI Plan\n..."
+        tasks_base, "get_artifact_content", return_value="## UI Plan\n..."
     )
 
 
 @pytest.fixture
-def mock_fail_artifact(mocker: MockerFixture) -> MagicMock:
-    return mocker.patch.object(implementer_module, "fail_artifact")
+def mock_run_sdk(mocker: MockerFixture) -> MagicMock:
+    async def _noop(hooks, url, config):
+        pass
+
+    return mocker.patch.object(tasks_base, "_run_sdk", side_effect=_noop)
 
 
-@pytest.fixture
-def mock_complete_artifact(mocker: MockerFixture) -> MagicMock:
-    return mocker.patch.object(implementer_module, "complete_artifact")
+def test_implement_config_registered() -> None:
+    config = REGISTRY.get(AgentType.IMPLEMENT)
+    assert config.agent_type == AgentType.IMPLEMENT
+    assert config.output_file == "implement-output.json"
+    assert "Read" in config.allowed_tools
+    assert "Bash" in config.allowed_tools
 
 
-def test_run_implementer_fails_if_plan_unavailable(
+def test_run_task_implement_calls_hooks_lifecycle(
     mocker: MockerFixture,
-    mock_fail_artifact: MagicMock,
+    mock_run_sdk: MagicMock,
 ) -> None:
-    mocker.patch.object(implementer_module, "get_artifact_content", return_value=None)
-    mock_run_agent = mocker.patch.object(implementer_module, "_run_agent")
+    mock_hooks = mocker.patch.object(tasks_base, "JobHooks", return_value=MagicMock())
+    config = REGISTRY.get(AgentType.IMPLEMENT)
 
-    run_implementer("job-1", "source-1", "owner/repo", "main")
+    run_task("job-1", "source-job-1", "claude", config)
 
-    mock_fail_artifact.assert_called_once_with(
-        "job-1", ArtifactType.PR_URL, "UI plan content unavailable"
-    )
-    mock_run_agent.assert_not_called()
+    mock_hooks.return_value.on_start.assert_called_once()
+    mock_hooks.return_value.on_error.assert_not_called()
 
 
-def test_run_implementer_runs_agent_with_plan_content(
+def test_run_task_implement_calls_on_error_on_failure(
     mocker: MockerFixture,
-    mock_get_artifact_content: MagicMock,
-    mock_fail_artifact: MagicMock,
 ) -> None:
-    mock_run_agent = AsyncMock()
-    mocker.patch.object(implementer_module, "_run_agent", mock_run_agent)
-
-    run_implementer("job-2", "source-2", "owner/repo", "main")
-
-    mock_run_agent.assert_called_once_with(
-        "job-2", "## UI Plan\n...", "owner/repo", "main"
-    )
-    mock_fail_artifact.assert_not_called()
-
-
-def test_run_implementer_fails_on_agent_exception(
-    mocker: MockerFixture,
-    mock_get_artifact_content: MagicMock,
-    mock_fail_artifact: MagicMock,
-) -> None:
-    async def _raise(*args, **kwargs):
+    async def _raise(hooks, url, config):
         raise RuntimeError("SDK boom")
 
-    mocker.patch.object(implementer_module, "_run_agent", side_effect=_raise)
+    mocker.patch.object(tasks_base, "_run_sdk", side_effect=_raise)
+    mock_hooks = mocker.patch.object(tasks_base, "JobHooks", return_value=MagicMock())
+    config = REGISTRY.get(AgentType.IMPLEMENT)
 
-    run_implementer("job-3", "source-3", "owner/repo", "main")
+    run_task("job-2", "source-job-2", "claude", config)
 
-    mock_fail_artifact.assert_called_once_with("job-3", ArtifactType.PR_URL, "SDK boom")
+    mock_hooks.return_value.on_error.assert_called_once()
+    mock_hooks.return_value.on_complete.assert_not_called()
 
 
-@pytest.mark.asyncio
-async def test_run_implementer_reads_pr_url_and_completes_artifact(
-    tmp_path: Path,
+def test_build_implement_prompt_raises_when_plan_unavailable(
     mocker: MockerFixture,
-    mock_complete_artifact: MagicMock,
-    mock_fail_artifact: MagicMock,
 ) -> None:
-    mocker.patch.object(implementer_module, "query", side_effect=_make_async_query())
-    mocker.patch(
-        "tempfile.TemporaryDirectory",
-        return_value=MagicMock(
-            __enter__=lambda s: str(tmp_path),
-            __exit__=MagicMock(return_value=False),
-        ),
-    )
-    (tmp_path / "pr-url.txt").write_text("https://github.com/owner/repo/pull/42")
+    mocker.patch.object(tasks_base, "get_artifact_content", return_value=None)
+    config = REGISTRY.get(AgentType.IMPLEMENT)
 
-    await _run_agent("job-4", "## Plan", "owner/repo", "main")
-
-    mock_complete_artifact.assert_called_once_with(
-        "job-4", ArtifactType.PR_URL, "https://github.com/owner/repo/pull/42"
-    )
-    mock_fail_artifact.assert_not_called()
+    with pytest.raises(
+        ValueError, match="UI plan artifact unavailable for job source-job-3"
+    ):
+        _build_implement_prompt("source-job-3", config)
 
 
-@pytest.mark.asyncio
-async def test_run_implementer_fails_if_pr_url_missing(
-    tmp_path: Path,
+def test_build_implement_prompt_includes_plan_and_repo(
+    mock_get_artifact_content: MagicMock,
+) -> None:
+    os.environ["AGENT_ID"] = "abcdef12345678"
+    config = REGISTRY.get(AgentType.IMPLEMENT)
+
+    prompt = _build_implement_prompt("source-job-4", config)
+
+    assert "## UI Plan" in prompt
+    assert os.environ["IMPLEMENTER_REPO"] in prompt
+    assert os.environ["IMPLEMENTER_BASE_BRANCH"] in prompt
+    assert "ui-implement/abcdef12" in prompt
+    assert "implement-output.json" in prompt
+    assert "`pr_url` (string)" in prompt
+
+
+def test_build_implement_prompt_missing_plan_triggers_on_error(
     mocker: MockerFixture,
-    mock_complete_artifact: MagicMock,
 ) -> None:
-    mocker.patch.object(implementer_module, "query", side_effect=_make_async_query())
-    mocker.patch(
-        "tempfile.TemporaryDirectory",
-        return_value=MagicMock(
-            __enter__=lambda s: str(tmp_path),
-            __exit__=MagicMock(return_value=False),
-        ),
+    """Verifies run_task calls on_error when _build_implement_prompt raises ValueError."""
+    mocker.patch.object(tasks_base, "get_artifact_content", return_value=None)
+    mock_hooks = mocker.patch.object(tasks_base, "JobHooks", return_value=MagicMock())
+    config = REGISTRY.get(AgentType.IMPLEMENT)
+
+    run_task("job-5", "source-job-5", "claude", config)
+
+    mock_hooks.return_value.on_error.assert_called_once()
+    error_arg = mock_hooks.return_value.on_error.call_args[0][0]
+    assert isinstance(error_arg, ValueError)
+    assert "source-job-5" in str(error_arg)
+
+
+def test_hooks_on_complete_implement_saves_pr_url(mocker: MockerFixture) -> None:
+    import src.services.hooks as hooks_module
+    from src.services.hooks import JobHooks
+
+    mock_complete = mocker.patch.object(hooks_module, "complete_artifact")
+    hooks = JobHooks("job-6", AgentType.IMPLEMENT, "owner/repo", "claude")
+    hooks._start_time = __import__("time").time()
+
+    hooks.on_complete({"pr_url": "https://github.com/owner/repo/pull/42"})
+
+    mock_complete.assert_called_once_with(
+        "job-6", ArtifactType.PR_URL, "https://github.com/owner/repo/pull/42"
     )
-    # pr-url.txt NOT created — agent forgot to write it
-
-    with pytest.raises(FileNotFoundError, match="pr-url.txt"):
-        await _run_agent("job-5", "## Plan", "owner/repo", "main")
-
-    mock_complete_artifact.assert_not_called()
