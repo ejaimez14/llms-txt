@@ -20,9 +20,9 @@ from src.services.hooks import JobHooks
 from src.services.tools import web_fetch_tool
 
 _AGENT_OUTPUT_MODEL = {
-    AgentType.CRAWL:   CrawlOutput,
+    AgentType.CRAWL: CrawlOutput,
     AgentType.UI_PLAN: UIPlanOutput,
-    AgentType.REPORT:  ReportOutput,
+    AgentType.REPORT: ReportOutput,
     AgentType.COMPARE: CompareOutput,
 }
 
@@ -119,7 +119,9 @@ def _run_claude(agent_ctx: dict, user_content: str) -> dict:
         }
         if agent_ctx["extra_tools"]:
             kwargs["tools"] = agent_ctx["extra_tools"]
-        output, completion = _instructor_client.messages.create_with_completion(**kwargs)
+        output, completion = _instructor_client.messages.create_with_completion(
+            **kwargs
+        )
         output_dict = output.model_dump()
         hooks.on_complete(output_dict, completion.usage)
         return output_dict

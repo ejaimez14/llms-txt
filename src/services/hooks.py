@@ -26,7 +26,9 @@ class JobHooks:
     so agents stay focused on their task.
     """
 
-    def __init__(self, job_id: str, agent_type: AgentType, url: str, model: str) -> None:
+    def __init__(
+        self, job_id: str, agent_type: AgentType, url: str, model: str
+    ) -> None:
         self.job_id = job_id
         self.agent_type = agent_type
         self.url = url

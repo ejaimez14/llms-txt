@@ -54,7 +54,7 @@ def aws_env() -> Generator[None, None, None]:
 
 
 def test_crawl_returns_202_with_job_id(mocker: MockerFixture) -> None:
-    mocker.patch("src.handler._run_in_thread")
+    mocker.patch("src.handler.trigger_task")
     response = client.post("/api/crawl", json={"url": "https://example.com"})
     assert response.status_code == 202
     assert "jobId" in response.json()

@@ -15,6 +15,15 @@ os.environ.setdefault("TABLE", "test-jobs")
 os.environ.setdefault("SITES_TABLE", "test-sites")
 os.environ.setdefault("PINECONE_INDEX", "test-index")
 
+# ECS / Fargate environment variables used by fargate.py and task entry points.
+os.environ.setdefault("ECS_CLUSTER", "test-cluster")
+os.environ.setdefault(
+    "ECS_TASK_DEFINITION",
+    "arn:aws:ecs:us-east-1:000000000000:task-definition/test-agent:1",
+)
+os.environ.setdefault("ECS_SUBNET_IDS", "subnet-test1,subnet-test2")
+os.environ.setdefault("ECS_SECURITY_GROUP", "sg-test")
+
 # llm.py and pinecone_client.py call fetch_secret() at import time via the Lambda extension.
 # The extension isn't running in tests — intercept the HTTP call before any module is imported.
 _secret_body = json.dumps({"SecretString": json.dumps({"value": "test-key"})}).encode()
@@ -25,6 +34,9 @@ unittest.mock.patch("urllib.request.urlopen", return_value=_mock_http).start()
 
 # pinecone is installed as the legacy pinecone-client package which raises on import.
 sys.modules.setdefault("pinecone", MagicMock())
+
+# claude_agent_sdk is not installed in the test environment — stub it.
+sys.modules.setdefault("claude_agent_sdk", MagicMock())
 
 # Stub service modules that don't exist in this environment so hooks.py can be imported.
 for _mod in ("src.services.embeddings", "src.services.logger", "src.services.storage"):

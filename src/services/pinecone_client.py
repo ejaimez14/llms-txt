@@ -44,5 +44,7 @@ def query_vectors(vector: list[float], top_k: int = 10) -> list[dict]:
 
 # In Lambda the extension serves secrets from localhost:2773.
 # Locally that port doesn't exist, so fall back to env vars for development.
-_client = Pinecone(api_key=os.environ.get("PINECONE_API_KEY") or fetch_secret(PINECONE_SECRET_NAME))
+_client = Pinecone(
+    api_key=os.environ.get("PINECONE_API_KEY") or fetch_secret(PINECONE_SECRET_NAME)
+)
 _index = _client.Index(os.environ["PINECONE_INDEX"])
