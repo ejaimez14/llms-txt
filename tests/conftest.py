@@ -17,9 +17,7 @@ os.environ.setdefault("PINECONE_INDEX", "test-index")
 
 # ECS / Fargate environment variables used by fargate.py and task entry points.
 os.environ.setdefault("ECS_CLUSTER", "test-cluster")
-os.environ.setdefault("ECS_IMPLEMENTER_TASK_DEFINITION", "arn:aws:ecs:us-east-1:000000000000:task-definition/test-implementer:1")
-os.environ.setdefault("ECS_CRAWLER_TASK_DEFINITION", "arn:aws:ecs:us-east-1:000000000000:task-definition/test-crawler:1")
-os.environ.setdefault("ECS_UI_PLANNER_TASK_DEFINITION", "arn:aws:ecs:us-east-1:000000000000:task-definition/test-ui-planner:1")
+os.environ.setdefault("ECS_TASK_DEFINITION", "arn:aws:ecs:us-east-1:000000000000:task-definition/test-agent:1")
 os.environ.setdefault("ECS_SUBNET_IDS", "subnet-test1,subnet-test2")
 os.environ.setdefault("ECS_SECURITY_GROUP", "sg-test")
 

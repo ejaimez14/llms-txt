@@ -72,6 +72,10 @@ OPENAI_AGENT_MODELS = {
 
 # --- Fargate Task Constants ---
 
+IMPLEMENTER_TASK_COMMAND = ["python", "-m", "src.tasks.implementer"]
+CRAWLER_TASK_COMMAND = ["python", "-m", "src.tasks.crawler"]
+UI_PLANNER_TASK_COMMAND = ["python", "-m", "src.tasks.ui_planner"]
+
 CRAWLER_MAX_TURNS = 30
 CRAWLER_TIMEOUT_SECONDS = 1800
 CRAWLER_OUTPUT_FILE = "crawl-output.json"
