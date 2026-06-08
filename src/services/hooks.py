@@ -1,6 +1,7 @@
 import hashlib
 import time
 
+from src.constants import AgentType
 from src.models import CompareOutput, CrawlOutput, ReportOutput, UIPlanOutput
 from src.services.embeddings import embed_text
 from src.services.logger import get_logger, log_job_event
@@ -25,7 +26,7 @@ class JobHooks:
     so agents stay focused on their task.
     """
 
-    def __init__(self, job_id: str, agent_type: str, url: str, model: str) -> None:
+    def __init__(self, job_id: str, agent_type: AgentType, url: str, model: str) -> None:
         self.job_id = job_id
         self.agent_type = agent_type
         self.url = url

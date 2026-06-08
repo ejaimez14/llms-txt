@@ -12,6 +12,7 @@ from src.constants import (
     CLAUDE_MAX_OUTPUT_TOKENS,
     OPENAI_AGENT_MODELS,
     OPENAI_SECRET_NAME,
+    AgentType,
 )
 from src.models import CompareOutput, CrawlOutput, ReportOutput, UIPlanOutput
 from src.services.helpers import fetch_secret
@@ -19,16 +20,16 @@ from src.services.hooks import JobHooks
 from src.services.tools import web_fetch_tool
 
 _AGENT_OUTPUT_MODEL = {
-    "crawl": CrawlOutput,
-    "ui-plan": UIPlanOutput,
-    "report": ReportOutput,
-    "compare": CompareOutput,
+    AgentType.CRAWL:   CrawlOutput,
+    AgentType.UI_PLAN: UIPlanOutput,
+    AgentType.REPORT:  ReportOutput,
+    AgentType.COMPARE: CompareOutput,
 }
 
 
 def create_agent(
     model: str,
-    agent_type: str,
+    agent_type: AgentType,
     job_id: str,
     url: str,
     system_prompt: str,
@@ -57,7 +58,7 @@ def run_agent(agent_ctx: dict, user_content: str) -> dict:
 def _create_claude_agent(
     system_prompt: str,
     job_id: str,
-    agent_type: str,
+    agent_type: AgentType,
     url: str,
     model: str,
 ) -> dict:
@@ -82,7 +83,7 @@ def _create_claude_agent(
 def _create_openai_agent(
     system_prompt: str,
     job_id: str,
-    agent_type: str,
+    agent_type: AgentType,
     url: str,
     model: str,
 ) -> dict:

@@ -1,4 +1,4 @@
-from src.constants import ArtifactType
+from src.constants import AgentType, ArtifactType
 from src.prompts import COMPARE_SYSTEM_PROMPT, _build_compare_message
 from src.services.llm import create_agent, run_agent
 from src.services.storage import fail_artifact, get_artifact_content, get_job
@@ -23,7 +23,7 @@ def run_comparer(job_id: str, job_id_a: str, job_id_b: str, model: str) -> None:
     user_message = _build_compare_message(job_a, content_a, job_b, content_b)
     agent = create_agent(
         model=model,
-        agent_type="compare",
+        agent_type=AgentType.COMPARE,
         job_id=job_id,
         url=job_a["url"],
         system_prompt=COMPARE_SYSTEM_PROMPT,

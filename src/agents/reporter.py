@@ -1,4 +1,4 @@
-from src.constants import ArtifactType
+from src.constants import AgentType, ArtifactType
 from src.prompts import REPORT_SYSTEM_PROMPT
 from src.services.llm import create_agent, run_agent
 from src.services.storage import fail_artifact, get_artifact_content, get_site
@@ -18,7 +18,7 @@ def run_reporter(job_id: str, url: str, model: str) -> None:
 
     agent = create_agent(
         model=model,
-        agent_type="report",
+        agent_type=AgentType.REPORT,
         job_id=job_id,
         url=url,
         system_prompt=REPORT_SYSTEM_PROMPT,
