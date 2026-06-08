@@ -1,9 +1,6 @@
-import json
-import os
 import uuid
 from threading import Thread
 
-import boto3
 from fastapi import APIRouter, FastAPI, HTTPException, Query
 from fastapi.responses import FileResponse
 from mangum import Mangum
@@ -35,7 +32,6 @@ from src.services.storage import (
     get_site,
     list_jobs,
     list_jobs_for_url,
-    list_sites,
 )
 
 logger = get_logger(__name__)
@@ -49,7 +45,8 @@ def crawl(req: CrawlRequest) -> dict:
     """Creates a crawl job and dispatches crawler and UI planner tasks to Fargate."""
     job_id = str(uuid.uuid4())
     create_job(job_id, req.url, req.model, JobType.CRAWL)
-    _run_crawl_agents(job_id, req.url, req.model.value)
+    trigger_task(AgentType.CRAWL, job_id, req.url, req.model.value)
+    trigger_task(AgentType.UI_PLAN, job_id, req.url, req.model.value)
     return {"jobId": job_id, "status": "processing"}
 
 
@@ -186,30 +183,6 @@ def serve_frontend() -> FileResponse:
     return FileResponse("src/index.html")
 
 
-def handle_schedule(event: dict, context: object) -> dict:
-    """EventBridge cron handler. Scans DynamoDB for all crawled URLs and enqueues one SQS message per URL."""
-    sqs = boto3.client("sqs")
-    queue_url = os.environ["RECRAWL_QUEUE_URL"]
-    sites = list_sites()
-    for site in sites:
-        sqs.send_message(
-            QueueUrl=queue_url,
-            MessageBody=json.dumps({"url": site["url"], "model": site["model"]}),
-        )
-    logger.info({"event": "recrawl_scheduled", "count": len(sites)})
-    return {"scheduled": len(sites)}
-
-
-def handle_sqs(event: dict, context: object) -> dict:
-    """SQS worker handler. Each record is one URL to re-crawl. Raises on failure so SQS retries the message."""
-    for record in event["Records"]:
-        body = json.loads(record["body"])
-        job_id = str(uuid.uuid4())
-        create_job(job_id, body["url"], body["model"], JobType.CRAWL)
-        _run_crawl_agents(job_id, body["url"], body["model"])
-    return {"processed": len(event["Records"])}
-
-
 # --- Internal ---
 
 
@@ -218,22 +191,6 @@ def _run_in_thread(fn, *args) -> None:
     Thread(target=fn, args=args, daemon=True).start()
 
 
-def _run_crawl_agents(job_id: str, url: str, model: str) -> None:
-    """Dispatches both crawler and UI planner Fargate tasks for a crawl job."""
-    trigger_task(AgentType.CRAWL, job_id, url, model)
-    trigger_task(AgentType.UI_PLAN, job_id, url, model)
-
-
 app.include_router(router)
 
-_mangum_handler = Mangum(app)
-
-
-def handler(event: dict, context: object) -> dict:
-    """Lambda entrypoint — dispatches to the correct handler path by event shape."""
-    records = event.get("Records", [])
-    if records and records[0].get("eventSource") == "aws:sqs":
-        return handle_sqs(event, context)
-    if event.get("source") == "aws.events":
-        return handle_schedule(event, context)
-    return _mangum_handler(event, context)
+handler = Mangum(app)

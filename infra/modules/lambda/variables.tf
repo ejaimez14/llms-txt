@@ -47,8 +47,3 @@ variable "ecs_subnet_ids" {
   description = "Comma-separated subnet IDs for Fargate task networking."
   type        = string
 }
-
-variable "recrawl_queue_url" {
-  description = "URL of the SQS queue used for scheduled re-crawl messages."
-  type        = string
-}
