@@ -64,3 +64,11 @@ module "observability" {
   api_gateway_id       = module.api_gateway.api_id
   ecs_log_group_name   = local.ecs_log_group_name
 }
+
+module "cloudfront" {
+  source               = "./modules/cloudfront"
+  api_gateway_endpoint = module.api_gateway.api_url
+  api_gateway_key      = module.api_gateway.api_key
+  basic_auth_user      = var.basic_auth_user
+  basic_auth_password  = var.basic_auth_password
+}
