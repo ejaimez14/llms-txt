@@ -7,19 +7,7 @@ from typing import TYPE_CHECKING, Any
 
 from claude_agent_sdk import ClaudeAgentOptions, query
 
-from src.constants import (
-    CLAUDE_CRAWL_MODEL,
-    CLAUDE_UI_PLAN_MODEL,
-    CRAWLER_MAX_TURNS,
-    CRAWLER_OUTPUT_FILE,
-    CRAWLER_TIMEOUT_SECONDS,
-    UI_PLANNER_MAX_TURNS,
-    UI_PLANNER_OUTPUT_FILE,
-    UI_PLANNER_TIMEOUT_SECONDS,
-    AgentType,
-)
-from src.models import CrawlOutput, UIPlanOutput
-from src.prompts import CRAWL_SYSTEM_PROMPT, UI_PLAN_SYSTEM_PROMPT
+from src.constants import AgentType
 from src.services.hooks import JobHooks
 from src.services.llm import create_agent, run_agent
 from src.services.logger import get_logger
@@ -59,32 +47,6 @@ class TaskRegistry:
         return mapping[agent_type]
 
 
-REGISTRY = TaskRegistry(
-    crawl=TaskConfig(
-        agent_type=AgentType.CRAWL,
-        claude_model=CLAUDE_CRAWL_MODEL,
-        max_turns=CRAWLER_MAX_TURNS,
-        timeout_seconds=CRAWLER_TIMEOUT_SECONDS,
-        output_file=CRAWLER_OUTPUT_FILE,
-        output_model=CrawlOutput,
-        system_prompt=CRAWL_SYSTEM_PROMPT,
-        output_schema_hint="`llms_txt` (string) and `metadata` (object)",
-        task_instruction="Crawl this website and produce an llms.txt file: {url}",
-    ),
-    ui_plan=TaskConfig(
-        agent_type=AgentType.UI_PLAN,
-        claude_model=CLAUDE_UI_PLAN_MODEL,
-        max_turns=UI_PLANNER_MAX_TURNS,
-        timeout_seconds=UI_PLANNER_TIMEOUT_SECONDS,
-        output_file=UI_PLANNER_OUTPUT_FILE,
-        output_model=UIPlanOutput,
-        system_prompt=UI_PLAN_SYSTEM_PROMPT,
-        output_schema_hint="`plan_markdown` (string) and `design_tokens` (object)",
-        task_instruction="Analyze this website and produce a UI implementation plan: {url}",
-    ),
-)
-
-
 def run_task(job_id: str, url: str, model: str, config: TaskConfig) -> None:
     """Fargate entry point: routes to SDK loop (Claude) or agent factory (OpenAI)."""
     if model == "claude":
@@ -102,7 +64,9 @@ def _run_claude(job_id: str, url: str, config: TaskConfig) -> None:
     try:
         asyncio.run(_run_sdk(hooks, url, config))
     except Exception as exc:
-        logger.error({"event": f"{config.agent_type.value}_task_failed", "error": str(exc)})
+        logger.error(
+            {"event": f"{config.agent_type.value}_task_failed", "error": str(exc)}
+        )
         hooks.on_error(exc)
 
 

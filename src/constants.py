@@ -58,16 +58,16 @@ OPENAI_CRAWL_MODEL = "gpt-4o-mini"
 OPENAI_UI_PLAN_MODEL = "gpt-4o"
 
 CLAUDE_AGENT_MODELS = {
-    AgentType.CRAWL:   CLAUDE_CRAWL_MODEL,
+    AgentType.CRAWL: CLAUDE_CRAWL_MODEL,
     AgentType.UI_PLAN: CLAUDE_UI_PLAN_MODEL,
-    AgentType.REPORT:  CLAUDE_REPORT_MODEL,
+    AgentType.REPORT: CLAUDE_REPORT_MODEL,
     AgentType.COMPARE: CLAUDE_COMPARE_MODEL,
 }
 
 OPENAI_AGENT_MODELS = {
-    AgentType.CRAWL:   OPENAI_CRAWL_MODEL,
+    AgentType.CRAWL: OPENAI_CRAWL_MODEL,
     AgentType.UI_PLAN: OPENAI_UI_PLAN_MODEL,
-    AgentType.REPORT:  OPENAI_CRAWL_MODEL,
+    AgentType.REPORT: OPENAI_CRAWL_MODEL,
     AgentType.COMPARE: OPENAI_CRAWL_MODEL,
 }
 
@@ -76,10 +76,16 @@ OPENAI_AGENT_MODELS = {
 CRAWLER_MAX_TURNS = 30
 CRAWLER_TIMEOUT_SECONDS = 1800
 CRAWLER_OUTPUT_FILE = "crawl-output.json"
+CRAWLER_OUTPUT_SCHEMA_HINT = "`llms_txt` (string) and `metadata` (object)"
+CRAWLER_TASK_INSTRUCTION = "Crawl this website and produce an llms.txt file: {url}"
 
 UI_PLANNER_MAX_TURNS = 20
 UI_PLANNER_TIMEOUT_SECONDS = 900
 UI_PLANNER_OUTPUT_FILE = "ui-plan-output.json"
+UI_PLANNER_OUTPUT_SCHEMA_HINT = "`plan_markdown` (string) and `design_tokens` (object)"
+UI_PLANNER_TASK_INSTRUCTION = (
+    "Analyze this website and produce a UI implementation plan: {url}"
+)
 
 # Anthropic server-side tools passed per agent type. Only crawl and ui-plan need web access.
 CLAUDE_EXTRA_TOOLS: dict[AgentType, list[dict]] = {
