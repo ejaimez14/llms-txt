@@ -18,17 +18,7 @@ from src.services.storage import (
 logger = get_logger(__name__)
 
 
-class AgentHooks:
-    """Base class. Implement one subclass per provider."""
-
-    def on_start(self) -> None: ...
-
-    def on_complete(self, output: dict | str, usage: object | None = None) -> None: ...
-
-    def on_error(self, error: Exception) -> None: ...
-
-
-class JobHooks(AgentHooks):
+class JobHooks:
     """Lifecycle hooks for crawl and ui-plan agents (provider-agnostic).
 
     Handles all persistence (S3, DynamoDB, Pinecone) and structured logging

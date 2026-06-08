@@ -26,13 +26,6 @@ class ArtifactType(str, Enum):
     COMPARISON = "comparison"
 
 
-class AgentType(str, Enum):
-    CRAWL = "crawl"
-    UI_PLAN = "ui-plan"
-    REPORT = "report"
-    COMPARE = "compare"
-
-
 class ModelName(str, Enum):
     CLAUDE = "claude"
     OPENAI = "openai"

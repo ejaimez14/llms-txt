@@ -17,7 +17,7 @@ from src.services.helpers import fetch_secret
 from src.services.hooks import JobHooks
 from src.services.tools import web_fetch_tool
 
-_CLAUDE_RESPONSE_MODEL = {
+_AGENT_OUTPUT_MODEL = {
     "crawl": CrawlOutput,
     "ui-plan": UIPlanOutput,
     "report": ReportOutput,
@@ -35,13 +35,6 @@ _CLAUDE_EXTRA_TOOLS = {
     ],
     "report": [],
     "compare": [],
-}
-
-_OPENAI_OUTPUT_TYPE = {
-    "crawl": CrawlOutput,
-    "ui-plan": UIPlanOutput,
-    "report": ReportOutput,
-    "compare": CompareOutput,
 }
 
 
@@ -83,7 +76,7 @@ def _create_claude_agent(
     model_id = CLAUDE_AGENT_MODELS.get(agent_type)
     if not model_id:
         raise ValueError(f"No Claude model configured for agent_type={agent_type!r}")
-    response_model = _CLAUDE_RESPONSE_MODEL.get(agent_type)
+    response_model = _AGENT_OUTPUT_MODEL.get(agent_type)
     if not response_model:
         raise ValueError(f"No response model configured for agent_type={agent_type!r}")
     hooks = JobHooks(job_id, agent_type, url, model)
@@ -116,7 +109,7 @@ def _create_openai_agent(
         model=model_id,
         instructions=system_prompt,
         tools=web_tools,
-        output_type=_OPENAI_OUTPUT_TYPE[agent_type],
+        output_type=_AGENT_OUTPUT_MODEL[agent_type],
     )
     hooks = JobHooks(job_id, agent_type, url, model)
     return {"provider": "openai", "agent": agent, "hooks": hooks}
@@ -127,18 +120,19 @@ def _run_claude(agent_ctx: dict, user_content: str) -> dict:
     hooks = agent_ctx["hooks"]
     hooks.on_start()
     try:
-        kwargs = dict(
-            model=agent_ctx["model_id"],
-            max_tokens=CLAUDE_MAX_OUTPUT_TOKENS,
-            system=agent_ctx["system_prompt"],
-            messages=[{"role": "user", "content": user_content}],
-            response_model=agent_ctx["response_model"],
-        )
+        kwargs = {
+            "model": agent_ctx["model_id"],
+            "max_tokens": CLAUDE_MAX_OUTPUT_TOKENS,
+            "system": agent_ctx["system_prompt"],
+            "messages": [{"role": "user", "content": user_content}],
+            "response_model": agent_ctx["response_model"],
+        }
         if agent_ctx["extra_tools"]:
             kwargs["tools"] = agent_ctx["extra_tools"]
         output, completion = _instructor_client.messages.create_with_completion(**kwargs)
-        hooks.on_complete(output.model_dump(), completion.usage)
-        return output.model_dump()
+        output_dict = output.model_dump()
+        hooks.on_complete(output_dict, completion.usage)
+        return output_dict
     except Exception as exc:
         hooks.on_error(exc)
         raise
