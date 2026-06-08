@@ -33,17 +33,14 @@ module "ecs" {
 }
 
 module "lambda" {
-  source               = "./modules/lambda"
-  lambda_zip_path      = var.lambda_zip_path
-  bucket_name          = module.s3.bucket_name
-  bucket_arn           = module.s3.bucket_arn
-  table_name           = module.dynamodb.jobs_table_name
-  table_arn            = module.dynamodb.jobs_table_arn
-  sites_table_name     = module.dynamodb.sites_table_name
-  sites_table_arn      = module.dynamodb.sites_table_arn
-  pinecone_api_key     = var.pinecone_api_key
-  pinecone_index       = var.pinecone_index
-  anthropic_secret_arn = var.anthropic_secret_arn
+  source           = "./modules/lambda"
+  iam_role_arn     = var.iam_role_arn
+  lambda_zip_path  = var.lambda_zip_path
+  bucket_name      = module.s3.bucket_name
+  table_name       = module.dynamodb.jobs_table_name
+  sites_table_name = module.dynamodb.sites_table_name
+  pinecone_api_key = var.pinecone_api_key
+  pinecone_index   = var.pinecone_index
 
   ecs_cluster                     = module.ecs.cluster_name
   ecs_implementer_task_definition = module.ecs.implementer_task_definition_arn
