@@ -1,5 +1,5 @@
 variable "lambda_function_name" {
-  description = "Name of the crawler Lambda function, used to scope CloudWatch metric widgets."
+  description = "Name of the Lambda function, used to scope CloudWatch metric widgets."
   type        = string
 }
 

@@ -1,4 +1,4 @@
-resource "aws_lambda_function" "crawler_agent" {
+resource "aws_lambda_function" "api" {
   function_name = "llms-txt-api"
   filename      = var.lambda_zip_path
   role          = var.iam_role_arn

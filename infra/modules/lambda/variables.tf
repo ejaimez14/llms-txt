@@ -9,7 +9,7 @@ variable "lambda_zip_path" {
 }
 
 variable "bucket_name" {
-  description = "Name of the S3 bucket the Lambda function reads and writes crawler results to."
+  description = "Name of the S3 bucket the Lambda function reads and writes results to."
   type        = string
 }
 

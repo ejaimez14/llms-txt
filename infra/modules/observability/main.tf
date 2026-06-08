@@ -3,7 +3,7 @@ resource "aws_cloudwatch_log_group" "lambda" {
   retention_in_days = 14
 }
 
-resource "aws_cloudwatch_dashboard" "crawler" {
+resource "aws_cloudwatch_dashboard" "main" {
   dashboard_name = "llms-txt"
 
   dashboard_body = jsonencode({
