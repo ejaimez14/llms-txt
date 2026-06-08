@@ -12,3 +12,14 @@ output "sites_table_name" {
   description = "Name of the DynamoDB table storing the latest state per URL."
   value       = module.dynamodb.sites_table_name
 }
+
+output "ecr_repository_url" {
+  description = "Push agent Docker images here before running Fargate tasks"
+  value       = module.ecs.ecr_repository_url
+}
+
+output "api_url" {
+  description = "Base invoke URL for the HTTP API; consumed by the CloudFront module."
+  value       = module.api_gateway.api_url
+}
+
