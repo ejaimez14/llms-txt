@@ -6,13 +6,10 @@ You are doing two related things:
 
 1. **Terraform infrastructure** — Add `infra/modules/ecs/` for the brand-new ECS resources and
    extend `infra/modules/observability/` with a CloudWatch log group.
-2. **Agent migration** — Move the Claude path for the crawler and UI planner agents from Lambda
-   threads to ECS Fargate tasks, using the `claude-agent-sdk` for a true multi-turn loop.
-
-The UI implementer (Plan 21) already uses Fargate. The crawler and UI planner join it in this plan.
-The OpenAI path for both agents is unchanged — it stays in Lambda via the agent factory.
-Report and compare agents are not migrated — single-call structured output via `instructor`
-is the right fit for pure analysis tasks.
+2. **Agent migration** — Move crawler and UI planner to ECS Fargate for all models. The
+   Fargate entry point routes internally: Claude uses the `claude-agent-sdk` for a multi-turn
+   loop; OpenAI uses the agent factory. Report and compare stay as single Lambda calls — no
+   iteration is needed there.
 
 The IAM role already exists outside of Terraform — it is passed as a variable and reused for
 both the ECS task execution role and the task role. No IAM resources are created here.
@@ -51,7 +48,7 @@ src/
   tasks/
     crawler.py               ← new (Fargate entry point)
     ui_planner.py            ← new (Fargate entry point)
-  handler.py                 ← extend (dual-path routing for crawl and ui-plan)
+  handler.py                 ← extend (always dispatch Fargate for crawl and ui-plan)
 tests/
   test_crawler.py            ← update
   test_ui_planner.py         ← update
@@ -75,7 +72,7 @@ tests/
 - Two new trigger functions in `src/services/fargate.py`
 
 **Rewrites:**
-- `src/agents/crawler.py` — Claude path now delegates to the SDK; OpenAI path unchanged
+- `src/agents/crawler.py` — always dispatches Fargate regardless of model; no in-Lambda execution
 - `src/agents/ui_planner.py` — same pattern
 
 **Manual IAM addition (outside Terraform):**
@@ -501,15 +498,16 @@ docker push <ecr_repository_url>:latest
 
 ### Design
 
-The crawler runs the `claude-agent-sdk` loop with `WebFetch` and `Write` tools. Claude
-discovers pages starting from the root URL via `WebFetch`, then writes `crawl-output.json`
-to the workspace. The entry point validates the JSON against `CrawlOutput` and calls
-`JobHooks.on_complete`, which handles S3 save, Pinecone upsert, and artifact completion.
+The Fargate entry point routes on `model`. For Claude it runs the `claude-agent-sdk` loop:
+Claude discovers pages from the root URL via `WebFetch`, iterates, then writes
+`crawl-output.json` to the workspace. The entry point validates the JSON against `CrawlOutput`
+and calls `JobHooks.on_complete`. For OpenAI it uses the existing agent factory
+(`create_agent` / `run_agent`), which handles the hooks lifecycle internally.
 
 Note: Anthropic's server-side `web_search_20250305` tool is not available through the SDK.
-Claude discovers pages by fetching the root URL and following links — no keyword search.
-This is still a quality improvement over the single-call path because Claude can iteratively
-decide which linked pages to fetch based on what it finds.
+Claude discovers pages by fetching the root URL and following links from there — still a
+quality improvement because Claude can iteratively decide which pages to fetch rather than
+producing everything in one pass.
 
 ### `src/tasks/crawler.py`
 
@@ -525,6 +523,7 @@ from src.constants import CLAUDE_CRAWL_MODEL
 from src.models import CrawlOutput
 from src.prompts import CRAWL_SYSTEM_PROMPT
 from src.services.hooks import JobHooks
+from src.services.llm import create_agent, run_agent
 from src.services.logger import get_logger
 
 logger = get_logger(__name__)
@@ -534,19 +533,39 @@ CRAWL_TIMEOUT_SECONDS = 1800
 OUTPUT_FILE = "crawl-output.json"
 
 
-def run_crawler_task(job_id: str, url: str) -> None:
-    """Fargate entry point: runs the SDK-based crawl agent and saves the result."""
+def run_crawler_task(job_id: str, url: str, model: str) -> None:
+    """Fargate entry point: routes to SDK loop (Claude) or agent factory (OpenAI)."""
+    if model == "claude":
+        _run_claude(job_id, url)
+    else:
+        _run_openai(job_id, url, model)
+
+
+def _run_claude(job_id: str, url: str) -> None:
+    """SDK-based crawl loop with manual hooks lifecycle."""
     hooks = JobHooks(job_id, "crawl", url, "claude")
     hooks.on_start()
     try:
-        asyncio.run(_run_agent(hooks, url))
+        asyncio.run(_run_sdk(hooks, url))
     except Exception as exc:
         logger.error({"event": "crawler_task_failed", "error": str(exc)})
         hooks.on_error(exc)
 
 
-async def _run_agent(hooks: JobHooks, url: str) -> None:
-    """Runs the SDK loop, reads crawl-output.json, and completes the artifact."""
+def _run_openai(job_id: str, url: str, model: str) -> None:
+    """Agent factory crawl — hooks lifecycle managed internally by run_agent."""
+    agent = create_agent(
+        model=model,
+        agent_type="crawl",
+        job_id=job_id,
+        url=url,
+        system_prompt=CRAWL_SYSTEM_PROMPT,
+    )
+    run_agent(agent, f"Crawl this website and produce an llms.txt file: {url}")
+
+
+async def _run_sdk(hooks: JobHooks, url: str) -> None:
+    """Runs the claude-agent-sdk loop, reads crawl-output.json, and completes the artifact."""
     with tempfile.TemporaryDirectory() as workspace:
         options = ClaudeAgentOptions(
             cwd=workspace,
@@ -585,35 +604,21 @@ if __name__ == "__main__":
     run_crawler_task(
         job_id=os.environ["CRAWLER_JOB_ID"],
         url=os.environ["CRAWLER_URL"],
+        model=os.environ["CRAWLER_MODEL"],
     )
 ```
 
 ### `src/agents/crawler.py` — rewrite
 
-The crawler agent now routes based on model. The Claude path dispatches a Fargate task and
-returns immediately; the OpenAI path uses the agent factory as before.
+The agent file becomes a thin dispatcher — always Fargate, regardless of model.
 
 ```python
-from src.constants import ArtifactType
-from src.prompts import CRAWL_SYSTEM_PROMPT
 from src.services.fargate import trigger_crawler_task
-from src.services.llm import create_agent, run_agent
-from src.services.storage import create_job_agent, fail_artifact
 
 
-def run_crawler(job_id: str, url: str, model: str) -> dict | None:
-    """Routes crawl to Fargate (Claude) or the agent factory (OpenAI)."""
-    if model == "claude":
-        trigger_crawler_task(job_id, url)
-        return None
-    agent = create_agent(
-        model=model,
-        agent_type="crawl",
-        job_id=job_id,
-        url=url,
-        system_prompt=CRAWL_SYSTEM_PROMPT,
-    )
-    return run_agent(agent, f"Crawl this website and produce an llms.txt file: {url}")
+def run_crawler(job_id: str, url: str, model: str) -> None:
+    """Dispatches the crawl job to Fargate for both Claude and OpenAI."""
+    trigger_crawler_task(job_id, url, model)
 ```
 
 ---
@@ -622,9 +627,8 @@ def run_crawler(job_id: str, url: str, model: str) -> dict | None:
 
 ### Design
 
-Identical pattern to the crawler. Claude fetches the target URL via `WebFetch` and writes
-`ui-plan-output.json`. The entry point validates against `UIPlanOutput` and calls
-`JobHooks.on_complete`, which saves the plan to S3 and completes the artifact.
+Identical pattern to the crawler. The entry point routes on `model`: Claude uses the SDK
+and writes `ui-plan-output.json`; OpenAI uses the agent factory with its own hooks lifecycle.
 
 ### `src/tasks/ui_planner.py`
 
@@ -640,6 +644,7 @@ from src.constants import CLAUDE_UI_PLAN_MODEL
 from src.models import UIPlanOutput
 from src.prompts import UI_PLAN_SYSTEM_PROMPT
 from src.services.hooks import JobHooks
+from src.services.llm import create_agent, run_agent
 from src.services.logger import get_logger
 
 logger = get_logger(__name__)
@@ -649,19 +654,39 @@ UI_PLAN_TIMEOUT_SECONDS = 900
 OUTPUT_FILE = "ui-plan-output.json"
 
 
-def run_ui_planner_task(job_id: str, url: str) -> None:
-    """Fargate entry point: runs the SDK-based UI planner agent and saves the result."""
+def run_ui_planner_task(job_id: str, url: str, model: str) -> None:
+    """Fargate entry point: routes to SDK loop (Claude) or agent factory (OpenAI)."""
+    if model == "claude":
+        _run_claude(job_id, url)
+    else:
+        _run_openai(job_id, url, model)
+
+
+def _run_claude(job_id: str, url: str) -> None:
+    """SDK-based UI planner loop with manual hooks lifecycle."""
     hooks = JobHooks(job_id, "ui-plan", url, "claude")
     hooks.on_start()
     try:
-        asyncio.run(_run_agent(hooks, url))
+        asyncio.run(_run_sdk(hooks, url))
     except Exception as exc:
         logger.error({"event": "ui_planner_task_failed", "error": str(exc)})
         hooks.on_error(exc)
 
 
-async def _run_agent(hooks: JobHooks, url: str) -> None:
-    """Runs the SDK loop, reads ui-plan-output.json, and completes the artifact."""
+def _run_openai(job_id: str, url: str, model: str) -> None:
+    """Agent factory UI plan — hooks lifecycle managed internally by run_agent."""
+    agent = create_agent(
+        model=model,
+        agent_type="ui-plan",
+        job_id=job_id,
+        url=url,
+        system_prompt=UI_PLAN_SYSTEM_PROMPT,
+    )
+    run_agent(agent, f"Analyze this website and produce a UI implementation plan: {url}")
+
+
+async def _run_sdk(hooks: JobHooks, url: str) -> None:
+    """Runs the claude-agent-sdk loop, reads ui-plan-output.json, and completes the artifact."""
     with tempfile.TemporaryDirectory() as workspace:
         options = ClaudeAgentOptions(
             cwd=workspace,
@@ -701,32 +726,19 @@ if __name__ == "__main__":
     run_ui_planner_task(
         job_id=os.environ["UI_PLANNER_JOB_ID"],
         url=os.environ["UI_PLANNER_URL"],
+        model=os.environ["UI_PLANNER_MODEL"],
     )
 ```
 
 ### `src/agents/ui_planner.py` — rewrite
 
 ```python
-from src.prompts import UI_PLAN_SYSTEM_PROMPT
 from src.services.fargate import trigger_ui_planner_task
-from src.services.llm import create_agent, run_agent
 
 
-def run_ui_planner(job_id: str, url: str, model: str) -> dict | None:
-    """Routes UI planning to Fargate (Claude) or the agent factory (OpenAI)."""
-    if model == "claude":
-        trigger_ui_planner_task(job_id, url)
-        return None
-    agent = create_agent(
-        model=model,
-        agent_type="ui-plan",
-        job_id=job_id,
-        url=url,
-        system_prompt=UI_PLAN_SYSTEM_PROMPT,
-    )
-    return run_agent(
-        agent, f"Analyze this website and produce a UI implementation plan: {url}"
-    )
+def run_ui_planner(job_id: str, url: str, model: str) -> None:
+    """Dispatches the UI planning job to Fargate for both Claude and OpenAI."""
+    trigger_ui_planner_task(job_id, url, model)
 ```
 
 ---
@@ -736,7 +748,7 @@ def run_ui_planner(job_id: str, url: str, model: str) -> dict | None:
 Add to `src/services/fargate.py`:
 
 ```python
-def trigger_crawler_task(job_id: str, url: str) -> None:
+def trigger_crawler_task(job_id: str, url: str, model: str) -> None:
     """Dispatches a Fargate task that runs run_crawler_task with the given parameters."""
     try:
         _ecs.run_task(
@@ -755,6 +767,7 @@ def trigger_crawler_task(job_id: str, url: str) -> None:
                     "environment": [
                         {"name": "CRAWLER_JOB_ID", "value": job_id},
                         {"name": "CRAWLER_URL",    "value": url},
+                        {"name": "CRAWLER_MODEL",  "value": model},
                     ],
                 }]
             },
@@ -764,7 +777,7 @@ def trigger_crawler_task(job_id: str, url: str) -> None:
         raise
 
 
-def trigger_ui_planner_task(job_id: str, url: str) -> None:
+def trigger_ui_planner_task(job_id: str, url: str, model: str) -> None:
     """Dispatches a Fargate task that runs run_ui_planner_task with the given parameters."""
     try:
         _ecs.run_task(
@@ -783,6 +796,7 @@ def trigger_ui_planner_task(job_id: str, url: str) -> None:
                     "environment": [
                         {"name": "UI_PLANNER_JOB_ID", "value": job_id},
                         {"name": "UI_PLANNER_URL",    "value": url},
+                        {"name": "UI_PLANNER_MODEL",  "value": model},
                     ],
                 }]
             },
@@ -796,27 +810,24 @@ def trigger_ui_planner_task(job_id: str, url: str) -> None:
 
 ## Handler Amendment
 
-The handler's crawl and ui-plan routes now dispatch Fargate for Claude and fall back to the
-Lambda thread for OpenAI. The route no longer calls `_run_in_thread` for Claude.
+The handler's crawl and ui-plan routes now always dispatch a Fargate task regardless of model.
+`_run_in_thread` is no longer called for these agents — the entry point handles SDK selection.
 
 ```python
 # src/handler.py — updated crawl route
 
 @router.post("/crawl", status_code=202, summary="Crawl a website")
 def crawl(req: CrawlRequest) -> dict:
-    """Creates a crawl job and dispatches it — Fargate for Claude, thread for OpenAI."""
+    """Creates a crawl job and dispatches it to Fargate."""
     job_id = str(uuid.uuid4())
     create_job(job_id, req.url, req.model, JobType.CRAWL)
-    if req.model == ModelName.CLAUDE:
-        trigger_crawler_task(job_id, req.url)
-    else:
-        _run_in_thread(run_crawler, job_id, req.url, req.model.value)
+    trigger_crawler_task(job_id, req.url, req.model.value)
     return {"jobId": job_id, "status": "processing"}
 
 
 # src/handler.py — updated ui-plan route (if it exists as a route)
 # If ui-plan is currently triggered as part of the crawl job, adjust accordingly.
-# The pattern is the same: Claude → Fargate, OpenAI → thread.
+# The pattern is the same: always dispatch Fargate, pass the model string.
 ```
 
 New imports needed in `handler.py`:
@@ -887,15 +898,20 @@ implementer but still multi-turn. Expect $15–$65/month at moderate usage acros
 - Agent is capped at `max_turns=20` and a 15-minute timeout
 
 **Agent routing:**
-- `run_crawler("job-1", url, "claude")` calls `trigger_crawler_task` and returns `None`
-- `run_crawler("job-1", url, "openai")` calls `create_agent` / `run_agent` as before
-- `run_ui_planner("job-1", url, "claude")` calls `trigger_ui_planner_task` and returns `None`
-- Handler crawl route creates the job, then dispatches Fargate (Claude) or thread (OpenAI)
+- `run_crawler("job-1", url, "claude")` calls `trigger_crawler_task(job_id, url, "claude")`
+- `run_crawler("job-1", url, "openai")` calls `trigger_crawler_task(job_id, url, "openai")`
+- Both always dispatch Fargate — no in-Lambda fallback for crawl or ui-plan
+- Same pattern for `run_ui_planner`
+- Handler crawl route always calls `trigger_crawler_task` — no model branching in the handler
 
 **Tests:**
-- `test_run_crawler_dispatches_fargate_for_claude` — `trigger_crawler_task` is called, `run_agent` is not
-- `test_run_crawler_uses_agent_factory_for_openai` — `create_agent` / `run_agent` is called, `trigger_crawler_task` is not
-- Same two tests for `run_ui_planner`
-- `test_run_crawler_task_calls_hooks_on_success` — `hooks.on_complete` called with validated output
-- `test_run_crawler_task_calls_hooks_on_error` — `hooks.on_error` called on exception; no re-raise
-- Same two tests for `run_ui_planner_task`
+- `test_run_crawler_dispatches_fargate_for_all_models` — `trigger_crawler_task` called with
+  correct `model` arg for both "claude" and "openai"; `run_agent` is never called in the agent file
+- Same test for `run_ui_planner`
+- `test_run_crawler_task_claude_calls_hooks_on_success` — Claude path: `hooks.on_complete`
+  called with validated CrawlOutput; no re-raise on success
+- `test_run_crawler_task_claude_calls_hooks_on_error` — Claude path: `hooks.on_error` called
+  on any exception (timeout, missing file, invalid JSON); function does not re-raise
+- `test_run_crawler_task_openai_calls_agent_factory` — OpenAI path: `create_agent` and
+  `run_agent` are called with `agent_type="crawl"` and the correct model
+- Same three tests for `run_ui_planner_task`
