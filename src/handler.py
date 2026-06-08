@@ -149,18 +149,18 @@ def compare(req: CompareRequest) -> dict:
     return {"jobId": job_id, "status": "processing"}
 
 
+@app.get("/")
+def serve_frontend() -> FileResponse:
+    # In prod CloudFront serves index.html from S3 — this route is for local dev only.
+    return FileResponse("src/index.html")
+
+
 # --- Internal ---
 
 
 def _run_in_thread(fn, *args) -> None:
     """Starts fn(*args) in a daemon thread for single-agent background jobs."""
     Thread(target=fn, args=args, daemon=True).start()
-
-
-@app.get("/")
-def serve_frontend() -> FileResponse:
-    # In prod CloudFront serves index.html from S3 — this route is for local dev only.
-    return FileResponse("src/index.html")
 
 
 app.include_router(router)

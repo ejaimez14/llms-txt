@@ -1,6 +1,7 @@
 import hashlib
 import time
 
+from src.constants import AgentType
 from src.models import CompareOutput, CrawlOutput, ReportOutput, UIPlanOutput
 from src.services.embeddings import embed_text
 from src.services.logger import get_logger, log_job_event
@@ -18,24 +19,14 @@ from src.services.storage import (
 logger = get_logger(__name__)
 
 
-class AgentHooks:
-    """Base class. Implement one subclass per provider."""
-
-    def on_start(self) -> None: ...
-
-    def on_complete(self, output: dict | str, usage: object | None = None) -> None: ...
-
-    def on_error(self, error: Exception) -> None: ...
-
-
-class JobHooks(AgentHooks):
+class JobHooks:
     """Lifecycle hooks for crawl and ui-plan agents (provider-agnostic).
 
     Handles all persistence (S3, DynamoDB, Pinecone) and structured logging
     so agents stay focused on their task.
     """
 
-    def __init__(self, job_id: str, agent_type: str, url: str, model: str) -> None:
+    def __init__(self, job_id: str, agent_type: AgentType, url: str, model: str) -> None:
         self.job_id = job_id
         self.agent_type = agent_type
         self.url = url

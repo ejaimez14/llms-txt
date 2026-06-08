@@ -1,19 +1,7 @@
 from src.constants import AgentType, ArtifactType
-from src.models import ReportOutput
 from src.prompts import REPORT_SYSTEM_PROMPT
 from src.services.llm import create_agent, run_agent
 from src.services.storage import fail_artifact, get_artifact_content, get_site
-
-SUBMIT_TOOL = {
-    "name": "submit_report",
-    "description": (
-        "Call this when you have finished your analysis and are ready to submit. "
-        "Provide the complete report as markdown."
-    ),
-    "input_schema": ReportOutput.model_json_schema(),
-}
-
-REPORT_TOOLS = [SUBMIT_TOOL]
 
 
 def run_reporter(job_id: str, url: str, model: str) -> None:
@@ -34,7 +22,5 @@ def run_reporter(job_id: str, url: str, model: str) -> None:
         job_id=job_id,
         url=url,
         system_prompt=REPORT_SYSTEM_PROMPT,
-        tools=REPORT_TOOLS,
-        submit_tool_name="submit_report",
     )
     run_agent(agent, f"Generate a report for this site:\n\n{content}")

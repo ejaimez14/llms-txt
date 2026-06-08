@@ -1,6 +1,6 @@
 from pytest_mock import MockerFixture
 
-from src.agents.reporter import REPORT_TOOLS, run_reporter
+from src.agents.reporter import run_reporter
 
 
 def test_reporter_runs_agent_with_llms_txt_content(mocker: MockerFixture) -> None:
@@ -18,7 +18,7 @@ def test_reporter_runs_agent_with_llms_txt_content(mocker: MockerFixture) -> Non
     assert "# Example llms.txt" in call_args[0][1]
 
 
-def test_reporter_passes_submit_tool_to_agent(mocker: MockerFixture) -> None:
+def test_reporter_passes_correct_params_to_create_agent(mocker: MockerFixture) -> None:
     site = {"latestJobId": "job-crawl-1"}
     mocker.patch("src.agents.reporter.get_site", return_value=site)
     mocker.patch("src.agents.reporter.get_artifact_content", return_value="# Content")
@@ -29,12 +29,10 @@ def test_reporter_passes_submit_tool_to_agent(mocker: MockerFixture) -> None:
 
     mock_create.assert_called_once_with(
         model="claude",
-        agent_type=mocker.ANY,
+        agent_type="report",
         job_id="job-report-1",
         url="https://example.com",
         system_prompt=mocker.ANY,
-        tools=REPORT_TOOLS,
-        submit_tool_name="submit_report",
     )
 
 

@@ -1,6 +1,6 @@
 from pytest_mock import MockerFixture
 
-from src.agents.comparer import COMPARE_TOOLS, run_comparer
+from src.agents.comparer import run_comparer
 from src.prompts import _build_compare_message
 
 
@@ -24,7 +24,7 @@ def test_comparer_runs_agent_with_both_contents(mocker: MockerFixture) -> None:
     assert "model-beta" in message
 
 
-def test_comparer_passes_submit_tool_to_agent(mocker: MockerFixture) -> None:
+def test_comparer_passes_correct_params_to_create_agent(mocker: MockerFixture) -> None:
     job_a = {"url": "https://example.com", "model": "claude"}
     job_b = {"url": "https://example.com", "model": "claude"}
     mocker.patch("src.agents.comparer.get_job", side_effect=[job_a, job_b])
@@ -39,12 +39,10 @@ def test_comparer_passes_submit_tool_to_agent(mocker: MockerFixture) -> None:
 
     mock_create.assert_called_once_with(
         model="claude",
-        agent_type=mocker.ANY,
+        agent_type="compare",
         job_id="job-compare-1",
         url="https://example.com",
         system_prompt=mocker.ANY,
-        tools=COMPARE_TOOLS,
-        submit_tool_name="submit_comparison",
     )
 
 

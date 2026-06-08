@@ -10,22 +10,14 @@ from src.services.hooks import JobHooks
 from src.services.llm import _run_openai, create_agent, run_agent
 
 
-@pytest.fixture()
-def mock_client() -> MagicMock:
-    return MagicMock()
-
-
-def _make_agent_ctx(
-    client: MagicMock, submit_tool_name: str | None = "submit_crawl_results"
-) -> dict:
+def _make_claude_ctx(response_model=CrawlOutput, extra_tools=None) -> dict:
     return {
         "provider": "claude",
         "model_id": "claude-haiku-4-5-20251001",
-        "client": client,
         "system_prompt": "system",
         "hooks": MagicMock(),
-        "tools": [],
-        "submit_tool_name": submit_tool_name,
+        "response_model": response_model,
+        "extra_tools": extra_tools or [],
     }
 
 
@@ -37,38 +29,62 @@ def test_create_agent_unsupported_model_raises() -> None:
         create_agent("gpt-4", "crawl", "job-1", "https://example.com", "prompt")
 
 
-# --- run_agent ---
+def test_create_agent_unknown_agent_type_raises() -> None:
+    with pytest.raises(ValueError):
+        create_agent("claude", "unknown", "job-1", "https://example.com", "prompt")
 
 
-def test_run_agent_returns_tool_output(mock_client: MagicMock) -> None:
-    expected = {"llms_txt": "# Content", "metadata": {}}
-    mock_client.messages.create.return_value = SimpleNamespace(
-        stop_reason="tool_use",
-        content=[
-            SimpleNamespace(
-                type="tool_use", name="submit_crawl_results", input=expected
-            )
-        ],
-        usage=SimpleNamespace(input_tokens=10, output_tokens=5),
+# --- run_agent (claude) ---
+
+
+def test_run_agent_calls_instructor_and_returns_dict(mocker: MockerFixture) -> None:
+    crawl_output = CrawlOutput(
+        llms_txt="# Content",
+        metadata=SiteMetadata(tech_stack=[], integrations=[], content_types=[]),
     )
-    assert run_agent(_make_agent_ctx(mock_client), "crawl this") == expected
-
-
-def test_run_agent_returns_plain_text_on_end_turn(mock_client: MagicMock) -> None:
-    mock_client.messages.create.return_value = SimpleNamespace(
-        stop_reason="end_turn",
-        content=[SimpleNamespace(type="text", text="report content")],
-        usage=SimpleNamespace(input_tokens=5, output_tokens=10),
+    mock_completion = SimpleNamespace(
+        usage=SimpleNamespace(input_tokens=10, output_tokens=5)
     )
-    assert (
-        run_agent(_make_agent_ctx(mock_client, submit_tool_name=None), "report this")
-        == "report content"
+    mocker.patch(
+        "src.services.llm._instructor_client.messages.create_with_completion",
+        return_value=(crawl_output, mock_completion),
     )
+    ctx = _make_claude_ctx()
+
+    result = run_agent(ctx, "crawl this")
+
+    assert result == crawl_output.model_dump()
+    ctx["hooks"].on_start.assert_called_once()
+    ctx["hooks"].on_complete.assert_called_once()
 
 
-def test_run_agent_calls_on_error_and_reraises(mock_client: MagicMock) -> None:
-    mock_client.messages.create.side_effect = RuntimeError("timeout")
-    ctx = _make_agent_ctx(mock_client)
+def test_run_agent_passes_extra_tools_when_present(mocker: MockerFixture) -> None:
+    crawl_output = CrawlOutput(
+        llms_txt="# Content",
+        metadata=SiteMetadata(tech_stack=[], integrations=[], content_types=[]),
+    )
+    mock_completion = SimpleNamespace(
+        usage=SimpleNamespace(input_tokens=10, output_tokens=5)
+    )
+    mock_create = mocker.patch(
+        "src.services.llm._instructor_client.messages.create_with_completion",
+        return_value=(crawl_output, mock_completion),
+    )
+    extra_tools = [{"type": "web_search_20250305", "name": "web_search"}]
+    ctx = _make_claude_ctx(extra_tools=extra_tools)
+
+    run_agent(ctx, "crawl this")
+
+    _, kwargs = mock_create.call_args
+    assert kwargs["tools"] == extra_tools
+
+
+def test_run_agent_calls_on_error_and_reraises(mocker: MockerFixture) -> None:
+    mocker.patch(
+        "src.services.llm._instructor_client.messages.create_with_completion",
+        side_effect=RuntimeError("timeout"),
+    )
+    ctx = _make_claude_ctx()
     with pytest.raises(RuntimeError):
         run_agent(ctx, "crawl this")
     ctx["hooks"].on_error.assert_called_once()

@@ -26,16 +26,16 @@ class ArtifactType(str, Enum):
     COMPARISON = "comparison"
 
 
+class ModelName(str, Enum):
+    CLAUDE = "claude"
+    OPENAI = "openai"
+
+
 class AgentType(str, Enum):
     CRAWL = "crawl"
     UI_PLAN = "ui-plan"
     REPORT = "report"
     COMPARE = "compare"
-
-
-class ModelName(str, Enum):
-    CLAUDE = "claude"
-    OPENAI = "openai"
 
 
 # --- Runtime Constants ---
@@ -57,15 +57,26 @@ OPENAI_CRAWL_MODEL = "gpt-4o-mini"
 OPENAI_UI_PLAN_MODEL = "gpt-4o"
 
 CLAUDE_AGENT_MODELS = {
-    "crawl": CLAUDE_CRAWL_MODEL,
-    "ui-plan": CLAUDE_UI_PLAN_MODEL,
-    "report": CLAUDE_REPORT_MODEL,
-    "compare": CLAUDE_COMPARE_MODEL,
+    AgentType.CRAWL:   CLAUDE_CRAWL_MODEL,
+    AgentType.UI_PLAN: CLAUDE_UI_PLAN_MODEL,
+    AgentType.REPORT:  CLAUDE_REPORT_MODEL,
+    AgentType.COMPARE: CLAUDE_COMPARE_MODEL,
 }
 
 OPENAI_AGENT_MODELS = {
-    "crawl": OPENAI_CRAWL_MODEL,
-    "ui-plan": OPENAI_UI_PLAN_MODEL,
-    "report": OPENAI_CRAWL_MODEL,
-    "compare": OPENAI_CRAWL_MODEL,
+    AgentType.CRAWL:   OPENAI_CRAWL_MODEL,
+    AgentType.UI_PLAN: OPENAI_UI_PLAN_MODEL,
+    AgentType.REPORT:  OPENAI_CRAWL_MODEL,
+    AgentType.COMPARE: OPENAI_CRAWL_MODEL,
+}
+
+# Anthropic server-side tools passed per agent type. Only crawl and ui-plan need web access.
+CLAUDE_EXTRA_TOOLS: dict[AgentType, list[dict]] = {
+    AgentType.CRAWL: [
+        {"type": "web_search_20250305", "name": "web_search"},
+        {"type": "web_fetch_20250305", "name": "web_fetch"},
+    ],
+    AgentType.UI_PLAN: [
+        {"type": "web_fetch_20250305", "name": "web_fetch"},
+    ],
 }
