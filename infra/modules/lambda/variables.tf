@@ -23,12 +23,6 @@ variable "sites_table_name" {
   type        = string
 }
 
-variable "pinecone_api_key" {
-  description = "Pinecone API key injected into the Lambda environment."
-  type        = string
-  sensitive   = true
-}
-
 variable "pinecone_index" {
   description = "Name of the Pinecone index used for embedding storage and retrieval."
   type        = string

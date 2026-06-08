@@ -1,5 +1,5 @@
 resource "aws_lambda_function" "crawler_agent" {
-  function_name = "crawler-agent"
+  function_name = "llms-txt-api"
   filename      = var.lambda_zip_path
   role          = var.iam_role_arn
   handler       = "src.handler.handler"
@@ -14,7 +14,6 @@ resource "aws_lambda_function" "crawler_agent" {
       BUCKET                          = var.bucket_name
       TABLE                           = var.table_name
       SITES_TABLE                     = var.sites_table_name
-      PINECONE_API_KEY                = var.pinecone_api_key
       PINECONE_INDEX                  = var.pinecone_index
       ECS_CLUSTER                     = var.ecs_cluster
       ECS_IMPLEMENTER_TASK_DEFINITION = var.ecs_implementer_task_definition

@@ -4,12 +4,12 @@ resource "random_password" "api_key" {
 }
 
 resource "aws_cloudwatch_log_group" "api_gw" {
-  name              = "/aws/apigateway/crawler-api"
+  name              = "/aws/apigateway/llms-txt"
   retention_in_days = 14
 }
 
 resource "aws_apigatewayv2_api" "crawler" {
-  name          = "crawler-api"
+  name          = "llms-txt-api"
   protocol_type = "HTTP"
 }
 

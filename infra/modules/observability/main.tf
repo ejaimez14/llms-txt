@@ -4,7 +4,7 @@ resource "aws_cloudwatch_log_group" "lambda" {
 }
 
 resource "aws_cloudwatch_dashboard" "crawler" {
-  dashboard_name = "crawler-agent"
+  dashboard_name = "llms-txt"
 
   dashboard_body = jsonencode({
     widgets = [

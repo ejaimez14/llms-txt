@@ -39,7 +39,6 @@ module "lambda" {
   bucket_name      = module.s3.bucket_name
   table_name       = module.dynamodb.jobs_table_name
   sites_table_name = module.dynamodb.sites_table_name
-  pinecone_api_key = var.pinecone_api_key
   pinecone_index   = var.pinecone_index
 
   ecs_cluster                     = module.ecs.cluster_name
