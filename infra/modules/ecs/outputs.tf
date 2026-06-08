@@ -6,16 +6,8 @@ output "cluster_arn" {
   value = aws_ecs_cluster.main.arn
 }
 
-output "implementer_task_definition_arn" {
-  value = aws_ecs_task_definition.implementer.arn
-}
-
-output "crawler_task_definition_arn" {
-  value = aws_ecs_task_definition.crawler.arn
-}
-
-output "ui_planner_task_definition_arn" {
-  value = aws_ecs_task_definition.ui_planner.arn
+output "task_definition_arn" {
+  value = aws_ecs_task_definition.agent.arn
 }
 
 output "security_group_id" {

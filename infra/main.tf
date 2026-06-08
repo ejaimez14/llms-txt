@@ -15,9 +15,7 @@ module "ecs" {
   iam_role_arn            = var.iam_role_arn
   ecr_repository_name     = "llms-txt-agents"
   cluster_name            = "llms-txt-cluster"
-  implementer_task_family = "llms-txt-implementer"
-  crawler_task_family     = "llms-txt-crawler"
-  ui_planner_task_family  = "llms-txt-ui-planner"
+  task_family             = "llms-txt-agent"
   log_group_name          = "/ecs/llms-txt"
   aws_region              = var.aws_region
 
@@ -38,11 +36,9 @@ module "lambda" {
   sites_table_name = module.dynamodb.sites_table_name
   pinecone_index   = var.pinecone_index
 
-  ecs_cluster                     = module.ecs.cluster_name
-  ecs_implementer_task_definition = module.ecs.implementer_task_definition_arn
-  ecs_crawler_task_definition     = module.ecs.crawler_task_definition_arn
-  ecs_ui_planner_task_definition  = module.ecs.ui_planner_task_definition_arn
-  ecs_security_group              = module.ecs.security_group_id
+  ecs_cluster            = module.ecs.cluster_name
+  ecs_task_definition    = module.ecs.task_definition_arn
+  ecs_security_group     = module.ecs.security_group_id
   ecs_subnet_ids                  = var.subnet_ids
 }
 

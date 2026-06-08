@@ -1,18 +1,3 @@
-locals {
-  base_environment = [
-    { name = "TABLE",              value = var.jobs_table_name },
-    { name = "SITES_TABLE",        value = var.sites_table_name },
-    { name = "BUCKET",             value = var.bucket_name },
-    { name = "PINECONE_INDEX",     value = var.pinecone_index },
-    { name = "AWS_DEFAULT_REGION", value = var.aws_region },
-  ]
-
-  base_secrets = [
-    { name = "ANTHROPIC_API_KEY", valueFrom = data.aws_secretsmanager_secret.anthropic.arn },
-    { name = "PINECONE_API_KEY",  valueFrom = data.aws_secretsmanager_secret.pinecone.arn },
-  ]
-}
-
 resource "aws_ecr_repository" "agents" {
   name                 = var.ecr_repository_name
   image_tag_mutability = "MUTABLE"
@@ -39,8 +24,8 @@ resource "aws_security_group" "fargate_tasks" {
   }
 }
 
-resource "aws_ecs_task_definition" "implementer" {
-  family                   = var.implementer_task_family
+resource "aws_ecs_task_definition" "agent" {
+  family                   = var.task_family
   requires_compatibilities = ["FARGATE"]
   network_mode             = "awsvpc"
   cpu                      = var.task_cpu
@@ -49,78 +34,29 @@ resource "aws_ecs_task_definition" "implementer" {
   task_role_arn            = var.iam_role_arn
 
   container_definitions = jsonencode([{
-    name    = "implementer"
-    image   = "${aws_ecr_repository.agents.repository_url}:latest"
-    command = ["python", "-m", "src.tasks.implementer"]
+    name  = "agent"
+    image = "${aws_ecr_repository.agents.repository_url}:latest"
 
-    environment = local.base_environment
+    environment = [
+      { name = "TABLE",              value = var.jobs_table_name },
+      { name = "SITES_TABLE",        value = var.sites_table_name },
+      { name = "BUCKET",             value = var.bucket_name },
+      { name = "PINECONE_INDEX",     value = var.pinecone_index },
+      { name = "AWS_DEFAULT_REGION", value = var.aws_region },
+    ]
 
-    secrets = concat(local.base_secrets, [
-      { name = "GITHUB_TOKEN", valueFrom = data.aws_secretsmanager_secret.github.arn },
-    ])
-
-    logConfiguration = {
-      logDriver = "awslogs"
-      options = {
-        "awslogs-group"         = var.log_group_name
-        "awslogs-region"        = var.aws_region
-        "awslogs-stream-prefix" = "implementer"
-      }
-    }
-  }])
-}
-
-resource "aws_ecs_task_definition" "crawler" {
-  family                   = var.crawler_task_family
-  requires_compatibilities = ["FARGATE"]
-  network_mode             = "awsvpc"
-  cpu                      = var.task_cpu
-  memory                   = var.task_memory
-  execution_role_arn       = var.iam_role_arn
-  task_role_arn            = var.iam_role_arn
-
-  container_definitions = jsonencode([{
-    name    = "crawler"
-    image   = "${aws_ecr_repository.agents.repository_url}:latest"
-    command = ["python", "-m", "src.tasks.crawler"]
-
-    environment = local.base_environment
-    secrets     = local.base_secrets
+    secrets = [
+      { name = "ANTHROPIC_API_KEY", valueFrom = data.aws_secretsmanager_secret.anthropic.arn },
+      { name = "PINECONE_API_KEY",  valueFrom = data.aws_secretsmanager_secret.pinecone.arn },
+      { name = "GITHUB_TOKEN",      valueFrom = data.aws_secretsmanager_secret.github.arn },
+    ]
 
     logConfiguration = {
       logDriver = "awslogs"
       options = {
         "awslogs-group"         = var.log_group_name
         "awslogs-region"        = var.aws_region
-        "awslogs-stream-prefix" = "crawler"
-      }
-    }
-  }])
-}
-
-resource "aws_ecs_task_definition" "ui_planner" {
-  family                   = var.ui_planner_task_family
-  requires_compatibilities = ["FARGATE"]
-  network_mode             = "awsvpc"
-  cpu                      = var.task_cpu
-  memory                   = var.task_memory
-  execution_role_arn       = var.iam_role_arn
-  task_role_arn            = var.iam_role_arn
-
-  container_definitions = jsonencode([{
-    name    = "ui-planner"
-    image   = "${aws_ecr_repository.agents.repository_url}:latest"
-    command = ["python", "-m", "src.tasks.ui_planner"]
-
-    environment = local.base_environment
-    secrets     = local.base_secrets
-
-    logConfiguration = {
-      logDriver = "awslogs"
-      options = {
-        "awslogs-group"         = var.log_group_name
-        "awslogs-region"        = var.aws_region
-        "awslogs-stream-prefix" = "ui-planner"
+        "awslogs-stream-prefix" = "agent"
       }
     }
   }])

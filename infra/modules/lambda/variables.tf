@@ -33,18 +33,8 @@ variable "ecs_cluster" {
   type        = string
 }
 
-variable "ecs_implementer_task_definition" {
-  description = "ARN of the ECS task definition for the UI implementer agent."
-  type        = string
-}
-
-variable "ecs_crawler_task_definition" {
-  description = "ARN of the ECS task definition for the crawler agent."
-  type        = string
-}
-
-variable "ecs_ui_planner_task_definition" {
-  description = "ARN of the ECS task definition for the UI planner agent."
+variable "ecs_task_definition" {
+  description = "ARN of the shared ECS task definition used by all agent tasks."
   type        = string
 }
 

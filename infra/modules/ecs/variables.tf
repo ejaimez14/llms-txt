@@ -10,16 +10,8 @@ variable "cluster_name" {
   description = "Name of the ECS cluster"
 }
 
-variable "implementer_task_family" {
-  description = "ECS task definition family name for the UI implementer"
-}
-
-variable "crawler_task_family" {
-  description = "ECS task definition family name for the crawler agent"
-}
-
-variable "ui_planner_task_family" {
-  description = "ECS task definition family name for the UI planner agent"
+variable "task_family" {
+  description = "ECS task definition family name shared by all agent tasks"
 }
 
 variable "task_cpu" {
