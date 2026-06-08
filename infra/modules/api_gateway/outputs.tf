@@ -12,3 +12,9 @@ output "execution_arn" {
   description = "Execution ARN prefix for the API, used to scope Lambda invocation permissions."
   value       = aws_apigatewayv2_api.main.execution_arn
 }
+
+output "api_key" {
+  sensitive   = true
+  description = "Random API key value — passed to CloudFront as a custom origin header; never output to the user directly."
+  value       = random_password.api_key.result
+}

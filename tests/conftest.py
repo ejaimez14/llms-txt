@@ -23,6 +23,10 @@ os.environ.setdefault(
 )
 os.environ.setdefault("ECS_SUBNET_IDS", "subnet-test1,subnet-test2")
 os.environ.setdefault("ECS_SECURITY_GROUP", "sg-test")
+os.environ.setdefault(
+    "RECRAWL_QUEUE_URL",
+    "https://sqs.us-east-1.amazonaws.com/000000000000/test-recrawl",
+)
 
 # llm.py and pinecone_client.py call fetch_secret() at import time via the Lambda extension.
 # The extension isn't running in tests — intercept the HTTP call before any module is imported.
