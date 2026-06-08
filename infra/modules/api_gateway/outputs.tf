@@ -8,12 +8,6 @@ output "api_url" {
   value       = aws_apigatewayv2_stage.default.invoke_url
 }
 
-output "api_key" {
-  description = "API key value that CloudFront injects as x-api-key; consumed by the cloudfront module."
-  value       = random_password.api_key.result
-  sensitive   = true
-}
-
 output "execution_arn" {
   description = "Execution ARN prefix for the API, used to scope Lambda invocation permissions."
   value       = aws_apigatewayv2_api.main.execution_arn
