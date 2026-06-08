@@ -1,9 +1,4 @@
-import asyncio
 import os
-import tempfile
-from pathlib import Path
-
-from claude_agent_sdk import ClaudeAgentOptions, query
 
 from src.constants import (
     CLAUDE_UI_PLAN_MODEL,
@@ -14,84 +9,24 @@ from src.constants import (
 )
 from src.models import UIPlanOutput
 from src.prompts import UI_PLAN_SYSTEM_PROMPT
-from src.services.hooks import JobHooks
-from src.services.llm import create_agent, run_agent
-from src.services.logger import get_logger
+from src.tasks.base import TaskConfig, run_task
 
-logger = get_logger(__name__)
-
-
-def run_ui_planner_task(job_id: str, url: str, model: str) -> None:
-    """Fargate entry point: routes to SDK loop (Claude) or agent factory (OpenAI)."""
-    if model == "claude":
-        _run_claude(job_id, url)
-    else:
-        _run_openai(job_id, url, model)
-
-
-def _run_claude(job_id: str, url: str) -> None:
-    """SDK-based UI planner loop with manual hooks lifecycle."""
-    hooks = JobHooks(job_id, AgentType.UI_PLAN, url, "claude")
-    hooks.on_start()
-    try:
-        asyncio.run(_run_sdk(hooks, url))
-    except Exception as exc:
-        logger.error({"event": "ui_planner_task_failed", "error": str(exc)})
-        hooks.on_error(exc)
-
-
-def _run_openai(job_id: str, url: str, model: str) -> None:
-    """Agent factory UI plan — hooks lifecycle managed internally by run_agent."""
-    agent = create_agent(
-        model=model,
-        agent_type=AgentType.UI_PLAN,
-        job_id=job_id,
-        url=url,
-        system_prompt=UI_PLAN_SYSTEM_PROMPT,
-    )
-    run_agent(agent, f"Analyze this website and produce a UI implementation plan: {url}")
-
-
-async def _run_sdk(hooks: JobHooks, url: str) -> None:
-    """Runs the claude-agent-sdk loop, reads ui-plan-output.json, and completes the artifact."""
-    with tempfile.TemporaryDirectory() as workspace:
-        options = ClaudeAgentOptions(
-            cwd=workspace,
-            model=CLAUDE_UI_PLAN_MODEL,
-            permission_mode="bypassPermissions",
-            allowed_tools=["WebFetch", "Write"],
-            max_turns=UI_PLANNER_MAX_TURNS,
-        )
-        await asyncio.wait_for(
-            _exhaust(query(prompt=_build_prompt(url), options=options)),
-            timeout=UI_PLANNER_TIMEOUT_SECONDS,
-        )
-        output = UIPlanOutput.model_validate_json(
-            Path(workspace, UI_PLANNER_OUTPUT_FILE).read_text()
-        )
-        hooks.on_complete(output.model_dump())
-
-
-async def _exhaust(gen) -> None:
-    async for message in gen:
-        logger.info({"event": "ui_planner_message", "type": type(message).__name__})
-
-
-def _build_prompt(url: str) -> str:
-    """Combines system instructions with the file-writing requirement and target URL."""
-    return (
-        f"{UI_PLAN_SYSTEM_PROMPT}\n\n"
-        f"After completing your analysis, write your output as a JSON object to "
-        f"`{UI_PLANNER_OUTPUT_FILE}` in the working directory. "
-        f"The JSON must have exactly two fields: `plan_markdown` (string) and "
-        f"`design_tokens` (object).\n\n"
-        f"Analyze this website and produce a UI implementation plan: {url}"
-    )
-
+_CONFIG = TaskConfig(
+    agent_type=AgentType.UI_PLAN,
+    claude_model=CLAUDE_UI_PLAN_MODEL,
+    max_turns=UI_PLANNER_MAX_TURNS,
+    timeout_seconds=UI_PLANNER_TIMEOUT_SECONDS,
+    output_file=UI_PLANNER_OUTPUT_FILE,
+    output_model=UIPlanOutput,
+    system_prompt=UI_PLAN_SYSTEM_PROMPT,
+    output_schema_hint="`plan_markdown` (string) and `design_tokens` (object)",
+    task_instruction="Analyze this website and produce a UI implementation plan: {url}",
+)
 
 if __name__ == "__main__":
-    run_ui_planner_task(
+    run_task(
         job_id=os.environ["UI_PLANNER_JOB_ID"],
         url=os.environ["UI_PLANNER_URL"],
         model=os.environ["UI_PLANNER_MODEL"],
+        config=_CONFIG,
     )
