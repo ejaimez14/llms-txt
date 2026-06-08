@@ -12,7 +12,6 @@ _ecs = boto3.client(
 )
 
 _TASK_COMMAND = ["python", "-m", "src.tasks"]
-_IMPLEMENTER_COMMAND = ["python", "-m", "src.tasks.implementer"]
 _CONTAINER_NAME = "agent"
 
 
@@ -79,9 +78,10 @@ def trigger_implementer_task(
                 "containerOverrides": [
                     {
                         "name": _CONTAINER_NAME,
-                        "command": _IMPLEMENTER_COMMAND,
+                        "command": _TASK_COMMAND,
                         "environment": [
-                            {"name": "IMPLEMENTER_JOB_ID", "value": job_id},
+                            {"name": "AGENT_TYPE", "value": AgentType.IMPLEMENT.value},
+                            {"name": "AGENT_ID", "value": job_id},
                             {
                                 "name": "IMPLEMENTER_SOURCE_JOB_ID",
                                 "value": source_job_id,
