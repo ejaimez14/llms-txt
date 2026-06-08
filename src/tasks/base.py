@@ -1,50 +1,15 @@
 import asyncio
 import tempfile
-from collections.abc import AsyncIterator
-from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
 
 from claude_agent_sdk import ClaudeAgentOptions, query
 
-from src.constants import AgentType
+from src.models import TaskConfig
 from src.services.hooks import JobHooks
 from src.services.llm import create_agent, run_agent
 from src.services.logger import get_logger
 
-if TYPE_CHECKING:
-    from pydantic import BaseModel
-
 logger = get_logger(__name__)
-
-
-@dataclass
-class TaskConfig:
-    agent_type: AgentType
-    claude_model: str
-    max_turns: int
-    timeout_seconds: int
-    output_file: str
-    output_model: type["BaseModel"]
-    system_prompt: str
-    output_schema_hint: str
-    task_instruction: str
-
-
-@dataclass(frozen=True)
-class TaskRegistry:
-    crawl: TaskConfig
-    ui_plan: TaskConfig
-
-    def get(self, agent_type: AgentType) -> TaskConfig:
-        """Returns the TaskConfig for the given agent type. Raises NotImplementedError for unregistered types."""
-        mapping: dict[AgentType, TaskConfig] = {
-            AgentType.CRAWL: self.crawl,
-            AgentType.UI_PLAN: self.ui_plan,
-        }
-        if agent_type not in mapping:
-            raise NotImplementedError(f"No task config registered for {agent_type}")
-        return mapping[agent_type]
 
 
 def run_task(job_id: str, url: str, model: str, config: TaskConfig) -> None:
@@ -90,19 +55,13 @@ async def _run_sdk(hooks: JobHooks, url: str, config: TaskConfig) -> None:
             allowed_tools=["WebFetch", "Write"],
             max_turns=config.max_turns,
         )
-        await asyncio.wait_for(
-            _exhaust(query(prompt=_build_prompt(url, config), options=options)),
-            timeout=config.timeout_seconds,
-        )
+        async with asyncio.timeout(config.timeout_seconds):
+            async for _ in query(prompt=_build_prompt(url, config), options=options):
+                pass
         output = config.output_model.model_validate_json(
             Path(workspace, config.output_file).read_text()
         )
         hooks.on_complete(output.model_dump())
-
-
-async def _exhaust(gen: AsyncIterator[Any]) -> None:
-    async for _ in gen:
-        pass
 
 
 def _build_prompt(url: str, config: TaskConfig) -> str:

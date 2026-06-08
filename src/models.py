@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
+
 from pydantic import BaseModel
 
-from .constants import ArtifactStatus, ArtifactType, JobStatus, ModelName
+from .constants import AgentType, ArtifactStatus, ArtifactType, JobStatus, ModelName
 
 # --- Request models ---
 
@@ -110,6 +112,24 @@ class CompareOutput(BaseModel):
     """Structured output returned by the comparer agent's submit tool."""
 
     comparison_markdown: str
+
+
+# --- Task config ---
+
+
+@dataclass
+class TaskConfig:
+    """Config shape for a single Fargate agent task."""
+
+    agent_type: AgentType
+    claude_model: str
+    max_turns: int
+    timeout_seconds: int
+    output_file: str
+    output_model: type[BaseModel]
+    system_prompt: str
+    output_schema_hint: str
+    task_instruction: str
 
 
 # --- Search ---

@@ -1,7 +1,8 @@
 import os
 
 from src.constants import AgentType
-from src.tasks import REGISTRY, run_task
+from src.tasks.base import run_task
+from src.tasks.registry import REGISTRY
 
 run_task(
     job_id=os.environ["AGENT_ID"],

@@ -6,7 +6,8 @@ from pytest_mock import MockerFixture
 
 import src.tasks.base as tasks_base
 from src.constants import AgentType
-from src.tasks.base import TaskConfig, run_task
+from src.models import TaskConfig
+from src.tasks.base import run_task
 
 
 def _make_config(mocker: MockerFixture) -> TaskConfig:
