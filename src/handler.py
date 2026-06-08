@@ -7,9 +7,9 @@ from mangum import Mangum
 
 from src.agents.comparer import run_comparer
 from src.agents.reporter import run_reporter
-from src.constants import ArtifactType, JobStatus, JobType
+from src.constants import AgentType, ArtifactType, JobStatus, JobType
 from src.models import CompareRequest, CrawlRequest, ReportRequest, SearchResponse
-from src.services.fargate import trigger_crawler_task, trigger_ui_planner_task
+from src.services.fargate import trigger_task
 from src.services.logger import get_logger
 from src.services.search import run_search
 from src.services.storage import (
@@ -32,8 +32,8 @@ def crawl(req: CrawlRequest) -> dict:
     """Creates a crawl job and dispatches crawler and UI planner tasks to Fargate."""
     job_id = str(uuid.uuid4())
     create_job(job_id, req.url, req.model, JobType.CRAWL)
-    trigger_crawler_task(job_id, req.url, req.model.value)
-    trigger_ui_planner_task(job_id, req.url, req.model.value)
+    trigger_task(AgentType.CRAWL, job_id, req.url, req.model.value)
+    trigger_task(AgentType.UI_PLAN, job_id, req.url, req.model.value)
     return {"jobId": job_id, "status": "processing"}
 
 

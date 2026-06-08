@@ -7,7 +7,19 @@ from typing import TYPE_CHECKING, Any
 
 from claude_agent_sdk import ClaudeAgentOptions, query
 
-from src.constants import AgentType
+from src.constants import (
+    CLAUDE_CRAWL_MODEL,
+    CLAUDE_UI_PLAN_MODEL,
+    CRAWLER_MAX_TURNS,
+    CRAWLER_OUTPUT_FILE,
+    CRAWLER_TIMEOUT_SECONDS,
+    UI_PLANNER_MAX_TURNS,
+    UI_PLANNER_OUTPUT_FILE,
+    UI_PLANNER_TIMEOUT_SECONDS,
+    AgentType,
+)
+from src.models import CrawlOutput, UIPlanOutput
+from src.prompts import CRAWL_SYSTEM_PROMPT, UI_PLAN_SYSTEM_PROMPT
 from src.services.hooks import JobHooks
 from src.services.llm import create_agent, run_agent
 from src.services.logger import get_logger
@@ -95,3 +107,45 @@ def _build_prompt(url: str, config: TaskConfig) -> str:
         f"The JSON must have exactly two fields: {config.output_schema_hint}.\n\n"
         f"{config.task_instruction.format(url=url)}"
     )
+
+
+@dataclass(frozen=True)
+class TaskRegistry:
+    crawl: TaskConfig
+    ui_plan: TaskConfig
+
+    def get(self, agent_type: AgentType) -> TaskConfig:
+        """Returns the TaskConfig for the given agent type. Raises NotImplementedError for unregistered types."""
+        mapping: dict[AgentType, TaskConfig] = {
+            AgentType.CRAWL: self.crawl,
+            AgentType.UI_PLAN: self.ui_plan,
+        }
+        if agent_type not in mapping:
+            raise NotImplementedError(f"No task config registered for {agent_type}")
+        return mapping[agent_type]
+
+
+REGISTRY = TaskRegistry(
+    crawl=TaskConfig(
+        agent_type=AgentType.CRAWL,
+        claude_model=CLAUDE_CRAWL_MODEL,
+        max_turns=CRAWLER_MAX_TURNS,
+        timeout_seconds=CRAWLER_TIMEOUT_SECONDS,
+        output_file=CRAWLER_OUTPUT_FILE,
+        output_model=CrawlOutput,
+        system_prompt=CRAWL_SYSTEM_PROMPT,
+        output_schema_hint="`llms_txt` (string) and `metadata` (object)",
+        task_instruction="Crawl this website and produce an llms.txt file: {url}",
+    ),
+    ui_plan=TaskConfig(
+        agent_type=AgentType.UI_PLAN,
+        claude_model=CLAUDE_UI_PLAN_MODEL,
+        max_turns=UI_PLANNER_MAX_TURNS,
+        timeout_seconds=UI_PLANNER_TIMEOUT_SECONDS,
+        output_file=UI_PLANNER_OUTPUT_FILE,
+        output_model=UIPlanOutput,
+        system_prompt=UI_PLAN_SYSTEM_PROMPT,
+        output_schema_hint="`plan_markdown` (string) and `design_tokens` (object)",
+        task_instruction="Analyze this website and produce a UI implementation plan: {url}",
+    ),
+)

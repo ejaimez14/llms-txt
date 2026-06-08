@@ -2,63 +2,19 @@ import os
 
 import boto3
 
-from src.constants import (
-    CRAWLER_TASK_COMMAND,
-    IMPLEMENTER_TASK_COMMAND,
-    UI_PLANNER_TASK_COMMAND,
-)
+from src.constants import AgentType
 from src.services.logger import get_logger
 
 logger = get_logger(__name__)
 
 _ecs = boto3.client("ecs", region_name=os.environ.get("AWS_DEFAULT_REGION", "us-east-1"))
 
+_TASK_COMMAND = ["python", "-m", "src.tasks"]
 _CONTAINER_NAME = "agent"
 
 
-def trigger_implementer_task(job_id: str, url: str, model: str) -> None:
-    """Dispatches a Fargate task that runs the implementer with the given parameters."""
-    _run_task(
-        event_name="fargate_implementer_dispatch_failed",
-        command=IMPLEMENTER_TASK_COMMAND,
-        environment=[
-            {"name": "IMPLEMENTER_JOB_ID", "value": job_id},
-            {"name": "IMPLEMENTER_URL", "value": url},
-            {"name": "IMPLEMENTER_MODEL", "value": model},
-        ],
-    )
-
-
-def trigger_crawler_task(job_id: str, url: str, model: str) -> None:
-    """Dispatches a Fargate task that runs the crawler with the given parameters."""
-    _run_task(
-        event_name="fargate_crawler_dispatch_failed",
-        command=CRAWLER_TASK_COMMAND,
-        environment=[
-            {"name": "CRAWLER_JOB_ID", "value": job_id},
-            {"name": "CRAWLER_URL", "value": url},
-            {"name": "CRAWLER_MODEL", "value": model},
-        ],
-    )
-
-
-def trigger_ui_planner_task(job_id: str, url: str, model: str) -> None:
-    """Dispatches a Fargate task that runs the UI planner with the given parameters."""
-    _run_task(
-        event_name="fargate_ui_planner_dispatch_failed",
-        command=UI_PLANNER_TASK_COMMAND,
-        environment=[
-            {"name": "UI_PLANNER_JOB_ID", "value": job_id},
-            {"name": "UI_PLANNER_URL", "value": url},
-            {"name": "UI_PLANNER_MODEL", "value": model},
-        ],
-    )
-
-
-# --- Internal ---
-
-
-def _run_task(event_name: str, command: list[str], environment: list[dict]) -> None:
+def trigger_task(agent_type: AgentType, job_id: str, url: str, model: str) -> None:
+    """Dispatches a Fargate task for the given agent type."""
     try:
         _ecs.run_task(
             cluster=os.environ["ECS_CLUSTER"],
@@ -75,12 +31,17 @@ def _run_task(event_name: str, command: list[str], environment: list[dict]) -> N
                 "containerOverrides": [
                     {
                         "name": _CONTAINER_NAME,
-                        "command": command,
-                        "environment": environment,
+                        "command": _TASK_COMMAND,
+                        "environment": [
+                            {"name": "AGENT_TYPE",  "value": agent_type.value},
+                            {"name": "AGENT_ID",    "value": job_id},
+                            {"name": "AGENT_URL",   "value": url},
+                            {"name": "AGENT_MODEL", "value": model},
+                        ],
                     }
                 ]
             },
         )
     except Exception as exc:
-        logger.error({"event": event_name, "error": str(exc)})
+        logger.error({"event": "fargate_dispatch_failed", "error": str(exc), "agent_type": agent_type.value})
         raise
