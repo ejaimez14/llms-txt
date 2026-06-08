@@ -12,13 +12,3 @@ output "sites_table_name" {
   description = "Name of the DynamoDB table storing the latest state per URL."
   value       = module.dynamodb.sites_table_name
 }
-
-output "ecr_repository_url" {
-  description = "Push agent Docker images here before running Fargate tasks."
-  value       = module.ecs.ecr_repository_url
-}
-
-output "ecs_security_group_id" {
-  description = "Security group ID attached to Fargate tasks."
-  value       = module.ecs.security_group_id
-}
