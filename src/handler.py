@@ -29,6 +29,7 @@ from src.services.recrawl import handle_schedule, handle_sqs
 from src.services.search import run_search
 from src.services.storage import (
     create_job,
+    fail_artifact,
     get_artifact_content,
     get_job,
     get_site,
@@ -47,8 +48,16 @@ def crawl(req: CrawlRequest) -> dict:
     """Creates a crawl job and dispatches crawler and UI planner tasks to Fargate."""
     job_id = str(uuid.uuid4())
     create_job(job_id, req.url, req.model, JobType.CRAWL)
-    trigger_task(AgentType.CRAWL, job_id, req.url, req.model.value)
-    trigger_task(AgentType.UI_PLAN, job_id, req.url, req.model.value)
+    try:
+        trigger_task(AgentType.CRAWL, job_id, req.url, req.model.value)
+        trigger_task(AgentType.UI_PLAN, job_id, req.url, req.model.value)
+    except Exception as exc:
+        logger.error(
+            {"event": "crawl_dispatch_failed", "jobId": job_id, "error": str(exc)}
+        )
+        fail_artifact(job_id, ArtifactType.LLMS_TXT, str(exc))
+        fail_artifact(job_id, ArtifactType.PLAN, str(exc))
+        raise
     return {"jobId": job_id, "status": "processing"}
 
 

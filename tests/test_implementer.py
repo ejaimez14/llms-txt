@@ -7,7 +7,12 @@ from pytest_mock import MockerFixture
 
 import src.services.hooks as hooks_module
 import src.tasks.base as tasks_base
-from src.constants import AgentType, ArtifactType, IMPLEMENTER_BASE_BRANCH, IMPLEMENTER_REPO
+from src.constants import (
+    AgentType,
+    ArtifactType,
+    IMPLEMENTER_BASE_BRANCH,
+    IMPLEMENTER_REPO,
+)
 from src.services.hooks import JobHooks
 from src.tasks.base import _build_implement_prompt, run_task
 from src.tasks.registry import REGISTRY
@@ -59,7 +64,8 @@ def test_run_task_implement_calls_on_error_on_failure(
     mock_hooks = mocker.patch.object(tasks_base, "JobHooks", return_value=MagicMock())
     config = REGISTRY.get(AgentType.IMPLEMENT)
 
-    run_task("job-2", "source-job-2", "claude", config)
+    with pytest.raises(RuntimeError, match="SDK boom"):
+        run_task("job-2", "source-job-2", "claude", config)
 
     mock_hooks.return_value.on_error.assert_called_once()
     mock_hooks.return_value.on_complete.assert_not_called()
@@ -96,12 +102,13 @@ def test_build_implement_prompt_includes_plan_and_repo(
 def test_build_implement_prompt_missing_plan_triggers_on_error(
     mocker: MockerFixture,
 ) -> None:
-    """Verifies run_task calls on_error when _build_implement_prompt raises ValueError."""
+    """Verifies run_task calls on_error and re-raises when _build_implement_prompt raises ValueError."""
     mocker.patch.object(tasks_base, "get_artifact_content", return_value=None)
     mock_hooks = mocker.patch.object(tasks_base, "JobHooks", return_value=MagicMock())
     config = REGISTRY.get(AgentType.IMPLEMENT)
 
-    run_task("job-5", "source-job-5", "claude", config)
+    with pytest.raises(ValueError, match="source-job-5"):
+        run_task("job-5", "source-job-5", "claude", config)
 
     mock_hooks.return_value.on_error.assert_called_once()
     error_arg = mock_hooks.return_value.on_error.call_args[0][0]

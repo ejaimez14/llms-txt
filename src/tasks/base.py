@@ -5,7 +5,12 @@ from pathlib import Path
 
 from claude_agent_sdk import ClaudeAgentOptions, query
 
-from src.constants import AgentType, ArtifactType, IMPLEMENTER_BASE_BRANCH, IMPLEMENTER_REPO
+from src.constants import (
+    AgentType,
+    ArtifactType,
+    IMPLEMENTER_BASE_BRANCH,
+    IMPLEMENTER_REPO,
+)
 from src.models import TaskConfig
 from src.services.hooks import JobHooks
 from src.services.llm import create_agent, run_agent
@@ -36,6 +41,7 @@ def _run_claude(job_id: str, url: str, config: TaskConfig) -> None:
             {"event": f"{config.agent_type.value}_task_failed", "error": str(exc)}
         )
         hooks.on_error(exc)
+        raise
 
 
 def _run_openai(job_id: str, url: str, model: str, config: TaskConfig) -> None:
