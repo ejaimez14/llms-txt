@@ -15,23 +15,8 @@ _TASK_COMMAND = ["python", "-m", "src.tasks"]
 _CONTAINER_NAME = "agent"
 
 
-def trigger_task(
-    agent_type: AgentType,
-    job_id: str,
-    url: str,
-    model: str,
-    extra_env: list[dict] | None = None,
-) -> None:
+def trigger_task(agent_type: AgentType, job_id: str, url: str, model: str) -> None:
     """Dispatches a Fargate task for the given agent type."""
-    environment = [
-        {"name": "AGENT_TYPE", "value": agent_type.value},
-        {"name": "AGENT_ID", "value": job_id},
-        {"name": "AGENT_URL", "value": url},
-        {"name": "AGENT_MODEL", "value": model},
-    ]
-    if extra_env:
-        environment.extend(extra_env)
-
     try:
         _ecs.run_task(
             cluster=os.environ["ECS_CLUSTER"],
@@ -49,7 +34,12 @@ def trigger_task(
                     {
                         "name": _CONTAINER_NAME,
                         "command": _TASK_COMMAND,
-                        "environment": environment,
+                        "environment": [
+                                {"name": "AGENT_TYPE", "value": agent_type.value},
+                                {"name": "AGENT_ID", "value": job_id},
+                                {"name": "AGENT_URL", "value": url},
+                                {"name": "AGENT_MODEL", "value": model},
+                            ],
                     }
                 ]
             },

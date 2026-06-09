@@ -27,8 +27,6 @@ class CompareRequest(BaseModel):
 
 class ImplementRequest(BaseModel):
     job_id: str
-    repo: str
-    base_branch: str = "main"
 
 
 # --- Job / artifact models ---

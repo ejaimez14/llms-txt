@@ -172,17 +172,8 @@ def implement(req: ImplementRequest) -> dict:
         raise HTTPException(status_code=400, detail="UI plan artifact is not complete")
 
     job_id = str(uuid.uuid4())
-    create_job(job_id, req.repo, ModelName.CLAUDE, JobType.IMPLEMENT)
-    trigger_task(
-        AgentType.IMPLEMENT,
-        job_id,
-        req.job_id,
-        ModelName.CLAUDE.value,
-        extra_env=[
-            {"name": "IMPLEMENTER_REPO", "value": req.repo},
-            {"name": "IMPLEMENTER_BASE_BRANCH", "value": req.base_branch},
-        ],
-    )
+    create_job(job_id, req.job_id, ModelName.CLAUDE, JobType.IMPLEMENT)
+    trigger_task(AgentType.IMPLEMENT, job_id, req.job_id, ModelName.CLAUDE.value)
     return {"jobId": job_id, "status": "processing"}
 
 

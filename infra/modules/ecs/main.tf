@@ -42,7 +42,9 @@ resource "aws_ecs_task_definition" "agent" {
       { name = "SITES_TABLE",        value = var.sites_table_name },
       { name = "BUCKET",             value = var.bucket_name },
       { name = "PINECONE_INDEX",     value = var.pinecone_index },
-      { name = "AWS_DEFAULT_REGION", value = var.aws_region },
+      { name = "AWS_DEFAULT_REGION",    value = var.aws_region },
+      { name = "IMPLEMENTER_REPO",       value = var.implementer_repo },
+      { name = "IMPLEMENTER_BASE_BRANCH", value = var.implementer_base_branch },
     ]
 
     secrets = [

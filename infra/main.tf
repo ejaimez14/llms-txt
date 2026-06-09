@@ -35,6 +35,9 @@ module "ecs" {
   pinecone_index   = var.pinecone_index
 
   vpc_id = var.vpc_id
+
+  implementer_repo        = var.implementer_repo
+  implementer_base_branch = var.implementer_base_branch
 }
 
 module "lambda" {
