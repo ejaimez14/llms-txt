@@ -9,7 +9,7 @@ from pytest_mock import MockerFixture
 
 import src.services.recrawl as recrawl_module
 import src.services.storage as storage
-from src.constants import JobType
+from src.constants import AgentType, JobType
 from src.services.recrawl import handle_schedule, handle_sqs
 
 
@@ -145,7 +145,6 @@ def test_handle_sqs_runs_both_agents(mocker: MockerFixture) -> None:
 
     assert mock_trigger.call_count == 2
     agent_types = {call.args[0] for call in mock_trigger.call_args_list}
-    from src.constants import AgentType
     assert AgentType.CRAWL in agent_types
     assert AgentType.UI_PLAN in agent_types
 
