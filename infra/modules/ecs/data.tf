@@ -13,3 +13,7 @@ data "aws_secretsmanager_secret" "github" {
 data "aws_secretsmanager_secret" "openai" {
   name = "secrets/openai-api-key"
 }
+
+data "aws_secretsmanager_secret" "claude_code_token" {
+  name = "secrets/claude-code-token"
+}
