@@ -10,7 +10,7 @@ variable "iam_role_arn" {
 variable "lambda_zip_path" {
   description = "Path to the Lambda deployment zip artifact built by build.sh."
   type        = string
-  default     = "./lambda.zip"
+  default     = "../lambda.zip"
 }
 
 variable "pinecone_index" {
