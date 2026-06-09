@@ -19,7 +19,7 @@ output "ecr_repository_url" {
 }
 
 output "api_url" {
-  description = "Base invoke URL for the HTTP API; consumed by the CloudFront module."
+  description = "Base invoke URL for the HTTP API."
   value       = module.api_gateway.api_url
 }
 

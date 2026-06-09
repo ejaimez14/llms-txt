@@ -101,6 +101,7 @@ def test_report_starts_reporter_and_returns_202(mocker: MockerFixture) -> None:
         "job-1",
         "results/job-1/llms.txt",
         {"tech_stack": [], "integrations": [], "content_types": []},
+        "claude",
     )
     mock_run_in_thread = mocker.patch("src.handler._run_in_thread")
     response = client.post("/api/report", json={"url": "https://example.com"})

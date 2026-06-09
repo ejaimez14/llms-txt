@@ -50,6 +50,8 @@ module "lambda" {
   ecs_task_definition = module.ecs.task_definition_arn
   ecs_security_group  = module.ecs.security_group_id
   ecs_subnet_ids      = var.subnet_ids
+
+  recrawl_queue_url = module.sqs.queue_url
 }
 
 module "api_gateway" {
@@ -63,6 +65,12 @@ module "observability" {
   lambda_function_name = module.lambda.function_name
   api_gateway_id       = module.api_gateway.api_id
   ecs_log_group_name   = local.ecs_log_group_name
+}
+
+module "sqs" {
+  source               = "./modules/sqs"
+  lambda_function_arn  = module.lambda.function_arn
+  lambda_function_name = module.lambda.function_name
 }
 
 module "cloudfront" {

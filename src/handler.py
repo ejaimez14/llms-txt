@@ -1,4 +1,5 @@
 import uuid
+from collections.abc import Callable
 from threading import Thread
 
 from fastapi import APIRouter, FastAPI, HTTPException, Query
@@ -24,6 +25,7 @@ from src.models import (
 )
 from src.services.fargate import trigger_task
 from src.services.logger import get_logger
+from src.services.recrawl import handle_schedule, handle_sqs
 from src.services.search import run_search
 from src.services.storage import (
     create_job,
@@ -186,22 +188,23 @@ def serve_frontend() -> FileResponse:
 # --- Internal ---
 
 
-def _run_in_thread(fn, *args) -> None:
+def _run_in_thread(fn: Callable[..., object], *args: object) -> None:
     """Starts fn(*args) in a daemon thread for single-agent background jobs."""
     Thread(target=fn, args=args, daemon=True).start()
 
 
 app.include_router(router)
 
-<<<<<<< ejaimez/ui-implementer-agent
-handler = Mangum(app)
-=======
 _mangum = Mangum(app)
 
 
 def handler(event: dict, context: object) -> dict:
-    """Lambda entrypoint — routes API Gateway authorizer events and HTTP requests."""
+    """Lambda entrypoint — dispatches to the correct handler path by event shape."""
     if event.get("type") == "REQUEST":
         return {"isAuthorized": True}
+    records = event.get("Records", [])
+    if records and records[0].get("eventSource") == "aws:sqs":
+        return handle_sqs(event, context)
+    if event.get("source") == "aws.events":
+        return handle_schedule(event, context)
     return _mangum(event, context)
->>>>>>> main

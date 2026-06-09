@@ -20,6 +20,7 @@ resource "aws_lambda_function" "api" {
       ECS_TASK_DEFINITION    = var.ecs_task_definition
       ECS_SECURITY_GROUP     = var.ecs_security_group
       ECS_SUBNET_IDS                  = var.ecs_subnet_ids
+      RECRAWL_QUEUE_URL               = var.recrawl_queue_url
     }
   }
 }
