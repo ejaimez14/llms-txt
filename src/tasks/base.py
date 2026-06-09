@@ -5,7 +5,7 @@ from pathlib import Path
 
 from claude_agent_sdk import ClaudeAgentOptions, query
 
-from src.constants import AgentType, ArtifactType
+from src.constants import AgentType, ArtifactType, IMPLEMENTER_BASE_BRANCH, IMPLEMENTER_REPO
 from src.models import TaskConfig
 from src.services.hooks import JobHooks
 from src.services.llm import create_agent, run_agent
@@ -85,14 +85,12 @@ def _build_implement_prompt(url: str, config: TaskConfig) -> str:
     if plan_content is None:
         raise ValueError(f"UI plan artifact unavailable for job {url}")
 
-    repo = os.environ["IMPLEMENTER_REPO"]
-    base_branch = os.environ["IMPLEMENTER_BASE_BRANCH"]
     branch_name = f"ui-implement/{os.environ['AGENT_ID'][:8]}"
 
     return (
         f"{config.system_prompt}\n\n"
-        f"Repository: {repo}\n"
-        f"Base branch: {base_branch}\n"
+        f"Repository: {IMPLEMENTER_REPO}\n"
+        f"Base branch: {IMPLEMENTER_BASE_BRANCH}\n"
         f"Implementation branch: {branch_name}\n\n"
         f"Implement this UI plan:\n\n{plan_content}\n\n"
         f"After opening the GitHub PR, write your output as a JSON object to "

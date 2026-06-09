@@ -60,6 +60,8 @@ OPENAI_CRAWL_MODEL = "gpt-4o-mini"
 OPENAI_UI_PLAN_MODEL = "gpt-4o"
 
 IMPLEMENT_MODEL = "claude-sonnet-4-6-20250514"
+IMPLEMENTER_REPO = "https://github.com/ejaimez14/llms-txt-erick-jaimez"
+IMPLEMENTER_BASE_BRANCH = "main"
 
 IMPLEMENT_MAX_TURNS = 80
 IMPLEMENT_TIMEOUT_SECONDS = 3600

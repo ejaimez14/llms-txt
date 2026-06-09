@@ -7,7 +7,7 @@ from pytest_mock import MockerFixture
 
 import src.services.hooks as hooks_module
 import src.tasks.base as tasks_base
-from src.constants import AgentType, ArtifactType
+from src.constants import AgentType, ArtifactType, IMPLEMENTER_BASE_BRANCH, IMPLEMENTER_REPO
 from src.services.hooks import JobHooks
 from src.tasks.base import _build_implement_prompt, run_task
 from src.tasks.registry import REGISTRY
@@ -86,8 +86,8 @@ def test_build_implement_prompt_includes_plan_and_repo(
     prompt = _build_implement_prompt("source-job-4", config)
 
     assert "## UI Plan" in prompt
-    assert os.environ["IMPLEMENTER_REPO"] in prompt
-    assert os.environ["IMPLEMENTER_BASE_BRANCH"] in prompt
+    assert IMPLEMENTER_REPO in prompt
+    assert IMPLEMENTER_BASE_BRANCH in prompt
     assert "ui-implement/abcdef12" in prompt
     assert "implement-output.json" in prompt
     assert "`pr_url` (string)" in prompt

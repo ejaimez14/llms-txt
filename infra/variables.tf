@@ -24,14 +24,3 @@ variable "vpc_id" {
 variable "subnet_ids" {
   description = "Comma-separated subnet IDs for Fargate task networking"
 }
-
-variable "implementer_repo" {
-  description = "GitHub repository the implementer agent clones and opens PRs against (e.g. https://github.com/org/repo)"
-  type        = string
-}
-
-variable "implementer_base_branch" {
-  description = "Base branch the implementer agent targets when opening PRs"
-  type        = string
-  default     = "main"
-}

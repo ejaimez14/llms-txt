@@ -19,8 +19,6 @@ os.environ.setdefault("PINECONE_INDEX", "test-index")
 os.environ.setdefault("ECS_CLUSTER", "test-cluster")
 os.environ.setdefault("AGENT_ID", "test-agent-id-00000000")
 os.environ.setdefault("IMPLEMENTER_SOURCE_JOB_ID", "test-source-job")
-os.environ.setdefault("IMPLEMENTER_REPO", "owner/repo")
-os.environ.setdefault("IMPLEMENTER_BASE_BRANCH", "main")
 os.environ.setdefault(
     "ECS_TASK_DEFINITION",
     "arn:aws:ecs:us-east-1:000000000000:task-definition/test-agent:1",
