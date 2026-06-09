@@ -54,7 +54,7 @@ data "aws_iam_policy_document" "app" {
   }
   statement {
     actions   = ["bedrock:InvokeModel"]
-    resources = ["arn:aws:bedrock:us-east-1::foundation-model/amazon.titan-embed-text-v1"]
+    resources = ["arn:aws:bedrock:us-east-1::foundation-model/amazon.titan-embed-text-v2:0"]
   }
 }
 

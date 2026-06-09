@@ -3,7 +3,7 @@ import json
 import boto3
 from botocore.exceptions import ClientError
 
-from src.constants import TITAN_EMBED_MODEL, TITAN_MAX_INPUT_CHARS
+from src.constants import TITAN_EMBED_DIMENSIONS, TITAN_EMBED_MODEL, TITAN_MAX_INPUT_CHARS
 from src.services.logger import get_logger
 
 logger = get_logger(__name__)
@@ -27,7 +27,12 @@ def embed_text(text: str | None) -> list[float]:
             modelId=TITAN_EMBED_MODEL,
             contentType="application/json",
             accept="application/json",
-            body=json.dumps({"inputText": truncated}),
+            body=json.dumps(
+                {
+                    "inputText": truncated,
+                    "embeddingConfig": {"outputEmbeddingLength": TITAN_EMBED_DIMENSIONS},
+                }
+            ),
         )
         response_body = json.loads(response["body"].read())
     except ClientError as exc:
