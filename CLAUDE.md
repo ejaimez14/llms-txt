@@ -32,12 +32,13 @@ infra/
     s3/
     dynamodb/
     secrets/
-    lambda/         # Phase 5
-    api_gateway/    # Phase 5
-    observability/  # Phase 5
-    cloudfront/     # Phase 5
+    lambda/
+    api_gateway/
+    observability/
+    cloudfront/
+    sqs/
 tests/
-plans/              # Read-only — implementation specs
+plans/
 ```
 
 ---
@@ -99,7 +100,7 @@ These apply to every file, every agent, every phase. Correctness is the floor �
 - **Test naming:** `test_<what>_<expected_outcome>` — e.g. `test_create_job_initializes_all_artifacts`.
 - **Module-level client mocking:** use `mocker.patch.object(module_under_test, "_client_name", autospec=True)` inside a `@pytest.fixture`. Never re-instantiate the client inside a test. Use a private helper function (prefixed `_make_`) to construct realistic mock return values so tests stay readable and the shape is defined once.
 - **Test environment setup:** all `os.environ.setdefault(...)` calls and `sys.modules` stubs belong in `tests/conftest.py` — not in individual test files or fixtures. When adding a new service that requires an env var or a third-party SDK stub, add it to `conftest.py` in the same PR.
-- Cover every acceptance criterion listed in the plan for the component.
+- Cover every acceptance criterion for the task.
 
 ---
 
@@ -133,7 +134,7 @@ These apply to every file, every agent, every phase. Correctness is the floor �
 
 Before opening a PR, review the code critically for quality — not just correctness:
 
-- [ ] All acceptance criteria from the plan are met
+- [ ] All task requirements are met
 - [ ] `make lint` passes with no errors
 - [ ] `make test` passes (if tests exist for this component)
 - [ ] No hardcoded secrets, bucket names, table names, or ARNs
@@ -157,48 +158,71 @@ Before opening a PR, review the code critically for quality — not just correct
 
 ## Agentic Orchestration Loops
 
-This project uses an orchestrator/sub-agent pattern to implement plans. The orchestrator is a
-Claude Code agent that spawns sub-agent instances, reviews their output against this file's
-quality bar, and iterates until all criteria are met. This section defines how that loop works.
+Tasks flow in three tiers: the user assigns work to the orchestrator in natural language, the
+orchestrator spawns implementation agents to do the work, and each implementation agent spawns
+its own review agents to validate quality before reporting back. This mirrors exactly how the
+user interacts with the orchestrator — one level down.
 
 ---
 
-### Plan sequencing
+### Roles
 
-Plans are executed in dependency order defined in `plans/00-overview.md`. Before starting a
-plan, the orchestrator checks whether its dependencies are already merged into `main`. Do not
-start a plan whose dependencies are unmerged.
+**Orchestrator (main agent)** receives tasks from the user, breaks them into sub-tasks when
+needed, spawns implementation agents, tracks their state, manages dependencies, and surfaces
+blockers. It coordinates — it does not implement.
 
-Remaining unimplemented plans (dependency order):
-1. `17-terraform-hosting.md` — Lambda, API Gateway, observability, CloudFront Terraform modules
-2. `22-ecs-fargate-infra.md` — ECS Fargate infra + crawler/ui-planner migration (depends on 17)
-3. `19-scheduled-recrawl.md` — SQS, EventBridge, handler dispatch (depends on 17)
-4. `20-cloudfront-auth.md` — CloudFront + auth (depends on 17)
-5. `21-ui-implementer-agent.md` — coding agent on Fargate via claude-agent-sdk (depends on 22)
+**Implementation agents** own a single task end-to-end: implement it, run their own review
+loop by spawning a review agent, iterate on findings until the review agent returns none, then
+open a draft PR and report back to the orchestrator with the PR number and any open questions.
 
-When multiple plans have no unresolved dependencies, they can be assigned to parallel
-sub-agents.
+**Review agents** are spawned by implementation agents. They receive the PR diff and the
+review criteria from this file, return a numbered list of specific findings (file, line, exact
+issue), and nothing else. No praise, no summaries. If there are no findings, say "No findings."
 
 ---
 
-### Sub-agent instructions
+### Orchestrator behavior
 
-When spawning a sub-agent to implement a plan, pass:
-- The full text of the target plan file (e.g. `plans/17-terraform-hosting.md`)
+When the user assigns a task:
+
+1. Determine whether it maps to one PR or several. If several, identify dependencies.
+2. Spawn an implementation agent per sub-task — in parallel when there are no dependencies,
+   sequentially when there are.
+3. Track each agent: what it's building, which PR it opened, whether it's blocked.
+4. When an agent reports done, run a final check with `gh pr diff <number>` against the review
+   criteria below. Post any remaining findings as a numbered list on the PR and tell the agent
+   to fix and re-push.
+5. When all criteria pass, mark the PR ready with `gh pr ready <number>`.
+6. If the same criterion fails three times in a row, stop iterating and surface the issue to
+   the user with a summary of what was attempted and why it keeps failing. Do not accept a PR
+   that fails criteria to unblock the sequence.
+
+---
+
+### Implementation agent instructions
+
+Pass to each implementation agent:
+- A clear description of the task: what to build, which files are likely involved, acceptance
+  criteria
 - The full text of this `CLAUDE.md`
-- The instruction: *"Implement this plan. Follow every convention in CLAUDE.md. Run `make lint`
-  and `make test` before opening the PR. Open as a draft PR on branch
-  `ejaimez/<short-feature-name>` with the What/Why/Tested By format."*
+- This instruction:
+
+  *"Implement this task. Follow every convention in CLAUDE.md. When implementation is complete,
+  open a draft PR on branch `ejaimez/<short-feature-name>`. Then spawn a review sub-agent:
+  pass it the output of `gh pr diff <number>` and the review criteria from CLAUDE.md with the
+  instruction 'Review this diff against the criteria. Return a numbered list of findings —
+  file, line, exact issue. If none, say No findings.' Fix every finding and push to the same
+  branch. Repeat until the review agent returns no findings. Then report back: PR number, what
+  was done, any open questions."*
 
 ---
 
-### Orchestrator review criteria
+### Review criteria
 
-After the sub-agent opens a draft PR, the orchestrator reviews the diff with
-`gh pr diff <number>`. Accept only when **all** of the following pass:
+Accept only when **all** of the following pass:
 
 **Correctness**
-- Every acceptance criterion in the plan file is addressed
+- All task requirements are addressed
 - No hardcoded secrets, bucket names, table names, or ARNs in module code
 - `make lint` and `make test` reported as passing in the PR body
 
@@ -219,7 +243,7 @@ After the sub-agent opens a draft PR, the orchestrator reviews the diff with
 
 **Tests**
 - One test file per new source module: `tests/test_<module>.py`
-- Every acceptance criterion from the plan has at least one test
+- Every acceptance criterion for the task has at least one test
 - External clients (Bedrock, Pinecone, boto3) mocked — never called for real
 - Module-level clients mocked via `mocker.patch.object` — not re-instantiated
 - New env vars and SDK stubs added to `tests/conftest.py`
@@ -228,18 +252,3 @@ After the sub-agent opens a draft PR, the orchestrator reviews the diff with
 - Opened as draft
 - Title: `[<short-feature-word>] - <Brief Title With Each First Letter Capitalized>`
 - Body: What, Why, Tested By
-
----
-
-### Feedback and iteration
-
-When a criterion is not met, post a comment on the PR with a numbered list of specific
-findings — file, line, exact issue. No praise, no summaries. End with:
-*"Fix these items, push to the same branch, and reply when done."*
-
-Re-run the full review after each push. Iteration stops when all criteria pass; the
-orchestrator then marks the PR ready (`gh pr ready <number>`) and moves to the next plan.
-
-If the same criterion fails three times in a row, stop iterating and surface the issue to the
-human owner with a summary of what was attempted and why it keeps failing. Do not accept a PR
-that fails criteria just to unblock the sequence.
