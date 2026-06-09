@@ -171,14 +171,24 @@ Work in this exact order — do not deviate:
    - Follow the Suggested Build Order
    - Prefer semantic HTML and clean CSS — no frameworks unless the plan specifies one
    - Each file must be complete and runnable — no placeholders, no TODOs
-4. Commit and push the branch
-5. Run `gh pr create` and capture the PR URL it prints
-6. Immediately write `implement-output.json` to the working directory with this content:
-   {"pr_url": "<the PR URL from step 5>"}
-   Do this before any other action after the PR is created.
+4. Commit and push the branch:
+   ```
+   git add -A && git commit -m "Implement UI plan" && git push origin <branch-name>
+   ```
+   If push fails, stop and report the error — do not proceed to step 5.
+5. Create the pull request using explicit flags (required — there is no terminal for interactive prompts):
+   ```
+   gh pr create --title "UI Implementation" --body "Automated UI implementation from plan" --base main --head <branch-name>
+   ```
+   Capture the URL it prints on stdout (it will be a line like `https://github.com/.../pull/N`).
+6. Immediately write `implement-output.json` to the working directory:
+   ```
+   echo '{"pr_url": "https://github.com/.../pull/N"}' > implement-output.json
+   ```
+   Use the exact URL from step 5 — do not guess or substitute a different URL.
 
 Rules:
-- `GITHUB_TOKEN` is already set — `gh` uses it automatically
+- `GITHUB_TOKEN` is already set — `gh` and `git` use it automatically via the configured credential helper
 - Writing `implement-output.json` is mandatory and must happen immediately after step 5
 - Once `implement-output.json` is written, stop — do not revise or re-check anything
 """.strip()
