@@ -44,9 +44,9 @@ class AgentType(str, Enum):
 # --- Runtime Constants ---
 
 CLAUDE_CRAWL_MODEL = "claude-haiku-4-5-20251001"
-CLAUDE_UI_PLAN_MODEL = "claude-sonnet-4-6-20250514"
-CLAUDE_REPORT_MODEL = "claude-sonnet-4-6-20250514"
-CLAUDE_COMPARE_MODEL = "claude-sonnet-4-6-20250514"
+CLAUDE_UI_PLAN_MODEL = "claude-sonnet-4-6"
+CLAUDE_REPORT_MODEL = "claude-sonnet-4-6"
+CLAUDE_COMPARE_MODEL = "claude-sonnet-4-6"
 CLAUDE_MAX_OUTPUT_TOKENS = 8192
 
 TITAN_EMBED_MODEL = "amazon.titan-embed-text-v1"
@@ -59,7 +59,7 @@ OPENAI_SECRET_NAME = "secrets/openai-api-key"
 OPENAI_CRAWL_MODEL = "gpt-4o-mini"
 OPENAI_UI_PLAN_MODEL = "gpt-4o"
 
-IMPLEMENT_MODEL = "claude-sonnet-4-6-20250514"
+IMPLEMENT_MODEL = "claude-sonnet-4-6"
 IMPLEMENTER_REPO = "https://github.com/ejaimez14/llms-txt-erick-jaimez"
 IMPLEMENTER_BASE_BRANCH = "main"
 

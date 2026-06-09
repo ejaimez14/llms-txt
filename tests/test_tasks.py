@@ -2,6 +2,7 @@ import asyncio
 from typing import Any
 from unittest.mock import MagicMock
 
+import pytest
 from pytest_mock import MockerFixture
 
 import src.tasks.base as tasks_base
@@ -43,15 +44,14 @@ def test_claude_path_calls_hooks_lifecycle(mocker: MockerFixture) -> None:
     mock_hooks.return_value.on_error.assert_not_called()
 
 
-def test_claude_error_calls_on_error_and_does_not_reraise(
+def test_claude_error_calls_on_error_and_reraises(
     mocker: MockerFixture,
 ) -> None:
     mock_hooks = mocker.patch.object(tasks_base, "JobHooks", return_value=MagicMock())
     _mock_sdk(mocker, exc=ValueError("SDK error"))
 
-    run_task(
-        "job-1", "https://example.com", "claude", _make_config(mocker)
-    )  # must not raise
+    with pytest.raises(ValueError, match="SDK error"):
+        run_task("job-1", "https://example.com", "claude", _make_config(mocker))
 
     mock_hooks.return_value.on_error.assert_called_once()
     mock_hooks.return_value.on_complete.assert_not_called()
@@ -61,7 +61,8 @@ def test_claude_timeout_passed_to_on_error(mocker: MockerFixture) -> None:
     mock_hooks = mocker.patch.object(tasks_base, "JobHooks", return_value=MagicMock())
     _mock_sdk(mocker, exc=asyncio.TimeoutError())
 
-    run_task("job-1", "https://example.com", "claude", _make_config(mocker))
+    with pytest.raises(asyncio.TimeoutError):
+        run_task("job-1", "https://example.com", "claude", _make_config(mocker))
 
     error_arg = mock_hooks.return_value.on_error.call_args[0][0]
     assert isinstance(error_arg, asyncio.TimeoutError)

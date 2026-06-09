@@ -5,26 +5,29 @@ import sys
 import unittest.mock
 from unittest.mock import MagicMock
 
-# Test doubles for Lambda environment variables.
+# AWS credentials: setdefault so existing creds aren't clobbered when running locally.
 os.environ.setdefault("AWS_DEFAULT_REGION", "us-east-1")
 os.environ.setdefault("AWS_ACCESS_KEY_ID", "testing")
 os.environ.setdefault("AWS_SECRET_ACCESS_KEY", "testing")
 os.environ.setdefault("AWS_SESSION_TOKEN", "testing")
-os.environ.setdefault("BUCKET", "test-bucket")
-os.environ.setdefault("TABLE", "test-jobs")
-os.environ.setdefault("SITES_TABLE", "test-sites")
-os.environ.setdefault("PINECONE_INDEX", "test-index")
 
-# ECS / Fargate environment variables used by fargate.py and task entry points.
-os.environ.setdefault("ECS_CLUSTER", "test-cluster")
-os.environ.setdefault("AGENT_ID", "test-agent-id-00000000")
-os.environ.setdefault("IMPLEMENTER_SOURCE_JOB_ID", "test-source-job")
-os.environ.setdefault(
-    "ECS_TASK_DEFINITION",
-    "arn:aws:ecs:us-east-1:000000000000:task-definition/test-agent:1",
+# All other env vars are forced to test values so real .env exports never leak
+# into test assertions (the Makefile's `export` directive passes .env to pytest).
+os.environ["BUCKET"] = "test-bucket"
+os.environ["TABLE"] = "test-jobs"
+os.environ["SITES_TABLE"] = "test-sites"
+os.environ["PINECONE_INDEX"] = "test-index"
+os.environ["ECS_CLUSTER"] = "test-cluster"
+os.environ["ECS_TASK_DEFINITION"] = (
+    "arn:aws:ecs:us-east-1:000000000000:task-definition/test-agent:1"
 )
-os.environ.setdefault("ECS_SUBNET_IDS", "subnet-test1,subnet-test2")
-os.environ.setdefault("ECS_SECURITY_GROUP", "sg-test")
+os.environ["ECS_SUBNET_IDS"] = "subnet-test1,subnet-test2"
+os.environ["ECS_SECURITY_GROUP"] = "sg-test"
+os.environ["RECRAWL_QUEUE_URL"] = (
+    "https://sqs.us-east-1.amazonaws.com/000000000000/test-recrawl"
+)
+os.environ["AGENT_ID"] = "test-agent-id-00000000"
+os.environ.setdefault("IMPLEMENTER_SOURCE_JOB_ID", "test-source-job")
 # llm.py and pinecone_client.py call fetch_secret() at import time via the Lambda extension.
 # The extension isn't running in tests — intercept the HTTP call before any module is imported.
 _secret_body = json.dumps({"SecretString": json.dumps({"value": "test-key"})}).encode()
