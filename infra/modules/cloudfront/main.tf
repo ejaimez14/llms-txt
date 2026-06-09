@@ -2,6 +2,11 @@ resource "random_id" "suffix" {
   byte_length = 4
 }
 
+resource "random_password" "api_key" {
+  length  = 32
+  special = false
+}
+
 resource "aws_s3_bucket" "frontend" {
   bucket = "llms-txt-frontend-${random_id.suffix.hex}"
 }
@@ -72,7 +77,7 @@ resource "aws_cloudfront_distribution" "app" {
 
     custom_header {
       name  = "x-api-key"
-      value = var.api_gateway_key
+      value = random_password.api_key.result
     }
   }
 

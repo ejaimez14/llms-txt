@@ -3,12 +3,6 @@ variable "api_gateway_endpoint" {
   type        = string
 }
 
-variable "api_gateway_key" {
-  sensitive   = true
-  description = "API Gateway key — injected as CloudFront custom origin header; never visible to the browser"
-  type        = string
-}
-
 variable "basic_auth_user" {
   description = "Username for CloudFront basic auth"
   type        = string
