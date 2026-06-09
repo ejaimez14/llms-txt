@@ -18,6 +18,7 @@ _JOB_ARTIFACTS: dict[str, list[str]] = {
     JobType.CRAWL: [ArtifactType.LLMS_TXT, ArtifactType.PLAN],
     JobType.REPORT: [ArtifactType.REPORT],
     JobType.COMPARE: [ArtifactType.COMPARISON],
+    JobType.IMPLEMENT: [ArtifactType.PR_URL],
 }
 
 

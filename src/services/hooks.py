@@ -1,7 +1,7 @@
 import hashlib
 import time
 
-from src.constants import AgentType
+from src.constants import AgentType, ArtifactType
 from src.models import CompareOutput, CrawlOutput, ReportOutput, UIPlanOutput
 from src.services.embeddings import embed_text
 from src.services.logger import get_logger, log_job_event
@@ -20,7 +20,7 @@ logger = get_logger(__name__)
 
 
 class JobHooks:
-    """Lifecycle hooks for crawl and ui-plan agents (provider-agnostic).
+    """Lifecycle hooks for all agent types (provider-agnostic).
 
     Handles all persistence (S3, DynamoDB, Pinecone) and structured logging
     so agents stay focused on their task.
@@ -49,7 +49,7 @@ class JobHooks:
         """Persist agent output to S3, DynamoDB, and (for crawl) Pinecone."""
         duration_ms = int((time.time() - self._start_time) * 1000)
 
-        if self.agent_type == "crawl":
+        if self.agent_type == AgentType.CRAWL:
             output = CrawlOutput.model_validate(raw_output)
             s3_key = save_llms_txt(self.job_id, output.llms_txt)
             metadata = output.metadata.model_dump()
@@ -70,18 +70,30 @@ class JobHooks:
 
             upsert_site(self.url, self.job_id, s3_key, metadata)
 
-        elif self.agent_type == "ui-plan":
+        elif self.agent_type == AgentType.UI_PLAN:
             output = UIPlanOutput.model_validate(raw_output)
             s3_key = save_plan(self.job_id, output.plan_markdown)
             # UI plan is saved to S3 only — not embedded or indexed in Pinecone.
 
-        elif self.agent_type == "report":
+        elif self.agent_type == AgentType.REPORT:
             output = ReportOutput.model_validate(raw_output)
             s3_key = save_report(self.job_id, output.report_markdown)
 
-        elif self.agent_type == "compare":
+        elif self.agent_type == AgentType.COMPARE:
             output = CompareOutput.model_validate(raw_output)
             s3_key = save_comparison(self.job_id, output.comparison_markdown)
+
+        elif self.agent_type == AgentType.IMPLEMENT:
+            pr_url = raw_output["pr_url"]
+            complete_artifact(self.job_id, ArtifactType.PR_URL, pr_url)
+            log_job_event(
+                logger,
+                f"{self.agent_type}_completed",
+                self.job_id,
+                duration_ms=duration_ms,
+                pr_url=pr_url,
+            )
+            return
 
         input_tokens = getattr(usage, "input_tokens", 0) or 0
         output_tokens = getattr(usage, "output_tokens", 0) or 0
@@ -113,12 +125,13 @@ class JobHooks:
 # --- Internal ---
 
 
-def _artifact_key(agent_type: str) -> str:
+def _artifact_key(agent_type: AgentType) -> ArtifactType:
     return {
-        "crawl": "llmsTxt",
-        "ui-plan": "plan",
-        "report": "report",
-        "compare": "comparison",
+        AgentType.CRAWL: ArtifactType.LLMS_TXT,
+        AgentType.UI_PLAN: ArtifactType.PLAN,
+        AgentType.REPORT: ArtifactType.REPORT,
+        AgentType.COMPARE: ArtifactType.COMPARISON,
+        AgentType.IMPLEMENT: ArtifactType.PR_URL,
     }[agent_type]
 
 
