@@ -1,10 +1,10 @@
 resource "aws_sqs_queue" "recrawl_dlq" {
-  name                      = "llms-txt-recrawl-dlq"
+  name                      = var.dlq_name
   message_retention_seconds = 1209600
 }
 
 resource "aws_sqs_queue" "recrawl" {
-  name                       = "llms-txt-recrawl"
+  name = var.queue_name
   # Must match Lambda timeout (120s) to prevent double-processing before visibility expires.
   visibility_timeout_seconds = 120
   redrive_policy = jsonencode({

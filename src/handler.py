@@ -1,4 +1,5 @@
 import uuid
+from collections.abc import Callable
 from threading import Thread
 
 from fastapi import APIRouter, FastAPI, HTTPException, Query
@@ -158,7 +159,7 @@ def serve_frontend() -> FileResponse:
 # --- Internal ---
 
 
-def _run_in_thread(fn, *args) -> None:
+def _run_in_thread(fn: Callable[..., object], *args: object) -> None:
     """Starts fn(*args) in a daemon thread for single-agent background jobs."""
     Thread(target=fn, args=args, daemon=True).start()
 
