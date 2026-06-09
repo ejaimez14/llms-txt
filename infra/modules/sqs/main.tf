@@ -1,6 +1,6 @@
 resource "aws_sqs_queue" "recrawl_dlq" {
   name                      = var.dlq_name
-  message_retention_seconds = 1209600
+  message_retention_seconds = 259200
 }
 
 resource "aws_sqs_queue" "recrawl" {

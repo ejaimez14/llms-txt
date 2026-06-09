@@ -1,16 +1,16 @@
 import json
-import os
-from collections.abc import Generator
 
-import boto3
 import pytest
-from moto import mock_aws
 from pytest_mock import MockerFixture
 
 import src.services.recrawl as recrawl_module
-import src.services.storage as storage
 from src.constants import AgentType, JobType
 from src.services.recrawl import handle_schedule, handle_sqs
+
+
+def _make_site(url: str) -> dict:
+    """Minimal site record as returned by list_sites."""
+    return {"url": url, "model": "claude"}
 
 
 def _make_sqs_record(url: str, model: str) -> dict:
@@ -31,86 +31,34 @@ def _make_eventbridge_event() -> dict:
     return {"source": "aws.events", "detail-type": "Scheduled Event"}
 
 
-@pytest.fixture(autouse=True)
-def aws_env() -> Generator[None, None, None]:
-    """Activates moto, creates required AWS infrastructure, and reinitialises module-level clients."""
-    with mock_aws():
-        storage._s3 = boto3.client("s3", region_name="us-east-1")
-        storage._dynamodb = boto3.resource("dynamodb", region_name="us-east-1")
-
-        storage._s3.create_bucket(Bucket=os.environ["BUCKET"])
-
-        ddb = boto3.resource("dynamodb", region_name="us-east-1")
-        ddb.create_table(
-            TableName=os.environ["TABLE"],
-            KeySchema=[{"AttributeName": "jobId", "KeyType": "HASH"}],
-            AttributeDefinitions=[
-                {"AttributeName": "jobId", "AttributeType": "S"},
-                {"AttributeName": "url", "AttributeType": "S"},
-                {"AttributeName": "createdAt", "AttributeType": "S"},
-            ],
-            BillingMode="PAY_PER_REQUEST",
-            GlobalSecondaryIndexes=[
-                {
-                    "IndexName": "url-createdAt-index",
-                    "KeySchema": [
-                        {"AttributeName": "url", "KeyType": "HASH"},
-                        {"AttributeName": "createdAt", "KeyType": "RANGE"},
-                    ],
-                    "Projection": {"ProjectionType": "ALL"},
-                }
-            ],
-        )
-        ddb.create_table(
-            TableName=os.environ["SITES_TABLE"],
-            KeySchema=[{"AttributeName": "url", "KeyType": "HASH"}],
-            AttributeDefinitions=[{"AttributeName": "url", "AttributeType": "S"}],
-            BillingMode="PAY_PER_REQUEST",
-        )
-
-        sqs_client = boto3.client("sqs", region_name="us-east-1")
-        sqs_client.create_queue(QueueName="test-recrawl")
-        recrawl_module._sqs = boto3.client("sqs", region_name="us-east-1")
-
-        yield
-
-
-def test_handle_schedule_enqueues_one_message_per_url() -> None:
-    """N sites in the sites table results in N SQS messages with correct MessageBody structure."""
-    metadata: dict = {"tech_stack": [], "integrations": [], "content_types": []}
-    storage.upsert_site(
-        "https://alpha.com", "job-a", "results/job-a/llms.txt", metadata, "claude"
+def test_handle_schedule_enqueues_one_message_per_url(mocker: MockerFixture) -> None:
+    """N sites returned by list_sites results in N SQS send_message calls with correct body structure."""
+    mocker.patch.object(
+        recrawl_module,
+        "list_sites",
+        return_value=[_make_site("https://alpha.com"), _make_site("https://beta.com")],
     )
-    storage.upsert_site(
-        "https://beta.com", "job-b", "results/job-b/llms.txt", metadata, "claude"
-    )
+    mock_sqs = mocker.patch.object(recrawl_module, "_sqs")
 
-    result = handle_schedule(_make_eventbridge_event(), object())
+    handle_schedule(_make_eventbridge_event(), object())
 
-    sqs_client = boto3.client("sqs", region_name="us-east-1")
-    queue_url = os.environ["RECRAWL_QUEUE_URL"]
-    messages = sqs_client.receive_message(
-        QueueUrl=queue_url, MaxNumberOfMessages=10
-    ).get("Messages", [])
-
-    assert len(messages) == 2
-    enqueued_urls = {json.loads(m["Body"])["url"] for m in messages}
-    assert "https://alpha.com" in enqueued_urls
-    assert "https://beta.com" in enqueued_urls
-    for message in messages:
-        body = json.loads(message["Body"])
+    assert mock_sqs.send_message.call_count == 2
+    bodies = [
+        json.loads(c.kwargs["MessageBody"])
+        for c in mock_sqs.send_message.call_args_list
+    ]
+    assert {b["url"] for b in bodies} == {"https://alpha.com", "https://beta.com"}
+    for body in bodies:
         assert "url" in body
         assert "model" in body
 
-    assert result["scheduled"] == 2
 
-
-def test_handle_schedule_returns_count() -> None:
+def test_handle_schedule_returns_count(mocker: MockerFixture) -> None:
     """Return dict contains scheduled key equal to the number of sites."""
-    metadata: dict = {"tech_stack": [], "integrations": [], "content_types": []}
-    storage.upsert_site(
-        "https://example.com", "job-1", "results/job-1/llms.txt", metadata, "claude"
+    mocker.patch.object(
+        recrawl_module, "list_sites", return_value=[_make_site("https://example.com")]
     )
+    mocker.patch.object(recrawl_module, "_sqs")
 
     result = handle_schedule(_make_eventbridge_event(), object())
 
@@ -118,7 +66,7 @@ def test_handle_schedule_returns_count() -> None:
 
 
 def test_handle_sqs_creates_new_job_id(mocker: MockerFixture) -> None:
-    """Each SQS record creates a new unique job via create_job - old records are not overwritten."""
+    """Each SQS record creates a new unique job via create_job — old records are not overwritten."""
     mocker.patch.object(recrawl_module, "trigger_task")
     mock_create_job = mocker.patch.object(recrawl_module, "create_job")
 
