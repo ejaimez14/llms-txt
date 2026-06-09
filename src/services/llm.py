@@ -33,12 +33,13 @@ def create_agent(
     job_id: str,
     url: str,
     system_prompt: str,
+    max_turns: int = 30,
 ) -> dict:
     """Returns an agent context dict with hooks pre-attached, ready for run_agent()."""
     if model == "claude":
         return _create_claude_agent(system_prompt, job_id, agent_type, url, model)
     elif model == "openai":
-        return _create_openai_agent(system_prompt, job_id, agent_type, url, model)
+        return _create_openai_agent(system_prompt, job_id, agent_type, url, model, max_turns)
     else:
         raise ValueError(f"Unknown model: {model!r}. Supported: 'claude', 'openai'")
 
@@ -86,6 +87,7 @@ def _create_openai_agent(
     agent_type: AgentType,
     url: str,
     model: str,
+    max_turns: int = 30,
 ) -> dict:
     """Builds an OpenAI Agents SDK context dict with hooks pre-attached."""
     model_id = OPENAI_AGENT_MODELS.get(agent_type)
@@ -102,7 +104,7 @@ def _create_openai_agent(
         output_type=_AGENT_OUTPUT_MODEL[agent_type],
     )
     hooks = JobHooks(job_id, agent_type, url, model)
-    return {"provider": "openai", "agent": agent, "hooks": hooks}
+    return {"provider": "openai", "agent": agent, "hooks": hooks, "max_turns": max_turns}
 
 
 def _run_claude(agent_ctx: dict, user_content: str) -> dict:
@@ -135,7 +137,7 @@ def _run_openai(agent_ctx: dict, user_content: str) -> dict:
     hooks = agent_ctx["hooks"]
     hooks.on_start()
     try:
-        result = Runner.run_sync(agent_ctx["agent"], user_content)
+        result = Runner.run_sync(agent_ctx["agent"], user_content, max_turns=agent_ctx["max_turns"])
         raw_output = result.final_output.model_dump()
         hooks.on_complete(raw_output, result.context_wrapper.usage)
         return raw_output

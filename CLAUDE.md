@@ -156,6 +156,63 @@ Before opening a PR, review the code critically for quality — not just correct
 
 ---
 
+## Fargate Task Architecture
+
+### Agent routing
+
+Tasks dispatch two ECS Fargate containers per crawl job (crawler + ui-planner). Each container
+runs `python -m src.tasks`, which routes via `src/tasks/base.py`:
+
+- **crawl + ui-plan (claude):** `instructor` + Anthropic API with server-side `web_fetch`/`web_search`
+  tools. Structured output (`CrawlOutput`, `UIPlanOutput`) is returned directly from the API —
+  no file I/O, no turn-budget risk.
+- **crawl + ui-plan (openai):** OpenAI Agents SDK (`Runner.run_sync`) with `WebSearchTool` and
+  `web_fetch_tool`. Same guarantee — structured `output_type` returned directly.
+- **implement (always claude):** `claude_agent_sdk` CLI subprocess. Needs a real filesystem for
+  `Read`, `Write`, `Edit`, `Bash` tools to operate on a git repo. Output file
+  (`implement-output.json`) must be written before the task ends — the prompt makes this
+  unconditional.
+
+Never route crawl or ui-plan through the Claude Code CLI SDK. The agent may exhaust its turn
+budget fetching pages without writing the output file, causing a `FileNotFoundError`.
+
+### Embeddings
+
+Crawl output is embedded with Amazon Bedrock Titan Embed v2 (`amazon.titan-embed-text-v2:0`,
+512 dimensions). The request body must use `{"inputText": ..., "dimensions": 512, "normalize": true}`
+at the top level — NOT `embeddingConfig`. The Pinecone index must be 512-dim to match.
+
+### Local validation before Docker
+
+Always run `make local-task` before building and pushing the Docker image:
+
+```
+make local-task                                  # claude crawl of anthropic.com
+make local-task AGENT_MODEL=openai               # openai crawl
+make local-task AGENT_TYPE=ui-plan               # ui-plan agent
+```
+
+This runs the task module directly against real AWS (DynamoDB, S3, Bedrock, Pinecone) without
+Docker. The ServiceAccount IAM user needs the same permissions as the ECS task role for this to
+work end-to-end:
+- `bedrock:InvokeModel` on Titan v2
+- DynamoDB, S3, Secrets Manager, Pinecone (via API key from Secrets Manager)
+
+Implement cannot be tested with `local-task` until a crawl + ui-plan for that URL has succeeded
+(it reads the UI plan artifact from S3). Once those artifacts exist, run:
+
+```
+make local-task AGENT_TYPE=implement AGENT_URL=<url-that-was-crawled>
+```
+
+### ECS secrets
+
+ECS task secrets use `valueFrom` with the full secret ARN. To extract a specific JSON field from
+a secret stored as `{"value": "actual-key"}`, append `:value::` to the ARN in the task
+definition's `secrets` block.
+
+---
+
 ## Agentic Orchestration Loops
 
 Tasks flow in three tiers: the user assigns work to the orchestrator in natural language, the

@@ -196,7 +196,7 @@ def test_run_openai_returns_structured_output() -> None:
         context_wrapper=mock_context_wrapper,
     )
     mock_hooks = MagicMock()
-    ctx = {"provider": "openai", "agent": MagicMock(), "hooks": mock_hooks}
+    ctx = {"provider": "openai", "agent": MagicMock(), "hooks": mock_hooks, "max_turns": 30}
 
     with patch("src.services.llm.Runner.run_sync", return_value=mock_result):
         output = _run_openai(ctx, "crawl https://example.com")
