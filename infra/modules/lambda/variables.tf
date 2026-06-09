@@ -47,3 +47,8 @@ variable "ecs_subnet_ids" {
   description = "Comma-separated subnet IDs for Fargate task networking."
   type        = string
 }
+
+variable "recrawl_queue_url" {
+  description = "URL of the SQS re-crawl queue — passed to Lambda as RECRAWL_QUEUE_URL."
+  type        = string
+}
