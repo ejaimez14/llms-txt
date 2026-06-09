@@ -8,6 +8,10 @@ locals {
   ecs_log_group_name  = "/ecs/llms-txt"
 }
 
+module "iam" {
+  source = "./modules/iam"
+}
+
 module "s3" {
   source      = "./modules/s3"
   bucket_name = local.bucket_name
@@ -22,7 +26,7 @@ module "dynamodb" {
 module "ecs" {
   source = "./modules/ecs"
 
-  iam_role_arn        = var.iam_role_arn
+  iam_role_arn        = module.iam.role_arn
   ecr_repository_name = local.ecr_repository_name
   cluster_name        = local.cluster_name
   task_family         = local.task_family
