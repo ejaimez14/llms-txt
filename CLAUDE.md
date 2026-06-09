@@ -176,6 +176,21 @@ runs `python -m src.tasks`, which routes via `src/tasks/base.py`:
 Never route crawl or ui-plan through the Claude Code CLI SDK. The agent may exhaust its turn
 budget fetching pages without writing the output file, causing a `FileNotFoundError`.
 
+### Implement agent git credentials
+
+The Docker image uses `entrypoint.sh` to configure git credentials before the agent runs.
+`GITHUB_TOKEN` is injected from Secrets Manager as an ECS secret. The entrypoint runs
+`gh auth setup-git` so that `git push` and other git operations work inside the container.
+Without this, git operations fail silently and the agent exits without writing `implement-output.json`.
+
+### Implement job PR URL storage
+
+The prUrl artifact is stored differently from S3 artifacts. Use `store_implement_result(job_id, pr_url)`
+from `src/services/storage.py` — it stores the PR URL in a `prUrl` field on the artifact record,
+NOT in `s3Key`. The `/api/job/{id}/pr-url` endpoint reads from this field directly.
+Never call `complete_artifact` for implement jobs — it would store the PR URL as `s3Key` and
+break `get_artifact_content` if anyone tried to fetch it from S3.
+
 ### Embeddings
 
 Crawl output is embedded with Amazon Bedrock Titan Embed v2 (`amazon.titan-embed-text-v2:0`,
@@ -199,10 +214,11 @@ work end-to-end:
 - DynamoDB, S3, Secrets Manager, Pinecone (via API key from Secrets Manager)
 
 Implement cannot be tested with `local-task` until a crawl + ui-plan for that URL has succeeded
-(it reads the UI plan artifact from S3). Once those artifacts exist, run:
+(it reads the UI plan artifact from S3). For implement, `AGENT_URL` is the **crawl job ID** (not
+the site URL) — that's what the Fargate task receives from `trigger_task`:
 
 ```
-make local-task AGENT_TYPE=implement AGENT_URL=<url-that-was-crawled>
+make local-task AGENT_TYPE=implement AGENT_URL=<crawl-job-id>
 ```
 
 ### ECS secrets

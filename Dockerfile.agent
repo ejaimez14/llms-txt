@@ -13,4 +13,9 @@ COPY . /app
 WORKDIR /app
 RUN pip install -e . && chown -R agent:agent /app
 
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
 USER agent
+ENTRYPOINT ["/entrypoint.sh"]
+CMD ["python", "-m", "src.tasks"]
