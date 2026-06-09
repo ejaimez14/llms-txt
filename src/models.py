@@ -141,6 +141,7 @@ class TaskConfig:
     output_schema_hint: str
     task_instruction: str
     allowed_tools: list[str]
+    max_pages: int | None = None
 
 
 # --- Search ---

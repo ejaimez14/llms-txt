@@ -90,6 +90,7 @@ OPENAI_AGENT_MODELS = {
 # --- Fargate Task Constants ---
 
 CRAWLER_MAX_TURNS = 30
+CRAWLER_MAX_PAGES = 12
 CRAWLER_TIMEOUT_SECONDS = 1800
 CRAWLER_OUTPUT_FILE = "crawl-output.json"
 CRAWLER_OUTPUT_SCHEMA_HINT = "`llms_txt` (string) and `metadata` (object)"

@@ -4,6 +4,7 @@ from src.constants import (
     CLAUDE_CRAWL_MODEL,
     CLAUDE_UI_PLAN_MODEL,
     CRAWLER_ALLOWED_TOOLS,
+    CRAWLER_MAX_PAGES,
     CRAWLER_MAX_TURNS,
     CRAWLER_OUTPUT_FILE,
     CRAWLER_OUTPUT_SCHEMA_HINT,
@@ -61,6 +62,7 @@ REGISTRY = TaskRegistry(
         output_schema_hint=CRAWLER_OUTPUT_SCHEMA_HINT,
         task_instruction=CRAWLER_TASK_INSTRUCTION,
         allowed_tools=CRAWLER_ALLOWED_TOOLS,
+        max_pages=CRAWLER_MAX_PAGES,
     ),
     ui_plan=TaskConfig(
         agent_type=AgentType.UI_PLAN,
