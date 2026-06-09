@@ -51,7 +51,7 @@ def _run_implement(job_id: str, url: str, config: TaskConfig) -> None:
 
 
 async def _run_sdk(hooks: JobHooks, url: str, config: TaskConfig) -> None:
-    with tempfile.TemporaryDirectory() as workspace:
+    with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as workspace:
         options = ClaudeAgentOptions(
             cwd=workspace,
             model=config.claude_model,
