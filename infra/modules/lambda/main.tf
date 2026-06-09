@@ -1,7 +1,8 @@
 resource "aws_lambda_function" "api" {
   function_name = "llms-txt-api"
-  filename      = var.lambda_zip_path
-  role          = var.iam_role_arn
+  filename         = var.lambda_zip_path
+  source_code_hash = filebase64sha256(var.lambda_zip_path)
+  role             = var.iam_role_arn
   handler       = "src.handler.handler"
   runtime       = "python3.11"
   memory_size   = 1024

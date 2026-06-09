@@ -7,10 +7,10 @@ import pytest
 from moto import mock_aws
 from pytest_mock import MockerFixture
 
-import src.handler as handler
+import src.services.recrawl as recrawl_module
 import src.services.storage as storage
 from src.constants import JobType
-from src.handler import handle_schedule, handle_sqs
+from src.services.recrawl import handle_schedule, handle_sqs
 
 
 def _make_sqs_record(url: str, model: str) -> dict:
@@ -70,7 +70,7 @@ def aws_env() -> Generator[None, None, None]:
 
         sqs_client = boto3.client("sqs", region_name="us-east-1")
         sqs_client.create_queue(QueueName="test-recrawl")
-        handler._sqs = boto3.client("sqs", region_name="us-east-1")
+        recrawl_module._sqs = boto3.client("sqs", region_name="us-east-1")
 
         yield
 
@@ -106,7 +106,7 @@ def test_handle_schedule_enqueues_one_message_per_url() -> None:
 
 
 def test_handle_schedule_returns_count() -> None:
-    """Return dict contains  key equal to the number of sites."""
+    """Return dict contains scheduled key equal to the number of sites."""
     metadata: dict = {"tech_stack": [], "integrations": [], "content_types": []}
     storage.upsert_site(
         "https://example.com", "job-1", "results/job-1/llms.txt", metadata, "claude"
@@ -119,8 +119,8 @@ def test_handle_schedule_returns_count() -> None:
 
 def test_handle_sqs_creates_new_job_id(mocker: MockerFixture) -> None:
     """Each SQS record creates a new unique job via create_job - old records are not overwritten."""
-    mocker.patch("src.handler._run_crawl_agents")
-    mock_create_job = mocker.patch("src.handler.create_job")
+    mocker.patch.object(recrawl_module, "trigger_task")
+    mock_create_job = mocker.patch.object(recrawl_module, "create_job")
 
     records = [
         _make_sqs_record("https://alpha.com", "claude"),
@@ -136,24 +136,25 @@ def test_handle_sqs_creates_new_job_id(mocker: MockerFixture) -> None:
 
 
 def test_handle_sqs_runs_both_agents(mocker: MockerFixture) -> None:
-    """Both trigger_task calls (CRAWL + UI_PLAN) are fired for each SQS record."""
-    mock_run_crawl_agents = mocker.patch("src.handler._run_crawl_agents")
-    mocker.patch("src.handler.create_job")
+    """Both CRAWL and UI_PLAN trigger_task calls are fired for each SQS record."""
+    mock_trigger = mocker.patch.object(recrawl_module, "trigger_task")
+    mocker.patch.object(recrawl_module, "create_job")
 
     records = [_make_sqs_record("https://example.com", "claude")]
     handle_sqs(_make_sqs_event(records), object())
 
-    mock_run_crawl_agents.assert_called_once()
-    call_args = mock_run_crawl_agents.call_args
-    assert call_args.args[1] == "https://example.com"
-    assert call_args.args[2] == "claude"
+    assert mock_trigger.call_count == 2
+    agent_types = {call.args[0] for call in mock_trigger.call_args_list}
+    from src.constants import AgentType
+    assert AgentType.CRAWL in agent_types
+    assert AgentType.UI_PLAN in agent_types
 
 
 def test_handle_sqs_raises_on_agent_failure(mocker: MockerFixture) -> None:
-    """If _run_crawl_agents raises, handle_sqs propagates the exception so SQS retries the message."""
-    mocker.patch("src.handler.create_job")
-    mocker.patch(
-        "src.handler._run_crawl_agents", side_effect=RuntimeError("fargate error")
+    """If trigger_task raises, handle_sqs propagates the exception so SQS retries the message."""
+    mocker.patch.object(recrawl_module, "create_job")
+    mocker.patch.object(
+        recrawl_module, "trigger_task", side_effect=RuntimeError("fargate error")
     )
 
     records = [_make_sqs_record("https://example.com", "claude")]

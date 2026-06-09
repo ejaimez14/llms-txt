@@ -37,20 +37,6 @@ module "ecs" {
   vpc_id = var.vpc_id
 }
 
-resource "aws_sqs_queue" "recrawl_dlq" {
-  name                      = "llms-txt-recrawl-dlq"
-  message_retention_seconds = 1209600
-}
-
-resource "aws_sqs_queue" "recrawl" {
-  name                       = "llms-txt-recrawl"
-  visibility_timeout_seconds = 120 # must match Lambda timeout (120s) to prevent double-processing
-  redrive_policy = jsonencode({
-    deadLetterTargetArn = aws_sqs_queue.recrawl_dlq.arn
-    maxReceiveCount     = 3
-  })
-}
-
 module "lambda" {
   source           = "./modules/lambda"
   iam_role_arn     = var.iam_role_arn
@@ -65,7 +51,7 @@ module "lambda" {
   ecs_security_group  = module.ecs.security_group_id
   ecs_subnet_ids      = var.subnet_ids
 
-  recrawl_queue_url = aws_sqs_queue.recrawl.url
+  recrawl_queue_url = module.sqs.queue_url
 }
 
 module "api_gateway" {
@@ -81,30 +67,8 @@ module "observability" {
   ecs_log_group_name   = local.ecs_log_group_name
 }
 
-
-resource "aws_lambda_event_source_mapping" "recrawl_sqs" {
-  event_source_arn = aws_sqs_queue.recrawl.arn
-  function_name    = module.lambda.function_arn
-  batch_size       = 1
-  enabled          = true
-}
-
-resource "aws_cloudwatch_event_rule" "daily_recrawl" {
-  name                = "llms-txt-daily-recrawl"
-  schedule_expression = "rate(1 day)"
-  description         = "Triggers daily re-crawl of all indexed URLs"
-}
-
-resource "aws_cloudwatch_event_target" "daily_recrawl" {
-  rule      = aws_cloudwatch_event_rule.daily_recrawl.name
-  target_id = "LambdaRecrawlScheduler"
-  arn       = module.lambda.function_arn
-}
-
-resource "aws_lambda_permission" "eventbridge_invoke" {
-  statement_id  = "AllowEventBridgeInvoke"
-  action        = "lambda:InvokeFunction"
-  function_name = module.lambda.function_name
-  principal     = "events.amazonaws.com"
-  source_arn    = aws_cloudwatch_event_rule.daily_recrawl.arn
+module "sqs" {
+  source               = "./modules/sqs"
+  lambda_function_arn  = module.lambda.function_arn
+  lambda_function_name = module.lambda.function_name
 }
