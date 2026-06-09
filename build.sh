@@ -8,7 +8,13 @@ rm -rf "$BUILD_DIR" "$ZIP_FILE"
 mkdir -p "$BUILD_DIR"
 
 uv export --no-dev --no-hashes -o "$BUILD_DIR/requirements.txt"
-pip install -r "$BUILD_DIR/requirements.txt" -t "$BUILD_DIR" --quiet
+pip install -r "$BUILD_DIR/requirements.txt" -t "$BUILD_DIR" \
+  --platform manylinux2014_x86_64 \
+  --implementation cp \
+  --python-version 311 \
+  --abi cp311 \
+  --only-binary=:all: \
+  --quiet
 
 cp -r src/ "$BUILD_DIR/src/"
 
