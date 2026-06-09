@@ -71,16 +71,26 @@ async def _run_sdk(hooks: JobHooks, url: str, config: TaskConfig) -> None:
 
 
 def _build_implement_prompt(url: str, config: TaskConfig) -> str:
-    """Builds the implementer prompt, injecting the UI plan fetched from S3."""
+    """Builds the implementer prompt, injecting the UI plan fetched from S3.
+
+    Embeds GITHUB_TOKEN directly in the clone URL so git push works inside the
+    Claude Code SDK subprocess without relying on credential helper configuration.
+    """
     plan_content = get_artifact_content(url, ArtifactType.PLAN)
     if plan_content is None:
         raise ValueError(f"UI plan artifact unavailable for url {url}")
 
     branch_name = f"ui-implement/{os.environ['AGENT_ID'][:8]}"
+    github_token = os.environ.get("GITHUB_TOKEN", "")
+    repo_url = (
+        f"https://{github_token}@github.com/ejaimez14/llms-txt-erick-jaimez.git"
+        if github_token
+        else IMPLEMENTER_REPO
+    )
 
     return (
         f"{config.system_prompt}\n\n"
-        f"Repository: {IMPLEMENTER_REPO}\n"
+        f"Repository (use this exact URL to clone — credentials are embedded): {repo_url}\n"
         f"Base branch: {IMPLEMENTER_BASE_BRANCH}\n"
         f"Implementation branch: {branch_name}\n\n"
         f"Implement this UI plan:\n\n{plan_content}\n\n"
