@@ -50,6 +50,10 @@ docker-push: docker-login
 #   make local-task                                              # claude crawl of anthropic.com
 #   make local-task AGENT_URL=https://example.com AGENT_TYPE=crawl AGENT_MODEL=openai
 local-task:
-	$(eval AGENT_ID := $(shell PYTHONPATH=. AWS_DEFAULT_REGION=us-east-1 uv run python scripts/create_test_job.py $(AGENT_URL) $(AGENT_MODEL)))
-	@echo "Running $(AGENT_TYPE) task locally — job=$(AGENT_ID) url=$(AGENT_URL) model=$(AGENT_MODEL)"
-	AGENT_ID=$(AGENT_ID) AGENT_URL=$(AGENT_URL) AGENT_MODEL=$(AGENT_MODEL) AGENT_TYPE=$(AGENT_TYPE) uv run python -m src.tasks
+	@bash -c '\
+	  set -a; source .env 2>/dev/null; set +a; \
+	  AGENT_ID=$$(PYTHONPATH=. uv run python scripts/create_test_job.py $(AGENT_URL) $(AGENT_MODEL)); \
+	  echo "Running $(AGENT_TYPE) task locally -- job=$$AGENT_ID url=$(AGENT_URL) model=$(AGENT_MODEL)"; \
+	  AGENT_ID=$$AGENT_ID AGENT_URL=$(AGENT_URL) AGENT_MODEL=$(AGENT_MODEL) AGENT_TYPE=$(AGENT_TYPE) \
+	  PYTHONPATH=. uv run python -m src.tasks \
+	'

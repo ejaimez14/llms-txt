@@ -78,7 +78,7 @@ def test_build_implement_prompt_raises_when_plan_unavailable(
     config = REGISTRY.get(AgentType.IMPLEMENT)
 
     with pytest.raises(
-        ValueError, match="UI plan artifact unavailable for job source-job-3"
+        ValueError, match="UI plan artifact unavailable for url source-job-3"
     ):
         _build_implement_prompt("source-job-3", config)
 
