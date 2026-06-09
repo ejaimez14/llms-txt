@@ -46,10 +46,10 @@ resource "aws_ecs_task_definition" "agent" {
     ]
 
     secrets = [
-      { name = "ANTHROPIC_API_KEY", valueFrom = data.aws_secretsmanager_secret.anthropic.arn },
-      { name = "PINECONE_API_KEY",  valueFrom = data.aws_secretsmanager_secret.pinecone.arn },
-      { name = "GITHUB_TOKEN",      valueFrom = data.aws_secretsmanager_secret.github.arn },
-      { name = "OPENAI_API_KEY",    valueFrom = data.aws_secretsmanager_secret.openai.arn },
+      { name = "ANTHROPIC_API_KEY", valueFrom = "${data.aws_secretsmanager_secret.anthropic.arn}:value::" },
+      { name = "PINECONE_API_KEY",  valueFrom = "${data.aws_secretsmanager_secret.pinecone.arn}:value::" },
+      { name = "GITHUB_TOKEN",      valueFrom = "${data.aws_secretsmanager_secret.github.arn}:value::" },
+      { name = "OPENAI_API_KEY",    valueFrom = "${data.aws_secretsmanager_secret.openai.arn}:value::" },
     ]
 
     logConfiguration = {
