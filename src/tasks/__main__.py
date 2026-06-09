@@ -4,12 +4,12 @@ import sys
 from src.constants import AgentType, ArtifactType
 from src.services.storage import fail_artifact
 
-_AGENT_ARTIFACT: dict[str, ArtifactType] = {
-    "crawl": ArtifactType.LLMS_TXT,
-    "ui-plan": ArtifactType.PLAN,
-    "report": ArtifactType.REPORT,
-    "compare": ArtifactType.COMPARISON,
-    "implement": ArtifactType.PR_URL,
+_AGENT_ARTIFACT: dict[AgentType, ArtifactType] = {
+    AgentType.CRAWL: ArtifactType.LLMS_TXT,
+    AgentType.UI_PLAN: ArtifactType.PLAN,
+    AgentType.REPORT: ArtifactType.REPORT,
+    AgentType.COMPARE: ArtifactType.COMPARISON,
+    AgentType.IMPLEMENT: ArtifactType.PR_URL,
 }
 
 try:

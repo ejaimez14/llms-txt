@@ -4,10 +4,10 @@ import uuid
 
 import boto3
 
-from src.constants import AgentType, JobType
+from src.constants import AgentType, ArtifactType, JobType
 from src.services.fargate import trigger_task
 from src.services.logger import get_logger
-from src.services.storage import create_job, list_sites
+from src.services.storage import create_job, fail_artifact, list_sites
 
 logger = get_logger(__name__)
 
@@ -33,6 +33,12 @@ def handle_sqs(event: dict, context: object) -> dict:
         body = json.loads(record["body"])
         job_id = str(uuid.uuid4())
         create_job(job_id, body["url"], body["model"], JobType.CRAWL)
-        trigger_task(AgentType.CRAWL, job_id, body["url"], body["model"])
-        trigger_task(AgentType.UI_PLAN, job_id, body["url"], body["model"])
+        try:
+            trigger_task(AgentType.CRAWL, job_id, body["url"], body["model"])
+            trigger_task(AgentType.UI_PLAN, job_id, body["url"], body["model"])
+        except Exception as exc:
+            logger.error({"event": "recrawl_dispatch_failed", "error": str(exc)})
+            fail_artifact(job_id, ArtifactType.LLMS_TXT, str(exc))
+            fail_artifact(job_id, ArtifactType.PLAN, str(exc))
+            raise
     return {"processed": len(event["Records"])}

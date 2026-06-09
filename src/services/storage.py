@@ -113,6 +113,25 @@ def create_job(
         raise
 
 
+def store_implement_result(job_id: str, pr_url: str) -> None:
+    """Marks the prUrl artifact complete, storing the GitHub PR URL in a prUrl field."""
+    table = _jobs_table()
+    try:
+        response = table.update_item(
+            Key={"jobId": job_id},
+            UpdateExpression="SET artifacts.#artifact = :artifact_val",
+            ExpressionAttributeNames={"#artifact": ArtifactType.PR_URL},
+            ExpressionAttributeValues={
+                ":artifact_val": {"status": ArtifactStatus.COMPLETE, "prUrl": pr_url},
+            },
+            ReturnValues="ALL_NEW",
+        )
+    except ClientError as exc:
+        logger.error({"event": "store_implement_result_failed", "error": str(exc)})
+        raise
+    _recalculate_job_status(response["Attributes"])
+
+
 def complete_artifact(
     job_id: str,
     artifact_type: str,
