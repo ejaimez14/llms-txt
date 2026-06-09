@@ -163,4 +163,12 @@ def _run_in_thread(fn, *args) -> None:
 
 
 app.include_router(router)
-handler = Mangum(app)
+
+_mangum = Mangum(app)
+
+
+def handler(event: dict, context: object) -> dict:
+    """Lambda entrypoint — routes API Gateway authorizer events and HTTP requests."""
+    if event.get("type") == "REQUEST":
+        return {"isAuthorized": True}
+    return _mangum(event, context)

@@ -10,11 +10,6 @@ locals {
   ]
 }
 
-resource "random_password" "api_key" {
-  length  = 32
-  special = false
-}
-
 resource "aws_cloudwatch_log_group" "api_gw" {
   name              = "/aws/apigateway/llms-txt"
   retention_in_days = 14
