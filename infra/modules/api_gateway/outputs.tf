@@ -12,4 +12,3 @@ output "execution_arn" {
   description = "Execution ARN prefix for the API, used to scope Lambda invocation permissions."
   value       = aws_apigatewayv2_api.main.execution_arn
 }
-

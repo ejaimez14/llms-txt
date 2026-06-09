@@ -24,3 +24,15 @@ variable "vpc_id" {
 variable "subnet_ids" {
   description = "Comma-separated subnet IDs for Fargate task networking"
 }
+
+variable "basic_auth_user" {
+  description = "Username for CloudFront basic auth"
+  type        = string
+  default     = "demo"
+}
+
+variable "basic_auth_password" {
+  sensitive   = true
+  description = "Password for CloudFront basic auth — share with interviewers"
+  type        = string
+}

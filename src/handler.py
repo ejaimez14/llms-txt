@@ -8,11 +8,24 @@ from mangum import Mangum
 
 from src.agents.comparer import run_comparer
 from src.agents.reporter import run_reporter
-from src.constants import AgentType, ArtifactType, JobStatus, JobType
-from src.models import CompareRequest, CrawlRequest, ReportRequest, SearchResponse
+from src.constants import (
+    AgentType,
+    ArtifactStatus,
+    ArtifactType,
+    JobStatus,
+    JobType,
+    ModelName,
+)
+from src.models import (
+    CompareRequest,
+    CrawlRequest,
+    ImplementRequest,
+    ReportRequest,
+    SearchResponse,
+)
 from src.services.fargate import trigger_task
-from src.services.recrawl import handle_schedule, handle_sqs
 from src.services.logger import get_logger
+from src.services.recrawl import handle_schedule, handle_sqs
 from src.services.search import run_search
 from src.services.storage import (
     create_job,
@@ -150,6 +163,22 @@ def compare(req: CompareRequest) -> dict:
     return {"jobId": job_id, "status": "processing"}
 
 
+@router.post("/implement", status_code=202, summary="Implement a UI plan")
+def implement(req: ImplementRequest) -> dict:
+    """Reads the UI plan from a completed crawl job and dispatches a Fargate task to open a GitHub PR."""
+    job = get_job(req.job_id)
+    if job is None:
+        raise HTTPException(status_code=404, detail=f"Job {req.job_id} not found")
+    plan_artifact = job.get("artifacts", {}).get(ArtifactType.PLAN.value, {})
+    if plan_artifact.get("status") != ArtifactStatus.COMPLETE.value:
+        raise HTTPException(status_code=400, detail="UI plan artifact is not complete")
+
+    job_id = str(uuid.uuid4())
+    create_job(job_id, req.job_id, ModelName.CLAUDE, JobType.IMPLEMENT)
+    trigger_task(AgentType.IMPLEMENT, job_id, req.job_id, ModelName.CLAUDE.value)
+    return {"jobId": job_id, "status": "processing"}
+
+
 @app.get("/")
 def serve_frontend() -> FileResponse:
     # In prod CloudFront serves index.html from S3 — this route is for local dev only.
@@ -166,7 +195,7 @@ def _run_in_thread(fn: Callable[..., object], *args: object) -> None:
 
 app.include_router(router)
 
-_mangum_handler = Mangum(app)
+_mangum = Mangum(app)
 
 
 def handler(event: dict, context: object) -> dict:
@@ -178,4 +207,4 @@ def handler(event: dict, context: object) -> dict:
         return handle_sqs(event, context)
     if event.get("source") == "aws.events":
         return handle_schedule(event, context)
-    return _mangum_handler(event, context)
+    return _mangum(event, context)

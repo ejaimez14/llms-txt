@@ -11,6 +11,7 @@ class JobType(str, Enum):
     CRAWL = "crawl"
     REPORT = "report"
     COMPARE = "compare"
+    IMPLEMENT = "implement"
 
 
 class ArtifactStatus(str, Enum):
@@ -24,6 +25,7 @@ class ArtifactType(str, Enum):
     PLAN = "plan"
     REPORT = "report"
     COMPARISON = "comparison"
+    PR_URL = "prUrl"
 
 
 class ModelName(str, Enum):
@@ -56,6 +58,19 @@ OPENAI_SECRET_NAME = "secrets/openai-api-key"
 
 OPENAI_CRAWL_MODEL = "gpt-4o-mini"
 OPENAI_UI_PLAN_MODEL = "gpt-4o"
+
+IMPLEMENT_MODEL = "claude-sonnet-4-6-20250514"
+IMPLEMENTER_REPO = "https://github.com/ejaimez14/llms-txt-erick-jaimez"
+IMPLEMENTER_BASE_BRANCH = "main"
+
+IMPLEMENT_MAX_TURNS = 80
+IMPLEMENT_TIMEOUT_SECONDS = 3600
+IMPLEMENT_OUTPUT_FILE = "implement-output.json"
+IMPLEMENT_OUTPUT_SCHEMA_HINT = "`pr_url` (string)"
+
+CRAWLER_ALLOWED_TOOLS = ["WebFetch", "Write"]
+UI_PLANNER_ALLOWED_TOOLS = ["WebFetch", "Write"]
+IMPLEMENT_ALLOWED_TOOLS = ["Read", "Write", "Edit", "Bash", "Glob"]
 
 CLAUDE_AGENT_MODELS = {
     AgentType.CRAWL: CLAUDE_CRAWL_MODEL,

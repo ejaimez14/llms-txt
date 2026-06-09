@@ -72,3 +72,10 @@ module "sqs" {
   lambda_function_arn  = module.lambda.function_arn
   lambda_function_name = module.lambda.function_name
 }
+
+module "cloudfront" {
+  source               = "./modules/cloudfront"
+  api_gateway_endpoint = module.api_gateway.api_url
+  basic_auth_user      = var.basic_auth_user
+  basic_auth_password  = var.basic_auth_password
+}

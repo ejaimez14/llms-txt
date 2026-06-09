@@ -17,17 +17,14 @@ os.environ.setdefault("PINECONE_INDEX", "test-index")
 
 # ECS / Fargate environment variables used by fargate.py and task entry points.
 os.environ.setdefault("ECS_CLUSTER", "test-cluster")
+os.environ.setdefault("AGENT_ID", "test-agent-id-00000000")
+os.environ.setdefault("IMPLEMENTER_SOURCE_JOB_ID", "test-source-job")
 os.environ.setdefault(
     "ECS_TASK_DEFINITION",
     "arn:aws:ecs:us-east-1:000000000000:task-definition/test-agent:1",
 )
 os.environ.setdefault("ECS_SUBNET_IDS", "subnet-test1,subnet-test2")
 os.environ.setdefault("ECS_SECURITY_GROUP", "sg-test")
-os.environ.setdefault(
-    "RECRAWL_QUEUE_URL",
-    "https://sqs.us-east-1.amazonaws.com/000000000000/test-recrawl",
-)
-
 # llm.py and pinecone_client.py call fetch_secret() at import time via the Lambda extension.
 # The extension isn't running in tests — intercept the HTTP call before any module is imported.
 _secret_body = json.dumps({"SecretString": json.dumps({"value": "test-key"})}).encode()

@@ -35,11 +35,11 @@ def trigger_task(agent_type: AgentType, job_id: str, url: str, model: str) -> No
                         "name": _CONTAINER_NAME,
                         "command": _TASK_COMMAND,
                         "environment": [
-                            {"name": "AGENT_TYPE", "value": agent_type.value},
-                            {"name": "AGENT_ID", "value": job_id},
-                            {"name": "AGENT_URL", "value": url},
-                            {"name": "AGENT_MODEL", "value": model},
-                        ],
+                                {"name": "AGENT_TYPE", "value": agent_type.value},
+                                {"name": "AGENT_ID", "value": job_id},
+                                {"name": "AGENT_URL", "value": url},
+                                {"name": "AGENT_MODEL", "value": model},
+                            ],
                     }
                 ]
             },
