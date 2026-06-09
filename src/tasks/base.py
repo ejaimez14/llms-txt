@@ -24,7 +24,15 @@ def run_task(job_id: str, url: str, model: str, config: TaskConfig) -> None:
     if config.agent_type == AgentType.IMPLEMENT:
         _run_implement(job_id, url, config)
     else:
-        agent = create_agent(model, config.agent_type, job_id, url, config.system_prompt, max_turns=config.max_turns)
+        agent = create_agent(
+            model,
+            config.agent_type,
+            job_id,
+            url,
+            config.system_prompt,
+            max_turns=config.max_turns,
+            timeout_seconds=config.timeout_seconds,
+        )
         run_agent(agent, config.task_instruction.format(url=url))
 
 

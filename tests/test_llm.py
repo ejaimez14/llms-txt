@@ -18,6 +18,7 @@ def _make_claude_ctx(response_model=CrawlOutput, extra_tools=None) -> dict:
         "hooks": MagicMock(),
         "response_model": response_model,
         "extra_tools": extra_tools or [],
+        "timeout_seconds": 300,
     }
 
 

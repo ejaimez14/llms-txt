@@ -34,10 +34,11 @@ def create_agent(
     url: str,
     system_prompt: str,
     max_turns: int = 30,
+    timeout_seconds: int = 300,
 ) -> dict:
     """Returns an agent context dict with hooks pre-attached, ready for run_agent()."""
     if model == "claude":
-        return _create_claude_agent(system_prompt, job_id, agent_type, url, model)
+        return _create_claude_agent(system_prompt, job_id, agent_type, url, model, timeout_seconds)
     elif model == "openai":
         return _create_openai_agent(system_prompt, job_id, agent_type, url, model, max_turns)
     else:
@@ -62,6 +63,7 @@ def _create_claude_agent(
     agent_type: AgentType,
     url: str,
     model: str,
+    timeout_seconds: int = 300,
 ) -> dict:
     """Builds a Claude instructor context dict with hooks pre-attached."""
     model_id = CLAUDE_AGENT_MODELS.get(agent_type)
@@ -78,6 +80,7 @@ def _create_claude_agent(
         "hooks": hooks,
         "response_model": response_model,
         "extra_tools": CLAUDE_EXTRA_TOOLS.get(agent_type, []),
+        "timeout_seconds": timeout_seconds,
     }
 
 
@@ -122,7 +125,8 @@ def _run_claude(agent_ctx: dict, user_content: str) -> dict:
         if agent_ctx["extra_tools"]:
             kwargs["tools"] = agent_ctx["extra_tools"]
         output, completion = _instructor_client.messages.create_with_completion(
-            **kwargs
+            **kwargs,
+            timeout=agent_ctx["timeout_seconds"],
         )
         output_dict = output.model_dump()
         hooks.on_complete(output_dict, completion.usage)

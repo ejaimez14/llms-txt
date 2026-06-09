@@ -44,7 +44,8 @@ def test_claude_crawl_routes_to_create_agent(mocker: MockerFixture) -> None:
     run_task("job-1", "https://example.com", "claude", _make_config(AgentType.CRAWL))
 
     mock_create.assert_called_once_with(
-        "claude", AgentType.CRAWL, "job-1", "https://example.com", "test prompt", max_turns=5
+        "claude", AgentType.CRAWL, "job-1", "https://example.com", "test prompt",
+        max_turns=5, timeout_seconds=60,
     )
     mock_run.assert_called_once_with({}, "Do the thing: https://example.com")
 
@@ -56,7 +57,8 @@ def test_openai_crawl_routes_to_create_agent(mocker: MockerFixture) -> None:
     run_task("job-1", "https://example.com", "openai", _make_config(AgentType.CRAWL))
 
     mock_create.assert_called_once_with(
-        "openai", AgentType.CRAWL, "job-1", "https://example.com", "test prompt", max_turns=5
+        "openai", AgentType.CRAWL, "job-1", "https://example.com", "test prompt",
+        max_turns=5, timeout_seconds=60,
     )
     mock_run.assert_called_once_with({}, "Do the thing: https://example.com")
 
@@ -68,7 +70,8 @@ def test_claude_ui_plan_routes_to_create_agent(mocker: MockerFixture) -> None:
     run_task("job-1", "https://example.com", "claude", _make_config(AgentType.UI_PLAN))
 
     mock_create.assert_called_once_with(
-        "claude", AgentType.UI_PLAN, "job-1", "https://example.com", "test prompt", max_turns=5
+        "claude", AgentType.UI_PLAN, "job-1", "https://example.com", "test prompt",
+        max_turns=5, timeout_seconds=60,
     )
     mock_run.assert_called_once()
 
