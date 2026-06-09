@@ -59,9 +59,11 @@ async def _run_sdk(hooks: JobHooks, url: str, config: TaskConfig) -> None:
             allowed_tools=config.allowed_tools,
             max_turns=config.max_turns,
         )
+        output_path = Path(workspace, config.output_file)
         async with asyncio.timeout(config.timeout_seconds):
             async for _ in query(prompt=_build_implement_prompt(url, config), options=options):
-                pass
+                if output_path.exists():
+                    break
         output = config.output_model.model_validate_json(
             Path(workspace, config.output_file).read_text()
         )

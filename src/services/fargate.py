@@ -18,9 +18,14 @@ _CONTAINER_NAME = "agent"
 def trigger_task(agent_type: AgentType, job_id: str, url: str, model: str) -> None:
     """Dispatches a Fargate task for the given agent type."""
     try:
+        task_definition = (
+            os.environ["ECS_IMPLEMENT_TASK_DEFINITION"]
+            if agent_type == AgentType.IMPLEMENT
+            else os.environ["ECS_TASK_DEFINITION"]
+        )
         _ecs.run_task(
             cluster=os.environ["ECS_CLUSTER"],
-            taskDefinition=os.environ["ECS_TASK_DEFINITION"],
+            taskDefinition=task_definition,
             launchType="FARGATE",
             networkConfiguration={
                 "awsvpcConfiguration": {
