@@ -43,7 +43,7 @@ module "ecs" {
 
 module "lambda" {
   source           = "./modules/lambda"
-  iam_role_arn     = var.iam_role_arn
+  iam_role_arn     = module.iam.role_arn
   lambda_zip_path  = var.lambda_zip_path
   bucket_name      = local.bucket_name
   table_name       = local.jobs_table_name
