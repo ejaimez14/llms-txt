@@ -1,4 +1,5 @@
 resource "aws_iam_service_linked_role" "ecs" {
+  count            = var.create_ecs_service_linked_role ? 1 : 0
   aws_service_name = "ecs.amazonaws.com"
 }
 
