@@ -12,7 +12,7 @@ _bedrock_client = boto3.client("bedrock-runtime", region_name="us-east-1")
 
 
 def embed_text(text: str | None) -> list[float]:
-    """Embeds text using Amazon Bedrock Titan Embed Text v1.
+    """Embeds text using Amazon Bedrock Titan Embed Text v2.
 
     Truncates input to TITAN_MAX_INPUT_CHARS before embedding.
     Returns an empty list if text is empty or None.
@@ -30,7 +30,8 @@ def embed_text(text: str | None) -> list[float]:
             body=json.dumps(
                 {
                     "inputText": truncated,
-                    "embeddingConfig": {"outputEmbeddingLength": TITAN_EMBED_DIMENSIONS},
+                    "dimensions": TITAN_EMBED_DIMENSIONS,
+                    "normalize": True,
                 }
             ),
         )

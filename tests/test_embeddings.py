@@ -32,7 +32,8 @@ def test_embed_calls_titan_model(mock_bedrock: MagicMock) -> None:
     assert call_kwargs["modelId"] == "amazon.titan-embed-text-v2:0"
     body = json.loads(call_kwargs["body"])
     assert body["inputText"] == "some text"
-    assert body["embeddingConfig"]["outputEmbeddingLength"] == 512
+    assert body["dimensions"] == 512
+    assert body["normalize"] is True
 
 
 def test_embed_truncates_long_input(mock_bedrock: MagicMock) -> None:
