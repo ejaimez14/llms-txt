@@ -1,4 +1,4 @@
-.PHONY: setup format lint test run build tf-init tf-plan tf-apply
+.PHONY: setup format lint test run build tf-init tf-plan tf-apply docker-login docker-push
 
 -include .env
 export
@@ -30,3 +30,10 @@ tf-plan: tf-init
 
 tf-apply: tf-init
 	cd infra && terraform apply
+
+docker-login:
+	aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin $(ECR_URL)
+
+docker-push: docker-login
+	docker build -f Dockerfile.agent -t $(ECR_URL):latest .
+	docker push $(ECR_URL):latest

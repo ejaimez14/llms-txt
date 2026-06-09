@@ -22,8 +22,8 @@ resource "aws_lambda_event_source_mapping" "recrawl_sqs" {
 
 resource "aws_cloudwatch_event_rule" "daily_recrawl" {
   name                = var.eventbridge_rule_name
-  schedule_expression = "rate(1 day)"
-  description         = "Triggers daily re-crawl of all indexed URLs"
+  schedule_expression = "rate(7 days)"
+  description         = "Triggers weekly re-crawl of all indexed URLs"
 }
 
 resource "aws_cloudwatch_event_target" "daily_recrawl" {

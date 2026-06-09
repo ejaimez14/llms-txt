@@ -3,10 +3,6 @@ variable "aws_region" {
   default     = "us-east-1"
 }
 
-variable "iam_role_arn" {
-  description = "ARN of the existing IAM role used across all compute resources"
-}
-
 variable "lambda_zip_path" {
   description = "Path to the Lambda deployment zip artifact built by build.sh."
   type        = string

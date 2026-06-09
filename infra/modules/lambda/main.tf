@@ -8,8 +8,6 @@ resource "aws_lambda_function" "api" {
   memory_size   = 1024
   timeout       = 120
 
-  reserved_concurrent_executions = 5
-
   environment {
     variables = {
       BUCKET                          = var.bucket_name
