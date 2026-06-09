@@ -23,65 +23,56 @@ def _make_config(agent_type: AgentType = AgentType.CRAWL) -> TaskConfig:
         output_schema_hint="`field` (string)",
         task_instruction="Do the thing: {url}",
         allowed_tools=["WebFetch", "Write"],
+        max_pages=3,
     )
 
 
-def test_claude_crawl_calls_agent_factory(mocker: MockerFixture) -> None:
-    mock_create = mocker.patch.object(tasks_base, "create_agent", return_value={})
-    mock_run = mocker.patch.object(tasks_base, "run_agent", return_value={})
-
-    run_task("job-1", "https://example.com", "claude", _make_config(AgentType.CRAWL))
-
-    mock_create.assert_called_once_with(
-        model="claude",
-        agent_type=AgentType.CRAWL,
-        job_id="job-1",
-        url="https://example.com",
-        system_prompt="test prompt",
-    )
-    mock_run.assert_called_once()
-
-
-def test_claude_crawl_error_propagates(mocker: MockerFixture) -> None:
-    mocker.patch.object(tasks_base, "create_agent", return_value={})
-    mocker.patch.object(tasks_base, "run_agent", side_effect=ValueError("agent error"))
-
-    with pytest.raises(ValueError, match="agent error"):
-        run_task("job-1", "https://example.com", "claude", _make_config(AgentType.CRAWL))
-
-
-def test_claude_implement_uses_sdk(mocker: MockerFixture) -> None:
+def _mock_sdk(mocker: MockerFixture, exc: Exception | None = None) -> None:
     async def _sdk(hooks: Any, url: Any, config: Any) -> None:
-        pass
+        if exc:
+            raise exc
 
-    mock_hooks = mocker.patch.object(tasks_base, "JobHooks", return_value=MagicMock())
     mocker.patch.object(tasks_base, "_run_sdk", side_effect=_sdk)
 
-    run_task("job-1", "https://example.com", "claude", _make_config(AgentType.IMPLEMENT))
+
+def test_claude_path_calls_hooks_lifecycle(mocker: MockerFixture) -> None:
+    mock_hooks = mocker.patch.object(tasks_base, "JobHooks", return_value=MagicMock())
+    _mock_sdk(mocker)
+
+    run_task("job-1", "https://example.com", "claude", _make_config())
 
     mock_hooks.return_value.on_start.assert_called_once()
     mock_hooks.return_value.on_error.assert_not_called()
 
 
-def test_claude_implement_sdk_error_calls_on_error(mocker: MockerFixture) -> None:
-    async def _sdk_fail(hooks: Any, url: Any, config: Any) -> None:
-        raise ValueError("SDK error")
-
+def test_claude_error_calls_on_error_and_reraises(mocker: MockerFixture) -> None:
     mock_hooks = mocker.patch.object(tasks_base, "JobHooks", return_value=MagicMock())
-    mocker.patch.object(tasks_base, "_run_sdk", side_effect=_sdk_fail)
+    _mock_sdk(mocker, exc=ValueError("SDK error"))
 
     with pytest.raises(ValueError, match="SDK error"):
-        run_task("job-1", "https://example.com", "claude", _make_config(AgentType.IMPLEMENT))
+        run_task("job-1", "https://example.com", "claude", _make_config())
 
     mock_hooks.return_value.on_error.assert_called_once()
     mock_hooks.return_value.on_complete.assert_not_called()
 
 
+def test_claude_timeout_passed_to_on_error(mocker: MockerFixture) -> None:
+    mock_hooks = mocker.patch.object(tasks_base, "JobHooks", return_value=MagicMock())
+    _mock_sdk(mocker, exc=asyncio.TimeoutError())
+
+    with pytest.raises(asyncio.TimeoutError):
+        run_task("job-1", "https://example.com", "claude", _make_config())
+
+    error_arg = mock_hooks.return_value.on_error.call_args[0][0]
+    assert isinstance(error_arg, asyncio.TimeoutError)
+
+
 def test_openai_path_calls_agent_factory(mocker: MockerFixture) -> None:
     mock_create = mocker.patch.object(tasks_base, "create_agent", return_value={})
     mock_run = mocker.patch.object(tasks_base, "run_agent", return_value={})
+    config = _make_config()
 
-    run_task("job-1", "https://example.com", "openai", _make_config(AgentType.CRAWL))
+    run_task("job-1", "https://example.com", "openai", config)
 
     mock_create.assert_called_once_with(
         model="openai",
