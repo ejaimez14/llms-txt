@@ -49,6 +49,7 @@ resource "aws_ecs_task_definition" "agent" {
       { name = "ANTHROPIC_API_KEY", valueFrom = data.aws_secretsmanager_secret.anthropic.arn },
       { name = "PINECONE_API_KEY",  valueFrom = data.aws_secretsmanager_secret.pinecone.arn },
       { name = "GITHUB_TOKEN",      valueFrom = data.aws_secretsmanager_secret.github.arn },
+      { name = "OPENAI_API_KEY",    valueFrom = data.aws_secretsmanager_secret.openai.arn },
     ]
 
     logConfiguration = {
