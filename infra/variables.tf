@@ -10,7 +10,7 @@ variable "iam_role_arn" {
 variable "lambda_zip_path" {
   description = "Path to the Lambda deployment zip artifact built by build.sh."
   type        = string
-  default     = "./lambda.zip"
+  default     = "../lambda.zip"
 }
 
 variable "pinecone_index" {
@@ -23,4 +23,16 @@ variable "vpc_id" {
 
 variable "subnet_ids" {
   description = "Comma-separated subnet IDs for Fargate task networking"
+}
+
+variable "basic_auth_user" {
+  description = "Username for CloudFront basic auth"
+  type        = string
+  default     = "demo"
+}
+
+variable "basic_auth_password" {
+  sensitive   = true
+  description = "Password for CloudFront basic auth — share with interviewers"
+  type        = string
 }
