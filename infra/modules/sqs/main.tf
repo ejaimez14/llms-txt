@@ -21,14 +21,14 @@ resource "aws_lambda_event_source_mapping" "recrawl_sqs" {
 }
 
 resource "aws_cloudwatch_event_rule" "daily_recrawl" {
-  name                = "llms-txt-daily-recrawl"
+  name                = var.eventbridge_rule_name
   schedule_expression = "rate(1 day)"
   description         = "Triggers daily re-crawl of all indexed URLs"
 }
 
 resource "aws_cloudwatch_event_target" "daily_recrawl" {
   rule      = aws_cloudwatch_event_rule.daily_recrawl.name
-  target_id = "LambdaRecrawlScheduler"
+  target_id = "${var.eventbridge_rule_name}-target"
   arn       = var.lambda_function_arn
 }
 

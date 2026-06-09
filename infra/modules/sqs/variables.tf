@@ -10,6 +10,12 @@ variable "dlq_name" {
   default     = "llms-txt-recrawl-dlq"
 }
 
+variable "eventbridge_rule_name" {
+  description = "Name of the EventBridge rule that triggers daily re-crawl."
+  type        = string
+  default     = "llms-txt-daily-recrawl"
+}
+
 variable "lambda_function_arn" {
   description = "ARN of the Lambda function that handles SQS re-crawl messages and EventBridge schedule events."
   type        = string
