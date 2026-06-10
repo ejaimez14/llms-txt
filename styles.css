@@ -1,0 +1,54 @@
+/* Reset & base styles */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+/* Typography tokens & page background */
+body {
+  background-color: #ffffff;
+  color: #000000;
+  font-family: "Times New Roman", Times, serif;
+  font-size: 16px;
+  line-height: 1.5;
+}
+
+/* Centering container */
+.container {
+  max-width: 600px;
+  margin: 0 auto;
+  padding: 170px 20px 40px;
+}
+
+/* Heading component */
+h1 {
+  font-family: Georgia, "Times New Roman", Times, serif;
+  font-size: 2em;
+  font-weight: bold;
+  color: #000000;
+  margin-bottom: 16px;
+}
+
+/* Paragraph components */
+p {
+  font-family: "Times New Roman", Times, serif;
+  font-size: 16px;
+  color: #000000;
+  line-height: 1.5;
+  margin-top: 1em;
+  margin-bottom: 1em;
+}
+
+/* Hyperlink styling */
+a:link {
+  color: #0000ee;
+  text-decoration: underline;
+}
+
+a:visited {
+  color: #551a8b;
+  text-decoration: underline;
+}
