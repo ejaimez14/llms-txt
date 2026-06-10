@@ -50,6 +50,21 @@ def test_trigger_task_ui_plan_sets_correct_agent_type(mock_ecs: MagicMock) -> No
     assert env_map["AGENT_TYPE"] == "ui-plan"
 
 
+def test_trigger_task_implement_uses_implement_task_definition(mock_ecs: MagicMock) -> None:
+    trigger_task(AgentType.IMPLEMENT, "job-1", "parent-job-id", "claude")
+
+    call_kwargs = mock_ecs.run_task.call_args[1]
+    assert "test-implement" in call_kwargs["taskDefinition"]
+
+
+def test_trigger_task_non_implement_uses_shared_task_definition(mock_ecs: MagicMock) -> None:
+    trigger_task(AgentType.CRAWL, "job-1", "https://example.com", "claude")
+
+    call_kwargs = mock_ecs.run_task.call_args[1]
+    assert "test-agent" in call_kwargs["taskDefinition"]
+    assert "implement" not in call_kwargs["taskDefinition"]
+
+
 def test_trigger_task_reraises_on_error(mock_ecs: MagicMock) -> None:
     mock_ecs.run_task.side_effect = RuntimeError("AWS error")
 

@@ -21,6 +21,9 @@ os.environ["ECS_CLUSTER"] = "test-cluster"
 os.environ["ECS_TASK_DEFINITION"] = (
     "arn:aws:ecs:us-east-1:000000000000:task-definition/test-agent:1"
 )
+os.environ["ECS_IMPLEMENT_TASK_DEFINITION"] = (
+    "arn:aws:ecs:us-east-1:000000000000:task-definition/test-implement:1"
+)
 os.environ["ECS_SUBNET_IDS"] = "subnet-test1,subnet-test2"
 os.environ["ECS_SECURITY_GROUP"] = "sg-test"
 os.environ["RECRAWL_QUEUE_URL"] = (
