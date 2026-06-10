@@ -9,7 +9,7 @@ import src.services.pinecone_client as pinecone_module
 @pytest.fixture()
 def mock_index(mocker: MockerFixture) -> MagicMock:
     index = MagicMock()
-    mocker.patch.object(pinecone_module, "_index", index)
+    mocker.patch.object(pinecone_module, "_index", return_value=index)
     return index
 
 

@@ -1,4 +1,5 @@
 import os
+from functools import cache
 
 import instructor
 from agents import Agent, Runner, WebSearchTool, set_default_openai_client
@@ -119,7 +120,7 @@ def _run_claude(agent_ctx: dict, user_content: str) -> dict:
         }
         if agent_ctx["extra_tools"]:
             kwargs["tools"] = agent_ctx["extra_tools"]
-        output, completion = _instructor_client.messages.create_with_completion(
+        output, completion = _get_instructor_client().messages.create_with_completion(
             **kwargs
         )
         output_dict = output.model_dump()
@@ -135,6 +136,7 @@ def _run_openai(agent_ctx: dict, user_content: str) -> dict:
     hooks = agent_ctx["hooks"]
     hooks.on_start()
     try:
+        _ensure_openai_client()
         result = Runner.run_sync(agent_ctx["agent"], user_content)
         raw_output = result.final_output.model_dump()
         hooks.on_complete(raw_output, result.context_wrapper.usage)
@@ -144,13 +146,16 @@ def _run_openai(agent_ctx: dict, user_content: str) -> dict:
         raise
 
 
-# In Lambda the extension serves secrets from localhost:2773.
-# Locally that port doesn't exist, so fall back to env vars for development.
-_anthropic_client = Anthropic(
-    api_key=os.environ.get("ANTHROPIC_API_KEY") or fetch_secret(ANTHROPIC_SECRET_NAME)
-)
-_instructor_client = instructor.from_anthropic(_anthropic_client)
-_openai_client = AsyncOpenAI(
-    api_key=os.environ.get("OPENAI_API_KEY") or fetch_secret(OPENAI_SECRET_NAME)
-)
-set_default_openai_client(_openai_client)
+@cache
+def _get_instructor_client() -> instructor.Instructor:
+    """Anthropic + instructor client, built on first use — deferred so the Lambda secrets extension is ready at invoke time."""
+    # In Lambda the extension serves secrets from localhost:2773; locally fall back to env vars.
+    api_key = os.environ.get("ANTHROPIC_API_KEY") or fetch_secret(ANTHROPIC_SECRET_NAME)
+    return instructor.from_anthropic(Anthropic(api_key=api_key))
+
+
+@cache
+def _ensure_openai_client() -> None:
+    """Creates the OpenAI client and registers it as the Agents SDK default, once, on first use."""
+    api_key = os.environ.get("OPENAI_API_KEY") or fetch_secret(OPENAI_SECRET_NAME)
+    set_default_openai_client(AsyncOpenAI(api_key=api_key))

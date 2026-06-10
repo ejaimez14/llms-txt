@@ -45,10 +45,12 @@ def test_run_agent_calls_instructor_and_returns_dict(mocker: MockerFixture) -> N
     mock_completion = SimpleNamespace(
         usage=SimpleNamespace(input_tokens=10, output_tokens=5)
     )
-    mocker.patch(
-        "src.services.llm._instructor_client.messages.create_with_completion",
-        return_value=(crawl_output, mock_completion),
+    mock_client = MagicMock()
+    mock_client.messages.create_with_completion.return_value = (
+        crawl_output,
+        mock_completion,
     )
+    mocker.patch("src.services.llm._get_instructor_client", return_value=mock_client)
     ctx = _make_claude_ctx()
 
     result = run_agent(ctx, "crawl this")
@@ -66,10 +68,10 @@ def test_run_agent_passes_extra_tools_when_present(mocker: MockerFixture) -> Non
     mock_completion = SimpleNamespace(
         usage=SimpleNamespace(input_tokens=10, output_tokens=5)
     )
-    mock_create = mocker.patch(
-        "src.services.llm._instructor_client.messages.create_with_completion",
-        return_value=(crawl_output, mock_completion),
-    )
+    mock_client = MagicMock()
+    mock_create = mock_client.messages.create_with_completion
+    mock_create.return_value = (crawl_output, mock_completion)
+    mocker.patch("src.services.llm._get_instructor_client", return_value=mock_client)
     extra_tools = [{"type": "web_search_20250305", "name": "web_search"}]
     ctx = _make_claude_ctx(extra_tools=extra_tools)
 
@@ -80,10 +82,9 @@ def test_run_agent_passes_extra_tools_when_present(mocker: MockerFixture) -> Non
 
 
 def test_run_agent_calls_on_error_and_reraises(mocker: MockerFixture) -> None:
-    mocker.patch(
-        "src.services.llm._instructor_client.messages.create_with_completion",
-        side_effect=RuntimeError("timeout"),
-    )
+    mock_client = MagicMock()
+    mock_client.messages.create_with_completion.side_effect = RuntimeError("timeout")
+    mocker.patch("src.services.llm._get_instructor_client", return_value=mock_client)
     ctx = _make_claude_ctx()
     with pytest.raises(RuntimeError):
         run_agent(ctx, "crawl this")
