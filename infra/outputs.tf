@@ -37,3 +37,8 @@ output "cloudfront_distribution_id" {
   description = "Use this ID to invalidate the CloudFront cache after updating index.html"
   value       = module.cloudfront.cloudfront_distribution_id
 }
+
+output "implement_task_definition_arn" {
+  description = "ARN of the implement ECS task definition (uses CLAUDE_CODE_OAUTH_TOKEN)"
+  value       = module.ecs.implement_task_definition_arn
+}
