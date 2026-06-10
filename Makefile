@@ -1,7 +1,12 @@
-.PHONY: setup format lint test run build tf-init tf-plan tf-apply docker-login docker-push
+.PHONY: setup format lint test run build tf-init tf-plan tf-apply docker-login docker-push local-task
 
 -include .env
 export
+
+# Defaults for local-task — override on the command line as needed.
+AGENT_URL ?= https://anthropic.com
+AGENT_MODEL ?= claude
+AGENT_TYPE ?= crawl
 
 setup:
 	uv venv --clear
@@ -37,3 +42,18 @@ docker-login:
 docker-push: docker-login
 	docker build -f Dockerfile.agent -t $(ECR_URL):latest .
 	docker push $(ECR_URL):latest
+
+# Run a single agent task locally (no Docker) against real AWS.
+# Creates a fresh DynamoDB job record, then executes the task module directly.
+# Use this to validate task logic before building and pushing the Docker image.
+#
+#   make local-task                                              # claude crawl of anthropic.com
+#   make local-task AGENT_URL=https://example.com AGENT_TYPE=crawl AGENT_MODEL=openai
+local-task:
+	@bash -c '\
+	  set -a; source .env 2>/dev/null; set +a; \
+	  AGENT_ID=$$(PYTHONPATH=. uv run python scripts/create_test_job.py $(AGENT_URL) $(AGENT_MODEL)); \
+	  echo "Running $(AGENT_TYPE) task locally -- job=$$AGENT_ID url=$(AGENT_URL) model=$(AGENT_MODEL)"; \
+	  AGENT_ID=$$AGENT_ID AGENT_URL=$(AGENT_URL) AGENT_MODEL=$(AGENT_MODEL) AGENT_TYPE=$(AGENT_TYPE) \
+	  PYTHONPATH=. uv run python -m src.tasks \
+	'
