@@ -148,6 +148,11 @@ def test_get_pr_url_not_ready_returns_404() -> None:
     assert response.status_code == 404
 
 
+def test_get_pr_url_unknown_job_returns_404() -> None:
+    response = client.get("/api/job/unknown-job-id/pr-url")
+    assert response.status_code == 404
+
+
 def test_compare_starts_comparer_and_returns_202(mocker: MockerFixture) -> None:
     storage.create_job("job-a", "https://a.com", "claude", JobType.CRAWL)
     storage.create_job("job-b", "https://b.com", "claude", JobType.CRAWL)
