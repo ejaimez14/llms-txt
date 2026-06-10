@@ -41,6 +41,7 @@ sys.modules.setdefault("pinecone", MagicMock())
 
 # claude_agent_sdk is not installed in the test environment — stub it.
 sys.modules.setdefault("claude_agent_sdk", MagicMock())
+sys.modules.setdefault("claude_agent_sdk.types", MagicMock())
 
 # Stub service modules that don't exist in this environment so hooks.py can be imported.
 for _mod in ("src.services.embeddings", "src.services.logger", "src.services.storage"):
