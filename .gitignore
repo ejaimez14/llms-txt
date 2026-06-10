@@ -23,3 +23,6 @@ infra/.terraform.lock.hcl
 
 # Env files
 .env
+
+# Editor / OS metadata
+.gitattributes
