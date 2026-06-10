@@ -16,11 +16,7 @@ logger = get_logger(__name__)
 
 
 def run_task(job_id: str, url: str, model: str, config: TaskConfig) -> None:
-    """Fargate entry point.
-
-    Implement uses Claude Code CLI — it needs a real filesystem for git and code operations.
-    All other agent types route through llm.py: instructor for claude, OpenAI Agents SDK for openai.
-    """
+    """Routes implement jobs to the Claude Code SDK; all other types through llm.py."""
     if config.agent_type == AgentType.IMPLEMENT:
         _run_implement(job_id, url, config)
     else:
@@ -52,7 +48,7 @@ def _run_implement(job_id: str, url: str, config: TaskConfig) -> None:
 
 
 async def _run_sdk(hooks: JobHooks, url: str, config: TaskConfig) -> None:
-    """Drives the Claude Code SDK query loop, reads the output file, and calls hooks.on_complete."""
+    """Drives the SDK query loop in a temp workspace and calls hooks.on_complete."""
     with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as workspace:
         options = ClaudeAgentOptions(
             cwd=workspace,
@@ -73,12 +69,7 @@ async def _run_sdk(hooks: JobHooks, url: str, config: TaskConfig) -> None:
 
 
 def _build_implement_prompt(url: str, config: TaskConfig) -> str:
-    """Builds the implementer prompt with literal shell commands (no placeholders).
-
-    Auth is handled by the gh credential helper configured in entrypoint.sh —
-    GITHUB_TOKEN in the environment is picked up automatically by gh auth git-credential.
-    No token is embedded in URLs to avoid leaking it via git config or agent logs.
-    """
+    """Builds the agent prompt with git/gh commands; no token in URLs (auth via gh credential helper)."""
     plan_content = get_artifact_content(url, ArtifactType.PLAN)
     if plan_content is None:
         raise ValueError(f"UI plan artifact unavailable for job {url}")
