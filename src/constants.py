@@ -49,7 +49,8 @@ CLAUDE_REPORT_MODEL = "claude-sonnet-4-6"
 CLAUDE_COMPARE_MODEL = "claude-sonnet-4-6"
 CLAUDE_MAX_OUTPUT_TOKENS = 8192
 
-TITAN_EMBED_MODEL = "amazon.titan-embed-text-v1"
+TITAN_EMBED_MODEL = "amazon.titan-embed-text-v2:0"
+TITAN_EMBED_DIMENSIONS = 512
 TITAN_MAX_INPUT_CHARS = 25000
 
 ANTHROPIC_SECRET_NAME = "secrets/anthropic-api-key"
@@ -66,7 +67,7 @@ IMPLEMENTER_BASE_BRANCH = "main"
 IMPLEMENT_MAX_TURNS = 80
 IMPLEMENT_TIMEOUT_SECONDS = 3600
 IMPLEMENT_OUTPUT_FILE = "implement-output.json"
-IMPLEMENT_OUTPUT_SCHEMA_HINT = "`pr_url` (string)"
+IMPLEMENT_OUTPUT_SCHEMA_HINT = "`pr_url` (string), `debug` (string, optional)"
 
 CRAWLER_ALLOWED_TOOLS = ["WebFetch", "Write"]
 UI_PLANNER_ALLOWED_TOOLS = ["WebFetch", "Write"]
@@ -88,7 +89,7 @@ OPENAI_AGENT_MODELS = {
 
 # --- Fargate Task Constants ---
 
-CRAWLER_MAX_TURNS = 30
+CRAWLER_MAX_TURNS = 20
 CRAWLER_TIMEOUT_SECONDS = 1800
 CRAWLER_OUTPUT_FILE = "crawl-output.json"
 CRAWLER_OUTPUT_SCHEMA_HINT = "`llms_txt` (string) and `metadata` (object)"

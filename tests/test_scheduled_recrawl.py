@@ -98,8 +98,9 @@ def test_handle_sqs_runs_both_agents(mocker: MockerFixture) -> None:
 
 
 def test_handle_sqs_raises_on_agent_failure(mocker: MockerFixture) -> None:
-    """If trigger_task raises, handle_sqs propagates the exception so SQS retries the message."""
+    """If trigger_task raises, handle_sqs fails both artifacts and propagates so SQS retries."""
     mocker.patch.object(recrawl_module, "create_job")
+    mock_fail = mocker.patch.object(recrawl_module, "fail_artifact")
     mocker.patch.object(
         recrawl_module, "trigger_task", side_effect=RuntimeError("fargate error")
     )
@@ -107,3 +108,5 @@ def test_handle_sqs_raises_on_agent_failure(mocker: MockerFixture) -> None:
     records = [_make_sqs_record("https://example.com", "claude")]
     with pytest.raises(RuntimeError, match="fargate error"):
         handle_sqs(_make_sqs_event(records), object())
+
+    assert mock_fail.call_count == 2
