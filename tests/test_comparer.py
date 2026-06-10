@@ -1,6 +1,8 @@
+import pytest
 from pytest_mock import MockerFixture
 
 from src.agents.comparer import run_comparer
+from src.constants import ArtifactType
 from src.prompts import _build_compare_message
 
 
@@ -72,3 +74,13 @@ def test_comparer_fails_if_content_unavailable(mocker: MockerFixture) -> None:
 
     mock_fail.assert_called_once()
     mock_run.assert_not_called()
+
+
+def test_comparer_fails_artifact_on_unexpected_error(mocker: MockerFixture) -> None:
+    mocker.patch("src.agents.comparer.get_job", side_effect=RuntimeError("db error"))
+    mock_fail = mocker.patch("src.agents.comparer.fail_artifact")
+
+    with pytest.raises(RuntimeError, match="db error"):
+        run_comparer("job-compare-1", "job-a-1", "job-b-1", "claude")
+
+    mock_fail.assert_called_once_with("job-compare-1", ArtifactType.COMPARISON, "db error")

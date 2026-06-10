@@ -1,9 +1,15 @@
 locals {
   routes = [
     "POST /api/crawl",
+    "POST /api/report",
+    "POST /api/compare",
+    "POST /api/implement",
     "GET /api/job",
     "GET /api/job/{id}/llms-txt",
     "GET /api/job/{id}/plan",
+    "GET /api/job/{id}/report",
+    "GET /api/job/{id}/comparison",
+    "GET /api/job/{id}/pr-url",
     "GET /api/jobs",
     "GET /api/site",
     "GET /api/search",

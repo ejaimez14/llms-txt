@@ -10,7 +10,6 @@ import src.services.hooks as hooks_module
 import src.tasks.base as tasks_base
 from src.constants import (
     AgentType,
-    ArtifactType,
     IMPLEMENTER_BASE_BRANCH,
     IMPLEMENTER_REPO,
 )
@@ -119,12 +118,10 @@ def test_build_implement_prompt_missing_plan_triggers_on_error(
 
 
 def test_hooks_on_complete_implement_saves_pr_url(mocker: MockerFixture) -> None:
-    mock_complete = mocker.patch.object(hooks_module, "complete_artifact")
+    mock_store = mocker.patch.object(hooks_module, "store_implement_result")
     hooks = JobHooks("job-6", AgentType.IMPLEMENT, "owner/repo", "claude")
     hooks._start_time = time.time()
 
     hooks.on_complete({"pr_url": "https://github.com/owner/repo/pull/42"})
 
-    mock_complete.assert_called_once_with(
-        "job-6", ArtifactType.PR_URL, "https://github.com/owner/repo/pull/42"
-    )
+    mock_store.assert_called_once_with("job-6", "https://github.com/owner/repo/pull/42")

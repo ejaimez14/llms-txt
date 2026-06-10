@@ -49,8 +49,14 @@ CLAUDE_REPORT_MODEL = "claude-sonnet-4-6"
 CLAUDE_COMPARE_MODEL = "claude-sonnet-4-6"
 CLAUDE_MAX_OUTPUT_TOKENS = 8192
 
-TITAN_EMBED_MODEL = "amazon.titan-embed-text-v1"
+TITAN_EMBED_MODEL = "amazon.titan-embed-text-v2:0"
+TITAN_EMBED_DIMENSIONS = 512
 TITAN_MAX_INPUT_CHARS = 25000
+
+AWS_REGION = "us-east-1"
+LAMBDA_EXTENSION_URL = "http://localhost:2773"
+LAMBDA_EXTENSION_TIMEOUT_SECONDS = 2
+LAMBDA_EXTENSION_TOKEN_HEADER = "X-Aws-Parameters-Secrets-Token"
 
 ANTHROPIC_SECRET_NAME = "secrets/anthropic-api-key"
 PINECONE_SECRET_NAME = "secrets/pinecone-api-key"
@@ -66,7 +72,10 @@ IMPLEMENTER_BASE_BRANCH = "main"
 IMPLEMENT_MAX_TURNS = 80
 IMPLEMENT_TIMEOUT_SECONDS = 3600
 IMPLEMENT_OUTPUT_FILE = "implement-output.json"
-IMPLEMENT_OUTPUT_SCHEMA_HINT = "`pr_url` (string)"
+IMPLEMENT_OUTPUT_SCHEMA_HINT = "`pr_url` (string), `debug` (string, optional)"
+
+AGENT_DEFAULT_MAX_TURNS = 30
+AGENT_DEFAULT_TIMEOUT_SECONDS = 300
 
 CRAWLER_ALLOWED_TOOLS = ["WebFetch", "Write"]
 UI_PLANNER_ALLOWED_TOOLS = ["WebFetch", "Write"]

@@ -10,6 +10,10 @@ output "task_definition_arn" {
   value = aws_ecs_task_definition.agent.arn
 }
 
+output "implement_task_definition_arn" {
+  value = aws_ecs_task_definition.implement.arn
+}
+
 output "security_group_id" {
   value = aws_security_group.fargate_tasks.id
 }
