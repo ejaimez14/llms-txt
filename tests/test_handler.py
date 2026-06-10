@@ -134,6 +134,20 @@ def test_compare_incomplete_job_returns_400() -> None:
     assert "not complete" in response.json()["detail"]
 
 
+def test_get_pr_url_returns_pr_url() -> None:
+    storage.create_job("job-impl", "parent-job", "claude", JobType.IMPLEMENT)
+    storage.store_implement_result("job-impl", "https://github.com/owner/repo/pull/1")
+    response = client.get("/api/job/job-impl/pr-url")
+    assert response.status_code == 200
+    assert response.json()["prUrl"] == "https://github.com/owner/repo/pull/1"
+
+
+def test_get_pr_url_not_ready_returns_404() -> None:
+    storage.create_job("job-impl", "parent-job", "claude", JobType.IMPLEMENT)
+    response = client.get("/api/job/job-impl/pr-url")
+    assert response.status_code == 404
+
+
 def test_compare_starts_comparer_and_returns_202(mocker: MockerFixture) -> None:
     storage.create_job("job-a", "https://a.com", "claude", JobType.CRAWL)
     storage.create_job("job-b", "https://b.com", "claude", JobType.CRAWL)
