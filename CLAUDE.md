@@ -156,68 +156,7 @@ Before opening a PR, review the code critically for quality — not just correct
 
 ---
 
-## Agentic Orchestration Loops
-
-Tasks flow in three tiers: the user assigns work to the orchestrator in natural language, the
-orchestrator spawns implementation agents to do the work, and each implementation agent spawns
-its own review agents to validate quality before reporting back. This mirrors exactly how the
-user interacts with the orchestrator — one level down.
-
----
-
-### Roles
-
-**Orchestrator (main agent)** receives tasks from the user, breaks them into sub-tasks when
-needed, spawns implementation agents, tracks their state, manages dependencies, and surfaces
-blockers. It coordinates — it does not implement.
-
-**Implementation agents** own a single task end-to-end: implement it, run their own review
-loop by spawning a review agent, iterate on findings until the review agent returns none, then
-open a draft PR and report back to the orchestrator with the PR number and any open questions.
-
-**Review agents** are spawned by implementation agents. They receive the PR diff and the
-review criteria from this file, return a numbered list of specific findings (file, line, exact
-issue), and nothing else. No praise, no summaries. If there are no findings, say "No findings."
-
----
-
-### Orchestrator behavior
-
-When the user assigns a task:
-
-1. Determine whether it maps to one PR or several. If several, identify dependencies.
-2. Spawn an implementation agent per sub-task — in parallel when there are no dependencies,
-   sequentially when there are.
-3. Track each agent: what it's building, which PR it opened, whether it's blocked.
-4. When an agent reports done, run a final check with `gh pr diff <number>` against the review
-   criteria below. Post any remaining findings as a numbered list on the PR and tell the agent
-   to fix and re-push.
-5. When all criteria pass, mark the PR ready with `gh pr ready <number>`.
-6. If the same criterion fails three times in a row, stop iterating and surface the issue to
-   the user with a summary of what was attempted and why it keeps failing. Do not accept a PR
-   that fails criteria to unblock the sequence.
-
----
-
-### Implementation agent instructions
-
-Pass to each implementation agent:
-- A clear description of the task: what to build, which files are likely involved, acceptance
-  criteria
-- The full text of this `CLAUDE.md`
-- This instruction:
-
-  *"Implement this task. Follow every convention in CLAUDE.md. When implementation is complete,
-  open a draft PR on branch `ejaimez/<short-feature-name>`. Then spawn a review sub-agent:
-  pass it the output of `gh pr diff <number>` and the review criteria from CLAUDE.md with the
-  instruction 'Review this diff against the criteria. Return a numbered list of findings —
-  file, line, exact issue. If none, say No findings.' Fix every finding and push to the same
-  branch. Repeat until the review agent returns no findings. Then report back: PR number, what
-  was done, any open questions."*
-
----
-
-### Review criteria
+## Review Criteria
 
 Accept only when **all** of the following pass:
 
