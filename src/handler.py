@@ -106,6 +106,21 @@ def get_comparison(id: str) -> dict:
     return {"jobId": id, "content": content}
 
 
+@router.get("/job/{id}/pr-url", summary="Get PR URL for implement job")
+def get_pr_url(id: str) -> dict:
+    """Returns the GitHub PR URL for a completed implement job. Returns 404 if not ready."""
+    job = get_job(id)
+    if job is None:
+        raise HTTPException(status_code=404, detail=f"Job {id} not found")
+    artifact = job.get("artifacts", {}).get(ArtifactType.PR_URL.value, {})
+    if artifact.get("status") != ArtifactStatus.COMPLETE.value:
+        raise HTTPException(status_code=404, detail="PR URL artifact not ready")
+    pr_url = artifact.get("prUrl")
+    if not pr_url:
+        raise HTTPException(status_code=404, detail="PR URL not available")
+    return {"jobId": id, "prUrl": pr_url}
+
+
 @router.get("/jobs", summary="List all jobs")
 def list_all_jobs(model: str | None = None) -> dict:
     """Returns a lightweight list of all jobs without artifact content. Optionally filter by model."""
