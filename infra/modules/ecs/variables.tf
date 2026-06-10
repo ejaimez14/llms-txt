@@ -51,3 +51,7 @@ variable "pinecone_index" {
 variable "vpc_id" {
   description = "VPC ID for the Fargate task security group"
 }
+
+variable "implement_task_family" {
+  description = "ECS task definition family name for the implement agent (no ANTHROPIC_API_KEY; uses CLAUDE_CODE_OAUTH_TOKEN)"
+}

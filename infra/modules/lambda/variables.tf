@@ -34,7 +34,12 @@ variable "ecs_cluster" {
 }
 
 variable "ecs_task_definition" {
-  description = "ARN of the shared ECS task definition used by all agent tasks."
+  description = "ARN of the shared ECS task definition used by crawl, ui-plan, report, and compare tasks."
+  type        = string
+}
+
+variable "ecs_implement_task_definition" {
+  description = "ARN of the implement ECS task definition (uses CLAUDE_CODE_OAUTH_TOKEN instead of ANTHROPIC_API_KEY)."
   type        = string
 }
 
