@@ -14,9 +14,10 @@ resource "aws_lambda_function" "api" {
       TABLE                           = var.table_name
       SITES_TABLE                     = var.sites_table_name
       PINECONE_INDEX                  = var.pinecone_index
-      ECS_CLUSTER            = var.ecs_cluster
-      ECS_TASK_DEFINITION    = var.ecs_task_definition
-      ECS_SECURITY_GROUP     = var.ecs_security_group
+      ECS_CLUSTER                   = var.ecs_cluster
+      ECS_TASK_DEFINITION           = var.ecs_task_definition
+      ECS_IMPLEMENT_TASK_DEFINITION = var.ecs_implement_task_definition
+      ECS_SECURITY_GROUP            = var.ecs_security_group
       ECS_SUBNET_IDS                  = var.ecs_subnet_ids
       RECRAWL_QUEUE_URL               = var.recrawl_queue_url
     }
