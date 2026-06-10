@@ -14,8 +14,12 @@ logger = get_logger(__name__)
 
 def upsert_vector(job_id: str, vector: list[float], metadata: dict) -> None:
     """Upserts a single vector into Pinecone using job_id as the vector ID."""
+    # Pinecone rejects null metadata values, so drop keys whose value is None.
+    clean_metadata = {key: value for key, value in metadata.items() if value is not None}
     try:
-        _index.upsert(vectors=[{"id": job_id, "values": vector, "metadata": metadata}])
+        _index.upsert(
+            vectors=[{"id": job_id, "values": vector, "metadata": clean_metadata}]
+        )
     except Exception as exc:
         logger.error({"event": "pinecone_upsert_failed", "error": str(exc)})
         raise

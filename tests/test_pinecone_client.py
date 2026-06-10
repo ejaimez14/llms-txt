@@ -31,6 +31,23 @@ def test_upsert_vector_calls_index(mock_index: MagicMock) -> None:
     )
 
 
+def test_upsert_vector_drops_null_metadata(mock_index: MagicMock) -> None:
+    vector = [0.1, 0.2, 0.3]
+    metadata = {"url": "https://example.com", "business_model": None, "tone": None}
+
+    pinecone_module.upsert_vector("job-1", vector, metadata)
+
+    mock_index.upsert.assert_called_once_with(
+        vectors=[
+            {
+                "id": "job-1",
+                "values": vector,
+                "metadata": {"url": "https://example.com"},
+            }
+        ]
+    )
+
+
 def test_query_vectors_returns_ranked_results(mock_index: MagicMock) -> None:
     mock_index.query.return_value = {
         "matches": [
