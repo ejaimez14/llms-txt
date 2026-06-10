@@ -239,6 +239,59 @@ No changes to .markdown-body CSS.
 
 ---
 
+## Test Loop
+
+The implementing agent must run three validation stages in order before opening the PR for review.
+All three must pass — do not skip a stage or proceed to the next if the current stage fails.
+
+### Stage 1: Local API (pytest + live server)
+
+1. Run `make test` — all tests must pass with no errors.
+2. Start the FastAPI app locally: `uvicorn src.handler:app --reload`.
+3. Exercise the changed endpoints manually using `curl` or the browser UI:
+   - POST /report with `{ "url": "<a previously crawled URL>" }` → verify HTTP 202 and both
+     `jobIdClaude` and `jobIdOpenai` appear in the response.
+   - POST /compare with `{ "url": "<same URL>" }` → verify HTTP 202 with a `jobId`.
+   - Verify a missing-report 404 returns the correct model name in the error message.
+   - Open the UI in the browser and confirm the Report tab renders two artifact cards and that
+     markdown renders correctly (headings, lists, code blocks, tables).
+4. Stop the local server.
+
+Stage 1 passes when all tests are green and all manual checks above produce the expected results.
+
+### Stage 2: Docker image (local container run)
+
+1. Build the Docker image: `make docker-build` (or `docker build -t llms-txt-agent .`).
+2. Run the container locally, wiring in the required env vars from `.env` or `~/.aws`:
+   ```
+   docker run --rm \
+     -e TABLE=... -e SITES_TABLE=... -e BUCKET=... \
+     -e PINECONE_INDEX=... -e AWS_DEFAULT_REGION=us-east-1 \
+     -e ANTHROPIC_API_KEY=... -e PINECONE_API_KEY=... \
+     -p 8000:8000 llms-txt-agent
+   ```
+3. Repeat the same endpoint checks from Stage 1 against `http://localhost:8000`.
+4. Confirm no import errors or missing-dependency failures appear in container logs.
+
+Stage 2 passes when the container starts cleanly and all endpoint checks pass identically to Stage 1.
+
+### Stage 3: AWS deployment (staging stack)
+
+1. Build the Lambda zip: `make build`.
+2. Deploy the updated Lambda: `make deploy` (or `aws lambda update-function-code ...`).
+3. Wait for the update to propagate: `aws lambda wait function-updated --function-name <name>`.
+4. Test against the deployed API Gateway URL:
+   - Repeat the same endpoint checks from Stage 1 against the live API Gateway URL.
+   - Verify CloudWatch logs show the correct structured log events (`report_started`,
+     `report_completed`, `compare_started`, `compare_completed`) with no errors.
+5. Confirm the UI served from S3/CloudFront renders markdown correctly on a real report artifact.
+
+Stage 3 passes when all endpoint checks pass on AWS and CloudWatch shows clean logs with no errors.
+
+Only after all three stages pass should the agent open the draft PR and notify the user for review.
+
+---
+
 ## Guidance for the Implementing Agent
 
 ### CLAUDE.md sections that apply
