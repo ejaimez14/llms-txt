@@ -1,21 +1,14 @@
 import asyncio
-import os
 import tempfile
 from pathlib import Path
 
 from claude_agent_sdk import ClaudeAgentOptions, query
 
-from src.constants import (
-    AgentType,
-    ArtifactType,
-    IMPLEMENTER_BASE_BRANCH,
-    IMPLEMENTER_REPO,
-)
 from src.models import TaskConfig
+from src.prompts import _build_prompt
 from src.services.hooks import JobHooks
 from src.services.llm import create_agent, run_agent
 from src.services.logger import get_logger
-from src.services.storage import get_artifact_content
 
 logger = get_logger(__name__)
 
@@ -71,35 +64,3 @@ async def _run_sdk(hooks: JobHooks, url: str, config: TaskConfig) -> None:
             Path(workspace, config.output_file).read_text()
         )
         hooks.on_complete(output.model_dump())
-
-
-def _build_prompt(url: str, config: TaskConfig) -> str:
-    if config.agent_type == AgentType.IMPLEMENT:
-        return _build_implement_prompt(url, config)
-    return (
-        f"{config.system_prompt}\n\n"
-        f"After completing your analysis, write your output as a JSON object to "
-        f"`{config.output_file}` in the working directory. "
-        f"The JSON must have exactly these fields: {config.output_schema_hint}.\n\n"
-        f"{config.task_instruction.format(url=url)}"
-    )
-
-
-def _build_implement_prompt(url: str, config: TaskConfig) -> str:
-    """Builds the implementer prompt by fetching the UI plan from storage and injecting repo context."""
-    plan_content = get_artifact_content(url, ArtifactType.PLAN)
-    if plan_content is None:
-        raise ValueError(f"UI plan artifact unavailable for job {url}")
-
-    branch_name = f"ui-implement/{os.environ['AGENT_ID'][:8]}"
-
-    return (
-        f"{config.system_prompt}\n\n"
-        f"Repository: {IMPLEMENTER_REPO}\n"
-        f"Base branch: {IMPLEMENTER_BASE_BRANCH}\n"
-        f"Implementation branch: {branch_name}\n\n"
-        f"Implement this UI plan:\n\n{plan_content}\n\n"
-        f"After opening the GitHub PR, write your output as a JSON object to "
-        f"`{config.output_file}` in the working directory. "
-        f"The JSON must have exactly one field: {config.output_schema_hint}."
-    )
