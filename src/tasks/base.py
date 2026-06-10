@@ -4,9 +4,9 @@ from pathlib import Path
 
 from claude_agent_sdk import ClaudeAgentOptions, query
 
-from src.constants import AgentType, ArtifactType, IMPLEMENTER_BASE_BRANCH, IMPLEMENTER_REPO
+from src.constants import AgentType
 from src.models import TaskConfig
-from src.prompts import _build_prompt
+from src.prompts import _build_implement_prompt
 from src.services.hooks import JobHooks
 from src.services.llm import create_agent, run_agent
 from src.services.logger import get_logger
@@ -65,40 +65,3 @@ async def _run_sdk(hooks: JobHooks, url: str, config: TaskConfig) -> None:
             Path(workspace, config.output_file).read_text()
         )
         hooks.on_complete(output.model_dump())
-
-
-def _build_implement_prompt(url: str, config: TaskConfig) -> str:
-    """Builds the agent prompt with git/gh commands; no token in URLs (auth via gh credential helper)."""
-    plan_content = get_artifact_content(url, ArtifactType.PLAN)
-    if plan_content is None:
-        raise ValueError(f"UI plan artifact unavailable for job {url}")
-
-    branch_name = f"ui-implement/{os.environ['AGENT_ID'][:8]}"
-    clone_cmd = f"git clone {IMPLEMENTER_REPO}.git repo"
-    branch_cmd = f"git checkout -b {branch_name}"
-    push_cmd = f"git add -A && git commit -m 'Implement UI plan' && git push origin {branch_name}"
-    pr_cmd = (
-        f"gh pr create"
-        f" --title 'UI Implementation'"
-        f" --body 'Automated UI implementation from plan'"
-        f" --base {IMPLEMENTER_BASE_BRANCH}"
-        f" --head {branch_name}"
-    )
-
-    return (
-        f"{config.system_prompt}\n\n"
-        f"Execute these exact steps in order:\n\n"
-        f"1. Clone:          {clone_cmd}\n"
-        f"2. Create branch:  cd repo && {branch_cmd}\n"
-        f"3. Implement:      write all UI files directly inside repo/ (see ## UI Plan below)\n"
-        f"4. Commit & push:  {push_cmd}\n"
-        f"5. Create PR:      {pr_cmd}\n"
-        f"   Capture the URL printed on stdout (e.g. https://github.com/.../pull/N).\n"
-        f"6. Write output:   write `{config.output_file}` in the working directory (not inside repo/).\n"
-        f"   Schema: {config.output_schema_hint}\n"
-        f"   Example: {{\"pr_url\": \"<exact URL from step 5>\", \"debug\": \"\"}}\n\n"
-        f"If any step fails, write `{config.output_file}` immediately with:\n"
-        f"   {{\"pr_url\": \"\", \"debug\": \"step N failed: <exact error message from the failed command>\"}}\n"
-        f"and stop. Include the full error output in debug.\n\n"
-        f"## UI Plan\n\n{plan_content}"
-    )

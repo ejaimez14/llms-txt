@@ -1,6 +1,6 @@
 import os
 
-from src.constants import AgentType, ArtifactType, IMPLEMENTER_BASE_BRANCH, IMPLEMENTER_REPO
+from src.constants import ArtifactType, IMPLEMENTER_BASE_BRANCH, IMPLEMENTER_REPO
 from src.models import TaskConfig
 from src.services.storage import get_artifact_content
 
@@ -226,33 +226,38 @@ def _build_compare_message(
     )
 
 
-def _build_prompt(url: str, config: TaskConfig) -> str:
-    if config.agent_type == AgentType.IMPLEMENT:
-        return _build_implement_prompt(url, config)
-    return (
-        f"{config.system_prompt}\n\n"
-        f"After completing your analysis, write your output as a JSON object to "
-        f"`{config.output_file}` in the working directory. "
-        f"The JSON must have exactly these fields: {config.output_schema_hint}.\n\n"
-        f"{config.task_instruction.format(url=url)}"
-    )
-
-
 def _build_implement_prompt(url: str, config: TaskConfig) -> str:
-    """Builds the implementer prompt by fetching the UI plan from storage and injecting repo context."""
+    """Builds the agent prompt with git/gh commands; no token in URLs (auth via gh credential helper)."""
     plan_content = get_artifact_content(url, ArtifactType.PLAN)
     if plan_content is None:
         raise ValueError(f"UI plan artifact unavailable for job {url}")
 
     branch_name = f"ui-implement/{os.environ['AGENT_ID'][:8]}"
+    clone_cmd = f"git clone {IMPLEMENTER_REPO}.git repo"
+    branch_cmd = f"git checkout -b {branch_name}"
+    push_cmd = f"git add -A && git commit -m 'Implement UI plan' && git push origin {branch_name}"
+    pr_cmd = (
+        f"gh pr create"
+        f" --title 'UI Implementation'"
+        f" --body 'Automated UI implementation from plan'"
+        f" --base {IMPLEMENTER_BASE_BRANCH}"
+        f" --head {branch_name}"
+    )
 
     return (
         f"{config.system_prompt}\n\n"
-        f"Repository: {IMPLEMENTER_REPO}\n"
-        f"Base branch: {IMPLEMENTER_BASE_BRANCH}\n"
-        f"Implementation branch: {branch_name}\n\n"
-        f"Implement this UI plan:\n\n{plan_content}\n\n"
-        f"After opening the GitHub PR, write your output as a JSON object to "
-        f"`{config.output_file}` in the working directory. "
-        f"The JSON must have exactly one field: {config.output_schema_hint}."
+        f"Execute these exact steps in order:\n\n"
+        f"1. Clone:          {clone_cmd}\n"
+        f"2. Create branch:  cd repo && {branch_cmd}\n"
+        f"3. Implement:      write all UI files directly inside repo/ (see ## UI Plan below)\n"
+        f"4. Commit & push:  {push_cmd}\n"
+        f"5. Create PR:      {pr_cmd}\n"
+        f"   Capture the URL printed on stdout (e.g. https://github.com/.../pull/N).\n"
+        f"6. Write output:   write `{config.output_file}` in the working directory (not inside repo/).\n"
+        f"   Schema: {config.output_schema_hint}\n"
+        f'   Example: {{"pr_url": "<exact URL from step 5>", "debug": ""}}\n\n'
+        f"If any step fails, write `{config.output_file}` immediately with:\n"
+        f'   {{"pr_url": "", "debug": "step N failed: <exact error message from the failed command>"}}\n'
+        f"and stop. Include the full error output in debug.\n\n"
+        f"## UI Plan\n\n{plan_content}"
     )
