@@ -33,12 +33,14 @@ def create_agent(
     job_id: str,
     url: str,
     system_prompt: str,
+    max_turns: int = 30,
+    timeout_seconds: int = 300,
 ) -> dict:
     """Returns an agent context dict with hooks pre-attached, ready for run_agent()."""
     if model == "claude":
-        return _create_claude_agent(system_prompt, job_id, agent_type, url, model)
+        return _create_claude_agent(system_prompt, job_id, agent_type, url, model, timeout_seconds)
     elif model == "openai":
-        return _create_openai_agent(system_prompt, job_id, agent_type, url, model)
+        return _create_openai_agent(system_prompt, job_id, agent_type, url, model, max_turns)
     else:
         raise ValueError(f"Unknown model: {model!r}. Supported: 'claude', 'openai'")
 
@@ -61,6 +63,7 @@ def _create_claude_agent(
     agent_type: AgentType,
     url: str,
     model: str,
+    timeout_seconds: int = 300,
 ) -> dict:
     """Builds a Claude instructor context dict with hooks pre-attached."""
     model_id = CLAUDE_AGENT_MODELS.get(agent_type)
@@ -77,6 +80,7 @@ def _create_claude_agent(
         "hooks": hooks,
         "response_model": response_model,
         "extra_tools": CLAUDE_EXTRA_TOOLS.get(agent_type, []),
+        "timeout_seconds": timeout_seconds,
     }
 
 
@@ -86,13 +90,16 @@ def _create_openai_agent(
     agent_type: AgentType,
     url: str,
     model: str,
+    max_turns: int = 30,
 ) -> dict:
     """Builds an OpenAI Agents SDK context dict with hooks pre-attached."""
     model_id = OPENAI_AGENT_MODELS.get(agent_type)
     if not model_id:
         raise ValueError(f"No OpenAI model configured for agent_type={agent_type!r}")
     web_tools = (
-        [WebSearchTool(), web_fetch_tool] if agent_type in ("crawl", "ui-plan") else []
+        [WebSearchTool(), web_fetch_tool]
+        if agent_type in (AgentType.CRAWL, AgentType.UI_PLAN)
+        else []
     )
     agent = Agent(
         name=agent_type,
@@ -102,7 +109,7 @@ def _create_openai_agent(
         output_type=_AGENT_OUTPUT_MODEL[agent_type],
     )
     hooks = JobHooks(job_id, agent_type, url, model)
-    return {"provider": "openai", "agent": agent, "hooks": hooks}
+    return {"provider": "openai", "agent": agent, "hooks": hooks, "max_turns": max_turns}
 
 
 def _run_claude(agent_ctx: dict, user_content: str) -> dict:
@@ -120,7 +127,8 @@ def _run_claude(agent_ctx: dict, user_content: str) -> dict:
         if agent_ctx["extra_tools"]:
             kwargs["tools"] = agent_ctx["extra_tools"]
         output, completion = _instructor_client.messages.create_with_completion(
-            **kwargs
+            **kwargs,
+            timeout=agent_ctx["timeout_seconds"],
         )
         output_dict = output.model_dump()
         hooks.on_complete(output_dict, completion.usage)
@@ -135,7 +143,7 @@ def _run_openai(agent_ctx: dict, user_content: str) -> dict:
     hooks = agent_ctx["hooks"]
     hooks.on_start()
     try:
-        result = Runner.run_sync(agent_ctx["agent"], user_content)
+        result = Runner.run_sync(agent_ctx["agent"], user_content, max_turns=agent_ctx["max_turns"])
         raw_output = result.final_output.model_dump()
         hooks.on_complete(raw_output, result.context_wrapper.usage)
         return raw_output
