@@ -10,7 +10,8 @@ locals {
 }
 
 module "iam" {
-  source = "./modules/iam"
+  source     = "./modules/iam"
+  aws_region = var.aws_region
 }
 
 module "s3" {
