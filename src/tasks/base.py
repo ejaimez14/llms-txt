@@ -1,5 +1,4 @@
 import asyncio
-import os
 import tempfile
 from pathlib import Path
 
@@ -7,10 +6,10 @@ from claude_agent_sdk import ClaudeAgentOptions, query
 
 from src.constants import AgentType, ArtifactType, IMPLEMENTER_BASE_BRANCH, IMPLEMENTER_REPO
 from src.models import TaskConfig
+from src.prompts import _build_prompt
 from src.services.hooks import JobHooks
 from src.services.llm import create_agent, run_agent
 from src.services.logger import get_logger
-from src.services.storage import get_artifact_content
 
 logger = get_logger(__name__)
 

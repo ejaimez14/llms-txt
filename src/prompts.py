@@ -1,3 +1,9 @@
+import os
+
+from src.constants import AgentType, ArtifactType, IMPLEMENTER_BASE_BRANCH, IMPLEMENTER_REPO
+from src.models import TaskConfig
+from src.services.storage import get_artifact_content
+
 CRAWL_SYSTEM_PROMPT = """
 You are a web crawler that produces llms.txt files.
 
@@ -217,4 +223,36 @@ def _build_compare_message(
         f"Compare these two llms.txt outputs for the same website.{url_note}\n\n"
         f"--- Model A ({model_a}) ---\n{content_a}\n\n"
         f"--- Model B ({model_b}) ---\n{content_b}"
+    )
+
+
+def _build_prompt(url: str, config: TaskConfig) -> str:
+    if config.agent_type == AgentType.IMPLEMENT:
+        return _build_implement_prompt(url, config)
+    return (
+        f"{config.system_prompt}\n\n"
+        f"After completing your analysis, write your output as a JSON object to "
+        f"`{config.output_file}` in the working directory. "
+        f"The JSON must have exactly these fields: {config.output_schema_hint}.\n\n"
+        f"{config.task_instruction.format(url=url)}"
+    )
+
+
+def _build_implement_prompt(url: str, config: TaskConfig) -> str:
+    """Builds the implementer prompt by fetching the UI plan from storage and injecting repo context."""
+    plan_content = get_artifact_content(url, ArtifactType.PLAN)
+    if plan_content is None:
+        raise ValueError(f"UI plan artifact unavailable for job {url}")
+
+    branch_name = f"ui-implement/{os.environ['AGENT_ID'][:8]}"
+
+    return (
+        f"{config.system_prompt}\n\n"
+        f"Repository: {IMPLEMENTER_REPO}\n"
+        f"Base branch: {IMPLEMENTER_BASE_BRANCH}\n"
+        f"Implementation branch: {branch_name}\n\n"
+        f"Implement this UI plan:\n\n{plan_content}\n\n"
+        f"After opening the GitHub PR, write your output as a JSON object to "
+        f"`{config.output_file}` in the working directory. "
+        f"The JSON must have exactly one field: {config.output_schema_hint}."
     )
