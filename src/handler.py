@@ -1,18 +1,13 @@
 import uuid
-from collections.abc import Callable
-from threading import Thread
 
 from fastapi import APIRouter, FastAPI, HTTPException, Query
 from fastapi.responses import FileResponse
 from mangum import Mangum
 
-from src.agents.comparer import run_comparer
-from src.agents.reporter import run_reporter
 from src.constants import (
     AgentType,
     ArtifactStatus,
     ArtifactType,
-    JobStatus,
     JobType,
     ModelName,
 )
@@ -25,13 +20,19 @@ from src.models import (
 )
 from src.services.fargate import trigger_task
 from src.services.logger import get_logger
-from src.services.recrawl import handle_schedule, handle_sqs
+from src.services.recrawl import (
+    enqueue_compare,
+    enqueue_report,
+    handle_schedule,
+    handle_sqs,
+)
 from src.services.search import run_search
 from src.services.storage import (
     create_job,
     fail_artifact,
     get_artifact_content,
     get_job,
+    get_latest_report_job_by_model,
     get_site,
     list_jobs,
     list_jobs_for_url,
@@ -156,8 +157,8 @@ def report(req: ReportRequest) -> dict:
     job_id_openai = str(uuid.uuid4())
     create_job(job_id_claude, req.url, ModelName.CLAUDE.value, JobType.REPORT)
     create_job(job_id_openai, req.url, ModelName.OPENAI.value, JobType.REPORT)
-    _run_in_thread(run_reporter, job_id_claude, req.url, ModelName.CLAUDE.value)
-    _run_in_thread(run_reporter, job_id_openai, req.url, ModelName.OPENAI.value)
+    enqueue_report(job_id_claude, req.url, ModelName.CLAUDE.value)
+    enqueue_report(job_id_openai, req.url, ModelName.OPENAI.value)
     return {
         "jobIdClaude": job_id_claude,
         "jobIdOpenai": job_id_openai,
@@ -165,34 +166,37 @@ def report(req: ReportRequest) -> dict:
     }
 
 
-@router.post("/compare", status_code=202, summary="Compare two crawl jobs")
+@router.post(
+    "/compare", status_code=202, summary="Compare both models' reports for a URL"
+)
 def compare(req: CompareRequest) -> dict:
-    """Fetches llms.txt from two complete crawl jobs and generates a diff-focused comparison in the background."""
-    if req.job_id_a == req.job_id_b:
+    """Finds the latest completed report per model for the URL and generates a diff-focused comparison in the background."""
+    if get_site(req.url) is None:
         raise HTTPException(
-            status_code=400, detail="job_id_a and job_id_b must be different"
+            status_code=404,
+            detail=f"No crawl found for {req.url}. Crawl the site first.",
         )
 
-    job_a = get_job(req.job_id_a)
-    if job_a is None:
-        raise HTTPException(status_code=404, detail=f"Job {req.job_id_a} not found")
-
-    job_b = get_job(req.job_id_b)
-    if job_b is None:
-        raise HTTPException(status_code=404, detail=f"Job {req.job_id_b} not found")
-
-    if job_a.get("status") != JobStatus.COMPLETE:
+    report_jobs = get_latest_report_job_by_model(req.url)
+    if report_jobs[ModelName.CLAUDE] is None:
         raise HTTPException(
-            status_code=400, detail=f"Job {req.job_id_a} is not complete"
+            status_code=404,
+            detail=f"No completed claude report found for {req.url}. Run POST /report first.",
         )
-    if job_b.get("status") != JobStatus.COMPLETE:
+    if report_jobs[ModelName.OPENAI] is None:
         raise HTTPException(
-            status_code=400, detail=f"Job {req.job_id_b} is not complete"
+            status_code=404,
+            detail=f"No completed openai report found for {req.url}. Run POST /report first.",
         )
 
     job_id = str(uuid.uuid4())
-    create_job(job_id, job_a["url"], req.model, JobType.COMPARE)
-    _run_in_thread(run_comparer, job_id, req.job_id_a, req.job_id_b, req.model)
+    create_job(job_id, req.url, ModelName.CLAUDE.value, JobType.COMPARE)
+    enqueue_compare(
+        job_id,
+        report_jobs[ModelName.CLAUDE],
+        report_jobs[ModelName.OPENAI],
+        ModelName.CLAUDE.value,
+    )
     return {"jobId": job_id, "status": "processing"}
 
 
@@ -216,14 +220,6 @@ def implement(req: ImplementRequest) -> dict:
 def serve_frontend() -> FileResponse:
     # In prod CloudFront serves index.html from S3 — this route is for local dev only.
     return FileResponse("src/index.html")
-
-
-# --- Internal ---
-
-
-def _run_in_thread(fn: Callable[..., object], *args: object) -> None:
-    """Starts fn(*args) in a daemon thread for single-agent background jobs."""
-    Thread(target=fn, args=args, daemon=True).start()
 
 
 app.include_router(router)

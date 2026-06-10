@@ -122,6 +122,19 @@
 
     @keyframes spin { to { transform: rotate(360deg); } }
 
+    /* --- Job progress --- */
+    .job-progress {
+      margin: 0.5rem 0;
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+    }
+
+    .progress-line {
+      font-size: 0.9rem;
+      color: #495057;
+    }
+
     /* --- Messages --- */
     .error-msg {
       background: #fff3cd;
@@ -310,6 +323,8 @@
       font-size: 0.95rem;
     }
   </style>
+  <script src="https://cdn.jsdelivr.net/npm/marked@12/marked.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/dompurify@3/dist/purify.min.js"></script>
 </head>
 <body>
 <div class="container">
@@ -369,20 +384,14 @@
         <label for="report-url">Website URL</label>
         <input type="text" id="report-url" placeholder="https://example.com" required />
       </div>
-      <div class="form-group">
-        <label for="report-model">Model</label>
-        <select id="report-model">
-          <option value="claude">Claude (Bedrock)</option>
-          <option value="openai">OpenAI</option>
-        </select>
-      </div>
-      <button type="submit" class="btn-primary">Generate Report</button>
+      <button type="submit" class="btn-primary">Generate Reports</button>
     </form>
 
     <div class="spinner" id="report-spinner">
       <div class="spinner-ring"></div>
-      <span>Generating report…</span>
+      <span>Generating reports…</span>
     </div>
+    <div id="report-progress" class="job-progress"></div>
     <div id="report-error"></div>
     <div id="report-artifact"></div>
   </section>
@@ -391,19 +400,8 @@
   <section class="tab-panel" id="tab-compare">
     <form id="compare-form">
       <div class="form-group">
-        <label for="compare-job-a">Job ID A</label>
-        <input type="text" id="compare-job-a" placeholder="e.g. abc123…" required />
-      </div>
-      <div class="form-group">
-        <label for="compare-job-b">Job ID B</label>
-        <input type="text" id="compare-job-b" placeholder="e.g. def456…" required />
-      </div>
-      <div class="form-group">
-        <label for="compare-model">Model</label>
-        <select id="compare-model">
-          <option value="claude">Claude (Bedrock)</option>
-          <option value="openai">OpenAI</option>
-        </select>
+        <label for="compare-url">Website URL</label>
+        <input type="text" id="compare-url" placeholder="https://example.com" required />
       </div>
       <button type="submit" class="btn-primary">Compare</button>
     </form>
@@ -412,6 +410,7 @@
       <div class="spinner-ring"></div>
       <span>Generating comparison…</span>
     </div>
+    <div id="compare-progress" class="job-progress"></div>
     <div id="compare-error"></div>
     <div id="compare-artifact"></div>
   </section>
@@ -475,162 +474,10 @@ function downloadFile(filename, content) {
 }
 
 // ---------------------------------------------------------------------------
-// Markdown renderer — XSS-safe, handles common Claude output
+// Markdown renderer — marked.js for CommonMark, DOMPurify to sanitize crawled content
 // ---------------------------------------------------------------------------
 function renderMarkdown(md) {
-  // Escape HTML first to prevent XSS from crawled content
-  let escaped = md
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-
-  const lines = escaped.split('\n')
-  const output = []
-  let inFence = false
-  let fenceContent = []
-  let inList = false
-
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i]
-
-    // Fenced code blocks
-    if (/^```/.test(line)) {
-      if (!inFence) {
-        if (inList) { output.push('</ul>'); inList = false }
-        inFence = true
-        fenceContent = []
-      } else {
-        inFence = false
-        output.push('<pre><code>' + fenceContent.join('\n') + '</code></pre>')
-      }
-      continue
-    }
-
-    if (inFence) {
-      fenceContent.push(line)
-      continue
-    }
-
-    // Table rows — lines starting and ending with |
-    if (/^\|.*\|$/.test(line.trim())) {
-      if (inList) { output.push('</ul>'); inList = false }
-      // Separator rows (e.g. |---|---|) become <thead>/<tbody> boundary — skip them
-      if (/^\|[\s\-:|]+\|$/.test(line.trim())) {
-        // Convert the previous <tr> to a header row if it exists
-        if (output.length > 0) {
-          const last = output[output.length - 1]
-          if (last.startsWith('<tr>')) {
-            output[output.length - 1] = '<thead>' + last.replace(/<td>/g, '<th>').replace(/<\/td>/g, '</th>') + '</tr></thead><tbody>'
-          }
-        }
-        continue
-      }
-      const cells = line.trim().replace(/^\||\|$/g, '').split('|')
-      const row = '<tr>' + cells.map(c => '<td>' + applyInline(c.trim()) + '</td>').join('') + '</tr>'
-      output.push(row)
-      continue
-    }
-
-    // Close table if open
-    if (output.length > 0 && (output[output.length - 1].startsWith('<tr>') || output[output.length - 1].endsWith('</tr>'))) {
-      // Wrap preceding rows in a table
-      const tableRows = []
-      while (output.length > 0) {
-        const top = output[output.length - 1]
-        if (top.startsWith('<tr>') || top.endsWith('</tr>') || top.startsWith('<thead>') || top === '<tbody>') {
-          tableRows.unshift(output.pop())
-        } else {
-          break
-        }
-      }
-      let tableHtml = '<table>'
-      const hasHead = tableRows.some(r => r.startsWith('<thead>'))
-      if (hasHead) {
-        tableHtml += tableRows.join('')
-        tableHtml += '</tbody>'
-      } else {
-        tableHtml += tableRows.join('')
-      }
-      tableHtml += '</table>'
-      output.push(tableHtml)
-    }
-
-    // ATX headings
-    const h3 = line.match(/^### (.+)$/)
-    const h2 = line.match(/^## (.+)$/)
-    const h1 = line.match(/^# (.+)$/)
-    if (h3) { if (inList) { output.push('</ul>'); inList = false } output.push('<h3>' + applyInline(h3[1]) + '</h3>'); continue }
-    if (h2) { if (inList) { output.push('</ul>'); inList = false } output.push('<h2>' + applyInline(h2[1]) + '</h2>'); continue }
-    if (h1) { if (inList) { output.push('</ul>'); inList = false } output.push('<h1>' + applyInline(h1[1]) + '</h1>'); continue }
-
-    // Blockquotes
-    const bq = line.match(/^&gt; (.+)$/)
-    if (bq) { if (inList) { output.push('</ul>'); inList = false } output.push('<blockquote>' + applyInline(bq[1]) + '</blockquote>'); continue }
-
-    // Unordered list items (- or *)
-    const li = line.match(/^[-*] (.+)$/)
-    if (li) {
-      if (!inList) { output.push('<ul>'); inList = true }
-      output.push('<li>' + applyInline(li[1]) + '</li>')
-      continue
-    }
-
-    // Blank line
-    if (line.trim() === '') {
-      if (inList) { output.push('</ul>'); inList = false }
-      output.push('<p></p>')
-      continue
-    }
-
-    // Close list before a paragraph
-    if (inList) { output.push('</ul>'); inList = false }
-
-    output.push('<p>' + applyInline(line) + '</p>')
-  }
-
-  // Close any open list
-  if (inList) output.push('</ul>')
-  // Close any open fence
-  if (inFence) output.push('<pre><code>' + fenceContent.join('\n') + '</code></pre>')
-
-  // Wrap any trailing loose table rows
-  const lastTableCheck = output[output.length - 1]
-  if (lastTableCheck && (lastTableCheck.startsWith('<tr>') || lastTableCheck.endsWith('</tr>'))) {
-    const tableRows = []
-    while (output.length > 0) {
-      const top = output[output.length - 1]
-      if (top.startsWith('<tr>') || top.endsWith('</tr>') || top.startsWith('<thead>') || top === '<tbody>') {
-        tableRows.unshift(output.pop())
-      } else {
-        break
-      }
-    }
-    let tableHtml = '<table>'
-    const hasHead = tableRows.some(r => r.startsWith('<thead>'))
-    if (hasHead) {
-      tableHtml += tableRows.join('')
-      tableHtml += '</tbody>'
-    } else {
-      tableHtml += tableRows.join('')
-    }
-    tableHtml += '</table>'
-    output.push(tableHtml)
-  }
-
-  return output.join('\n')
-}
-
-/** Apply inline Markdown transformations (bold, italic, code, links). */
-function applyInline(text) {
-  return text
-    // Bold (must come before italic)
-    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-    // Italic
-    .replace(/\*(.+?)\*/g, '<em>$1</em>')
-    // Inline code
-    .replace(/`([^`]+)`/g, '<code>$1</code>')
-    // Links
-    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>')
+  return DOMPurify.sanitize(marked.parse(md))
 }
 
 // ---------------------------------------------------------------------------
@@ -688,10 +535,17 @@ function buildArtifactCard(title, content, filename) {
   return card
 }
 
+function buildArtifactErrorCard(title, message) {
+  const card = document.createElement('div')
+  card.className = 'artifact-card'
+  card.innerHTML = `<div class="artifact-header"><h3>${title}</h3></div><p class="artifact-error">${message}</p>`
+  return card
+}
+
 // ---------------------------------------------------------------------------
 // Generic job poller — returns a Promise that resolves with the completed job
 // ---------------------------------------------------------------------------
-function pollJob(jobId, spinnerId, errorId) {
+function pollJob(jobId, spinnerId, errorId, onPoll) {
   return new Promise((resolve, reject) => {
     const poll = setInterval(async () => {
       let job
@@ -705,6 +559,8 @@ function pollJob(jobId, spinnerId, errorId) {
         return
       }
 
+      if (onPoll) onPoll(job)
+
       if (job.status !== STATUS.PROCESSING) {
         clearInterval(poll)
         hideSpinner(spinnerId)
@@ -712,6 +568,38 @@ function pollJob(jobId, spinnerId, errorId) {
       }
     }, 3000)
   })
+}
+
+// Renders a single "<label>: <icon> <status>" line into a progress container,
+// keyed by label so repeated polls update the same line in place.
+function renderProgressLine(containerId, label, status) {
+  const container = document.getElementById(containerId)
+  const id = `progress-${containerId}-${label.replace(/\W+/g, '-')}`
+  let line = document.getElementById(id)
+  if (!line) {
+    line = document.createElement('div')
+    line.id = id
+    line.className = 'progress-line'
+    container.appendChild(line)
+  }
+  const icons = {
+    [STATUS.PROCESSING]: '⏳',
+    [STATUS.COMPLETE]: '✅',
+    [STATUS.FAILED]: '❌',
+  }
+  const icon = icons[status] || '⏳'
+  const shown = status || STATUS.PROCESSING
+  line.textContent = `${label}: ${icon} ${shown}`
+}
+
+function reportArtifactStatus(job) {
+  const info = job.artifacts && job.artifacts.report
+  return info ? info.status : STATUS.PROCESSING
+}
+
+function comparisonArtifactStatus(job) {
+  const info = job.artifacts && job.artifacts.comparison
+  return info ? info.status : STATUS.PROCESSING
 }
 
 // ---------------------------------------------------------------------------
@@ -768,19 +656,13 @@ async function displayCrawlArtifacts(jobId, artifacts) {
       try {
         data = await callApi(`/api/job/${jobId}/${def.path}`, 'GET')
       } catch (err) {
-        const errorDiv = document.createElement('div')
-        errorDiv.className = 'artifact-card'
-        errorDiv.innerHTML = `<div class="artifact-header"><h3>${def.title}</h3></div><p class="artifact-error">Failed to load: ${err.message}</p>`
-        container.appendChild(errorDiv)
+        container.appendChild(buildArtifactErrorCard(def.title, `Failed to load: ${err.message}`))
         continue
       }
       container.appendChild(buildArtifactCard(def.title, data.content, def.filename))
     } else {
-      const errorDiv = document.createElement('div')
-      errorDiv.className = 'artifact-card'
       const errorMsg = info ? (info.error || 'Artifact failed') : 'Artifact not found'
-      errorDiv.innerHTML = `<div class="artifact-header"><h3>${def.title}</h3></div><p class="artifact-error">${errorMsg}</p>`
-      container.appendChild(errorDiv)
+      container.appendChild(buildArtifactErrorCard(def.title, errorMsg))
     }
   }
 }
@@ -854,18 +736,19 @@ document.getElementById('report-form').addEventListener('submit', async (e) => {
   e.preventDefault()
   clearEl('report-error')
   clearEl('report-artifact')
+  clearEl('report-progress')
 
   const url = document.getElementById('report-url').value.trim()
-  const model = document.getElementById('report-model').value
   const submitBtn = e.target.querySelector('button[type=submit]')
 
   submitBtn.disabled = true
   showSpinner('report-spinner')
 
-  let jobId
+  let jobIdClaude, jobIdOpenai
   try {
-    const res = await callApi('/api/report', 'POST', { url, model })
-    jobId = res.jobId
+    const res = await callApi('/api/report', 'POST', { url })
+    jobIdClaude = res.jobIdClaude
+    jobIdOpenai = res.jobIdOpenai
   } catch (err) {
     hideSpinner('report-spinner')
     submitBtn.disabled = false
@@ -878,19 +761,30 @@ document.getElementById('report-form').addEventListener('submit', async (e) => {
     return
   }
 
-  let job
+  renderProgressLine('report-progress', 'Report — Claude', STATUS.PROCESSING)
+  renderProgressLine('report-progress', 'Report — OpenAI', STATUS.PROCESSING)
+
+  let jobs
   try {
-    job = await pollJob(jobId, 'report-spinner', 'report-error')
+    jobs = await Promise.all([
+      pollJob(jobIdClaude, 'report-spinner', 'report-error', (job) =>
+        renderProgressLine('report-progress', 'Report — Claude', reportArtifactStatus(job))
+      ),
+      pollJob(jobIdOpenai, 'report-spinner', 'report-error', (job) =>
+        renderProgressLine('report-progress', 'Report — OpenAI', reportArtifactStatus(job))
+      ),
+    ])
   } catch {
     submitBtn.disabled = false
     return
   }
 
   submitBtn.disabled = false
-  await displayReportArtifact(jobId, job.artifacts)
+  await displayReportArtifact(jobIdClaude, jobs[0].artifacts, 'Report — Claude')
+  await displayReportArtifact(jobIdOpenai, jobs[1].artifacts, 'Report — OpenAI')
 })
 
-async function displayReportArtifact(jobId, artifacts) {
+async function displayReportArtifact(jobId, artifacts, title) {
   const container = document.getElementById('report-artifact')
   const info = artifacts && artifacts.report
 
@@ -899,13 +793,13 @@ async function displayReportArtifact(jobId, artifacts) {
     try {
       data = await callApi(`/api/job/${jobId}/report`, 'GET')
     } catch (err) {
-      container.innerHTML = `<div class="error-msg">Failed to load report: ${err.message}</div>`
+      container.appendChild(buildArtifactErrorCard(title, `Failed to load report: ${err.message}`))
       return
     }
-    container.appendChild(buildArtifactCard('Report', data.content, 'report.md'))
+    container.appendChild(buildArtifactCard(title, data.content, 'report.md'))
   } else {
     const errorMsg = info ? (info.error || 'Report generation failed') : 'Report not found'
-    container.innerHTML = `<div class="error-msg">${errorMsg}</div>`
+    container.appendChild(buildArtifactErrorCard(title, errorMsg))
   }
 }
 
@@ -916,10 +810,9 @@ document.getElementById('compare-form').addEventListener('submit', async (e) => 
   e.preventDefault()
   clearEl('compare-error')
   clearEl('compare-artifact')
+  clearEl('compare-progress')
 
-  const jobIdA = document.getElementById('compare-job-a').value.trim()
-  const jobIdB = document.getElementById('compare-job-b').value.trim()
-  const model = document.getElementById('compare-model').value
+  const url = document.getElementById('compare-url').value.trim()
   const submitBtn = e.target.querySelector('button[type=submit]')
 
   submitBtn.disabled = true
@@ -927,7 +820,7 @@ document.getElementById('compare-form').addEventListener('submit', async (e) => 
 
   let jobId
   try {
-    const res = await callApi('/api/compare', 'POST', { job_id_a: jobIdA, job_id_b: jobIdB, model })
+    const res = await callApi('/api/compare', 'POST', { url })
     jobId = res.jobId
   } catch (err) {
     hideSpinner('compare-spinner')
@@ -938,9 +831,13 @@ document.getElementById('compare-form').addEventListener('submit', async (e) => 
     return
   }
 
+  renderProgressLine('compare-progress', 'Comparison', STATUS.PROCESSING)
+
   let job
   try {
-    job = await pollJob(jobId, 'compare-spinner', 'compare-error')
+    job = await pollJob(jobId, 'compare-spinner', 'compare-error', (polled) =>
+      renderProgressLine('compare-progress', 'Comparison', comparisonArtifactStatus(polled))
+    )
   } catch {
     submitBtn.disabled = false
     return
@@ -1078,17 +975,11 @@ async function toggleHistoryRow(tr, job) {
         data = await callApi(`/api/job/${job.jobId}/${def.path}`, 'GET')
         detailContainer.appendChild(buildArtifactCard(def.title, data.content, def.filename))
       } catch (err) {
-        const errDiv = document.createElement('div')
-        errDiv.className = 'artifact-card'
-        errDiv.innerHTML = `<div class="artifact-header"><h3>${def.title}</h3></div><p class="artifact-error">Failed to load: ${err.message}</p>`
-        detailContainer.appendChild(errDiv)
+        detailContainer.appendChild(buildArtifactErrorCard(def.title, `Failed to load: ${err.message}`))
       }
     } else {
       const statusStr = typeof info === 'string' ? info : (info ? info.status : 'unknown')
-      const errDiv = document.createElement('div')
-      errDiv.className = 'artifact-card'
-      errDiv.innerHTML = `<div class="artifact-header"><h3>${def.title}</h3></div><p class="artifact-error">Status: ${escapeHtml(statusStr)}</p>`
-      detailContainer.appendChild(errDiv)
+      detailContainer.appendChild(buildArtifactErrorCard(def.title, `Status: ${escapeHtml(statusStr)}`))
     }
   }
 

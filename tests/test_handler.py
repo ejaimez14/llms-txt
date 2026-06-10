@@ -103,41 +103,31 @@ def test_report_fires_both_models_and_returns_202(mocker: MockerFixture) -> None
         {"tech_stack": [], "integrations": [], "content_types": []},
         "claude",
     )
-    mock_run_in_thread = mocker.patch("src.handler._run_in_thread")
+    mock_enqueue_report = mocker.patch("src.handler.enqueue_report")
     response = client.post("/api/report", json={"url": "https://example.com"})
 
     assert response.status_code == 202
     body = response.json()
     assert "jobIdClaude" in body
     assert "jobIdOpenai" in body
-    assert mock_run_in_thread.call_count == 2
+    assert mock_enqueue_report.call_count == 2
 
     assert storage.get_job(body["jobIdClaude"])["model"] == ModelName.CLAUDE.value
     assert storage.get_job(body["jobIdOpenai"])["model"] == ModelName.OPENAI.value
 
 
-def test_compare_same_id_returns_400() -> None:
-    response = client.post(
-        "/api/compare", json={"job_id_a": "same", "job_id_b": "same"}
-    )
-    assert response.status_code == 400
-
-
-def test_compare_missing_job_returns_404() -> None:
-    response = client.post(
-        "/api/compare", json={"job_id_a": "missing-a", "job_id_b": "missing-b"}
-    )
+def test_compare_returns_404_when_url_not_crawled() -> None:
+    response = client.post("/api/compare", json={"url": "https://never-crawled.com"})
     assert response.status_code == 404
+    assert "Crawl the site first" in response.json()["detail"]
 
 
-def test_compare_incomplete_job_returns_400() -> None:
-    storage.create_job("job-a", "https://a.com", "claude", JobType.CRAWL)
-    storage.create_job("job-b", "https://b.com", "claude", JobType.CRAWL)
-    response = client.post(
-        "/api/compare", json={"job_id_a": "job-a", "job_id_b": "job-b"}
-    )
-    assert response.status_code == 400
-    assert "not complete" in response.json()["detail"]
+def test_compare_returns_404_when_claude_report_missing() -> None:
+    _seed_site("https://example.com")
+    _seed_complete_report("rep-openai", "https://example.com", "openai")
+    response = client.post("/api/compare", json={"url": "https://example.com"})
+    assert response.status_code == 404
+    assert "claude" in response.json()["detail"]
 
 
 def test_get_pr_url_returns_pr_url() -> None:
@@ -159,17 +149,44 @@ def test_get_pr_url_unknown_job_returns_404() -> None:
     assert response.status_code == 404
 
 
-def test_compare_starts_comparer_and_returns_202(mocker: MockerFixture) -> None:
-    storage.create_job("job-a", "https://a.com", "claude", JobType.CRAWL)
-    storage.create_job("job-b", "https://b.com", "claude", JobType.CRAWL)
-    storage.complete_artifact("job-a", ArtifactType.LLMS_TXT, "results/job-a/llms.txt")
-    storage.complete_artifact("job-a", ArtifactType.PLAN, "results/job-a/plan.md")
-    storage.complete_artifact("job-b", ArtifactType.LLMS_TXT, "results/job-b/llms.txt")
-    storage.complete_artifact("job-b", ArtifactType.PLAN, "results/job-b/plan.md")
-    mock_run_in_thread = mocker.patch("src.handler._run_in_thread")
-    response = client.post(
-        "/api/compare", json={"job_id_a": "job-a", "job_id_b": "job-b"}
-    )
+def test_compare_returns_404_when_openai_report_missing() -> None:
+    _seed_site("https://example.com")
+    _seed_complete_report("rep-claude", "https://example.com", "claude")
+    response = client.post("/api/compare", json={"url": "https://example.com"})
+    assert response.status_code == 404
+    assert "openai" in response.json()["detail"]
+
+
+def test_compare_returns_202_when_both_reports_complete(mocker: MockerFixture) -> None:
+    _seed_site("https://example.com")
+    _seed_complete_report("rep-claude", "https://example.com", "claude")
+    _seed_complete_report("rep-openai", "https://example.com", "openai")
+    mock_enqueue_compare = mocker.patch("src.handler.enqueue_compare")
+    response = client.post("/api/compare", json={"url": "https://example.com"})
     assert response.status_code == 202
     assert "jobId" in response.json()
-    mock_run_in_thread.assert_called_once()
+    mock_enqueue_compare.assert_called_once()
+
+    enqueue_args = mock_enqueue_compare.call_args.args
+    assert enqueue_args[1] == "rep-claude"  # claude report enqueued as job_id_a
+    assert enqueue_args[2] == "rep-openai"  # openai report enqueued as job_id_b
+    assert enqueue_args[3] == ModelName.CLAUDE.value
+    compare_job = storage.get_job(response.json()["jobId"])
+    assert compare_job["type"] == JobType.COMPARE
+
+
+def _seed_site(url: str) -> None:
+    storage.upsert_site(
+        url,
+        "crawl-1",
+        "results/crawl-1/llms.txt",
+        {"tech_stack": [], "integrations": [], "content_types": []},
+        "claude",
+    )
+
+
+def _seed_complete_report(job_id: str, url: str, model: str) -> None:
+    storage.create_job(job_id, url, model, JobType.REPORT)
+    storage.complete_artifact(
+        job_id, ArtifactType.REPORT, f"results/{job_id}/report.md"
+    )
