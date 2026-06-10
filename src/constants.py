@@ -53,6 +53,8 @@ TITAN_EMBED_MODEL = "amazon.titan-embed-text-v2:0"
 TITAN_EMBED_DIMENSIONS = 512
 TITAN_MAX_INPUT_CHARS = 25000
 
+AWS_REGION = "us-east-1"
+
 ANTHROPIC_SECRET_NAME = "secrets/anthropic-api-key"
 PINECONE_SECRET_NAME = "secrets/pinecone-api-key"
 OPENAI_SECRET_NAME = "secrets/openai-api-key"
