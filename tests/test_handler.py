@@ -8,7 +8,7 @@ from moto import mock_aws
 from pytest_mock import MockerFixture
 
 import src.services.storage as storage
-from src.constants import ArtifactStatus, ArtifactType, JobStatus, JobType
+from src.constants import ArtifactStatus, ArtifactType, JobStatus, JobType, ModelName
 from src.handler import app
 
 client = TestClient(app)
@@ -95,7 +95,7 @@ def test_report_returns_404_if_not_crawled() -> None:
     assert "Crawl the site first" in response.json()["detail"]
 
 
-def test_report_starts_reporter_and_returns_202(mocker: MockerFixture) -> None:
+def test_report_fires_both_models_and_returns_202(mocker: MockerFixture) -> None:
     storage.upsert_site(
         "https://example.com",
         "job-1",
@@ -105,9 +105,15 @@ def test_report_starts_reporter_and_returns_202(mocker: MockerFixture) -> None:
     )
     mock_run_in_thread = mocker.patch("src.handler._run_in_thread")
     response = client.post("/api/report", json={"url": "https://example.com"})
+
     assert response.status_code == 202
-    assert "jobId" in response.json()
-    mock_run_in_thread.assert_called_once()
+    body = response.json()
+    assert "jobIdClaude" in body
+    assert "jobIdOpenai" in body
+    assert mock_run_in_thread.call_count == 2
+
+    assert storage.get_job(body["jobIdClaude"])["model"] == ModelName.CLAUDE.value
+    assert storage.get_job(body["jobIdOpenai"])["model"] == ModelName.OPENAI.value
 
 
 def test_compare_same_id_returns_400() -> None:
