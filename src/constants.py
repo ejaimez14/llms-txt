@@ -69,7 +69,7 @@ IMPLEMENTER_BASE_BRANCH = "main"
 IMPLEMENT_MAX_TURNS = 80
 IMPLEMENT_TIMEOUT_SECONDS = 3600
 IMPLEMENT_OUTPUT_FILE = "implement-output.json"
-IMPLEMENT_OUTPUT_SCHEMA_HINT = "`pr_url` (string)"
+IMPLEMENT_OUTPUT_SCHEMA_HINT = "`pr_url` (string), `debug` (string, optional)"
 
 CRAWLER_ALLOWED_TOOLS = ["WebFetch", "Write"]
 UI_PLANNER_ALLOWED_TOOLS = ["WebFetch", "Write"]
