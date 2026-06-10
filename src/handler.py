@@ -127,18 +127,25 @@ def search(q: str = Query(...)) -> SearchResponse:
     return run_search(q)
 
 
-@router.post("/report", status_code=202, summary="Generate a site report")
+@router.post("/report", status_code=202, summary="Generate site reports for both models")
 def report(req: ReportRequest) -> dict:
-    """Looks up the latest crawl for the URL and generates a structured analysis report in the background."""
+    """Looks up the latest crawl for the URL and fires a report job for each model in the background."""
     if get_site(req.url) is None:
         raise HTTPException(
             status_code=404,
             detail=f"No crawl found for {req.url}. Crawl the site first.",
         )
-    job_id = str(uuid.uuid4())
-    create_job(job_id, req.url, req.model, JobType.REPORT)
-    _run_in_thread(run_reporter, job_id, req.url, req.model)
-    return {"jobId": job_id, "status": "processing"}
+    job_id_claude = str(uuid.uuid4())
+    job_id_openai = str(uuid.uuid4())
+    create_job(job_id_claude, req.url, ModelName.CLAUDE.value, JobType.REPORT)
+    create_job(job_id_openai, req.url, ModelName.OPENAI.value, JobType.REPORT)
+    _run_in_thread(run_reporter, job_id_claude, req.url, ModelName.CLAUDE.value)
+    _run_in_thread(run_reporter, job_id_openai, req.url, ModelName.OPENAI.value)
+    return {
+        "jobIdClaude": job_id_claude,
+        "jobIdOpenai": job_id_openai,
+        "status": "processing",
+    }
 
 
 @router.post("/compare", status_code=202, summary="Compare two crawl jobs")
