@@ -1,6 +1,8 @@
+import pytest
 from pytest_mock import MockerFixture
 
 from src.agents.reporter import run_reporter
+from src.constants import ArtifactType
 
 
 def test_reporter_runs_agent_with_llms_txt_content(mocker: MockerFixture) -> None:
@@ -59,3 +61,13 @@ def test_reporter_fails_if_content_unavailable(mocker: MockerFixture) -> None:
 
     mock_fail.assert_called_once()
     mock_run.assert_not_called()
+
+
+def test_reporter_fails_artifact_on_unexpected_error(mocker: MockerFixture) -> None:
+    mocker.patch("src.agents.reporter.get_site", side_effect=RuntimeError("db error"))
+    mock_fail = mocker.patch("src.agents.reporter.fail_artifact")
+
+    with pytest.raises(RuntimeError, match="db error"):
+        run_reporter("job-report-1", "https://example.com", "claude")
+
+    mock_fail.assert_called_once_with("job-report-1", ArtifactType.REPORT, "db error")
