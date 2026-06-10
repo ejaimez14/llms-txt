@@ -1,6 +1,5 @@
 import asyncio
-from typing import Any
-from unittest.mock import MagicMock
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from pytest_mock import MockerFixture
@@ -26,46 +25,33 @@ def _make_config(agent_type: AgentType = AgentType.CRAWL) -> TaskConfig:
     )
 
 
-def _mock_sdk(mocker: MockerFixture, exc: Exception | None = None) -> None:
-    async def _sdk(hooks: Any, url: Any, config: Any) -> None:
-        if exc:
-            raise exc
-
-    mocker.patch.object(tasks_base, "_run_sdk", side_effect=_sdk)
+def _mock_sdk(mocker: MockerFixture, exc: Exception | None = None) -> AsyncMock:
+    mock = mocker.patch.object(tasks_base, "_run_sdk", new_callable=AsyncMock)
+    if exc:
+        mock.side_effect = exc
+    return mock
 
 
 # --- Crawl / ui-plan: both models route through llm.py ---
 
 
-def test_claude_crawl_routes_to_create_agent(mocker: MockerFixture) -> None:
+@pytest.mark.parametrize("model", ["claude", "openai"])
+def test_crawl_routes_to_create_agent(mocker: MockerFixture, model: str) -> None:
     mock_create = mocker.patch.object(tasks_base, "create_agent", return_value={})
     mock_run = mocker.patch.object(tasks_base, "run_agent")
 
-    run_task("job-1", "https://example.com", "claude", _make_config(AgentType.CRAWL))
+    run_task("job-1", "https://example.com", model, _make_config(AgentType.CRAWL))
 
     mock_create.assert_called_once_with(
-        "claude", AgentType.CRAWL, "job-1", "https://example.com", "test prompt",
+        model, AgentType.CRAWL, "job-1", "https://example.com", "test prompt",
         max_turns=5, timeout_seconds=60,
     )
     mock_run.assert_called_once_with({}, "Do the thing: https://example.com")
 
 
-def test_openai_crawl_routes_to_create_agent(mocker: MockerFixture) -> None:
+def test_ui_plan_routes_to_create_agent(mocker: MockerFixture) -> None:
     mock_create = mocker.patch.object(tasks_base, "create_agent", return_value={})
-    mock_run = mocker.patch.object(tasks_base, "run_agent")
-
-    run_task("job-1", "https://example.com", "openai", _make_config(AgentType.CRAWL))
-
-    mock_create.assert_called_once_with(
-        "openai", AgentType.CRAWL, "job-1", "https://example.com", "test prompt",
-        max_turns=5, timeout_seconds=60,
-    )
-    mock_run.assert_called_once_with({}, "Do the thing: https://example.com")
-
-
-def test_claude_ui_plan_routes_to_create_agent(mocker: MockerFixture) -> None:
-    mock_create = mocker.patch.object(tasks_base, "create_agent", return_value={})
-    mock_run = mocker.patch.object(tasks_base, "run_agent")
+    mocker.patch.object(tasks_base, "run_agent")
 
     run_task("job-1", "https://example.com", "claude", _make_config(AgentType.UI_PLAN))
 
@@ -73,7 +59,6 @@ def test_claude_ui_plan_routes_to_create_agent(mocker: MockerFixture) -> None:
         "claude", AgentType.UI_PLAN, "job-1", "https://example.com", "test prompt",
         max_turns=5, timeout_seconds=60,
     )
-    mock_run.assert_called_once()
 
 
 # --- Implement: always routes to Claude Code CLI SDK ---

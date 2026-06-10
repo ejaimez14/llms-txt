@@ -6,6 +6,8 @@ from anthropic import Anthropic
 from openai import AsyncOpenAI
 
 from src.constants import (
+    AGENT_DEFAULT_MAX_TURNS,
+    AGENT_DEFAULT_TIMEOUT_SECONDS,
     ANTHROPIC_SECRET_NAME,
     CLAUDE_AGENT_MODELS,
     CLAUDE_EXTRA_TOOLS,
@@ -36,8 +38,8 @@ def create_agent(
     job_id: str,
     url: str,
     system_prompt: str,
-    max_turns: int = 30,
-    timeout_seconds: int = 300,
+    max_turns: int = AGENT_DEFAULT_MAX_TURNS,
+    timeout_seconds: int = AGENT_DEFAULT_TIMEOUT_SECONDS,
 ) -> dict:
     """Returns an agent context dict with hooks pre-attached, ready for run_agent()."""
     if model == "claude":
@@ -66,7 +68,7 @@ def _create_claude_agent(
     agent_type: AgentType,
     url: str,
     model: str,
-    timeout_seconds: int = 300,
+    timeout_seconds: int = AGENT_DEFAULT_TIMEOUT_SECONDS,
 ) -> dict:
     """Builds a Claude instructor context dict with hooks pre-attached."""
     model_id = CLAUDE_AGENT_MODELS.get(agent_type)
@@ -93,7 +95,7 @@ def _create_openai_agent(
     agent_type: AgentType,
     url: str,
     model: str,
-    max_turns: int = 30,
+    max_turns: int = AGENT_DEFAULT_MAX_TURNS,
 ) -> dict:
     """Builds an OpenAI Agents SDK context dict with hooks pre-attached."""
     model_id = OPENAI_AGENT_MODELS.get(agent_type)
