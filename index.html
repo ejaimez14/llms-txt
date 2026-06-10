@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Anthropic — AI Safety Company</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+  <!-- ═══════════════════════════════════════════════
+       NAVIGATION
+  ════════════════════════════════════════════════════ -->
+  <header class="site-nav" id="site-nav" role="banner">
+    <div class="nav-inner container">
+      <!-- Logo -->
+      <a href="/" class="nav-logo" aria-label="Anthropic home">
+        <svg class="logo-svg" viewBox="0 0 160 32" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <text x="0" y="24" font-family="Georgia, serif" font-size="22" font-weight="600" fill="currentColor">Anthropic</text>
+        </svg>
+      </a>
+
+      <!-- Primary links (desktop) -->
+      <nav class="nav-links" aria-label="Primary navigation">
+        <a href="#research" class="nav-link">Research</a>
+        <a href="#products" class="nav-link">Products</a>
+        <a href="#company" class="nav-link">Company</a>
+        <a href="#news" class="nav-link">News</a>
+      </nav>
+
+      <!-- CTA -->
+      <a href="#" class="btn btn-filled nav-cta">Talk to Claude</a>
+
+      <!-- Hamburger (mobile) -->
+      <button class="hamburger" id="hamburger" aria-label="Open menu" aria-expanded="false" aria-controls="mobile-drawer">
+        <span class="ham-bar"></span>
+        <span class="ham-bar"></span>
+        <span class="ham-bar"></span>
+      </button>
+    </div>
+
+    <!-- Mobile drawer -->
+    <div class="mobile-drawer" id="mobile-drawer" role="dialog" aria-modal="true" aria-label="Mobile navigation">
+      <nav class="mobile-nav-links" aria-label="Mobile navigation">
+        <a href="#research" class="mobile-nav-link">Research</a>
+        <a href="#products" class="mobile-nav-link">Products</a>
+        <a href="#company" class="mobile-nav-link">Company</a>
+        <a href="#news" class="mobile-nav-link">News</a>
+        <a href="#" class="btn btn-filled mobile-cta">Talk to Claude</a>
+      </nav>
+    </div>
+  </header>
+
+  <main id="main-content">
+
+    <!-- ═══════════════════════════════════════════════
+         HERO SECTION
+    ════════════════════════════════════════════════════ -->
+    <section class="hero" aria-label="Hero">
+      <canvas class="hero-canvas" id="hero-canvas" aria-hidden="true"></canvas>
+      <div class="hero-content container">
+        <div class="hero-text">
+          <h1 class="hero-headline">AI safety<br />for humanity's<br />long-term benefit</h1>
+          <p class="hero-sub">We are an AI safety company, working to build reliable, interpretable, and steerable AI systems for the long-term benefit of humanity.</p>
+          <div class="hero-ctas">
+            <a href="#products" class="btn btn-filled">Explore Claude</a>
+            <a href="#research" class="btn btn-outlined">Our Research</a>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══════════════════════════════════════════════
+         MISSION STRIP
+    ════════════════════════════════════════════════════ -->
+    <section class="mission-strip" id="mission" aria-label="Mission statement">
+      <hr class="divider" />
+      <div class="container mission-inner">
+        <p class="mission-copy">
+          Anthropic's mission is the responsible development and maintenance of advanced AI for the long-term benefit of humanity.
+        </p>
+      </div>
+      <hr class="divider" />
+    </section>
+
+    <!-- ═══════════════════════════════════════════════
+         PRODUCTS SECTION
+    ════════════════════════════════════════════════════ -->
+    <section class="products-section" id="products" aria-labelledby="products-heading">
+      <div class="container">
+        <div class="section-header">
+          <h2 class="section-heading" id="products-heading">Our Products</h2>
+          <p class="section-subheading">AI built with safety at its core</p>
+        </div>
+        <div class="card-grid card-grid--3">
+          <!-- Card 1: Claude.ai -->
+          <article class="product-card">
+            <div class="product-icon" aria-hidden="true">
+              <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="24" cy="24" r="22" stroke="#D4681E" stroke-width="2"/>
+                <path d="M16 24 C16 18 20 14 24 14 C28 14 32 18 32 24" stroke="#D4681E" stroke-width="2" stroke-linecap="round"/>
+                <circle cx="24" cy="30" r="4" fill="#D4681E"/>
+              </svg>
+            </div>
+            <h3 class="product-name">Claude.ai</h3>
+            <p class="product-desc">Anthropic's AI assistant — thoughtful, nuanced, and safe by design. Ask anything, get honest, helpful answers.</p>
+            <a href="#" class="text-link">Learn more <span aria-hidden="true">→</span></a>
+          </article>
+
+          <!-- Card 2: Claude API -->
+          <article class="product-card">
+            <div class="product-icon" aria-hidden="true">
+              <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <rect x="6" y="6" width="36" height="36" rx="6" stroke="#D4681E" stroke-width="2"/>
+                <path d="M14 20 L22 28 L14 36" stroke="#D4681E" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M26 34 H34" stroke="#D4681E" stroke-width="2" stroke-linecap="round"/>
+              </svg>
+            </div>
+            <h3 class="product-name">Claude API</h3>
+            <p class="product-desc">Build powerful, safe AI products with the Claude API. Flexible pricing, robust tooling, and enterprise-grade reliability.</p>
+            <a href="#" class="text-link">Learn more <span aria-hidden="true">→</span></a>
+          </article>
+
+          <!-- Card 3: Claude for Work -->
+          <article class="product-card">
+            <div class="product-icon" aria-hidden="true">
+              <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M8 34 C8 28 12 24 18 24 L30 24 C36 24 40 28 40 34" stroke="#D4681E" stroke-width="2" stroke-linecap="round"/>
+                <circle cx="24" cy="16" r="8" stroke="#D4681E" stroke-width="2"/>
+              </svg>
+            </div>
+            <h3 class="product-name">Claude for Work</h3>
+            <p class="product-desc">Empower your team with AI that understands context, protects privacy, and drives measurable productivity.</p>
+            <a href="#" class="text-link">Learn more <span aria-hidden="true">→</span></a>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══════════════════════════════════════════════
+         RESEARCH HIGHLIGHTS (alternating rows)
+    ════════════════════════════════════════════════════ -->
+    <section class="research-section" id="research" aria-labelledby="research-heading">
+      <div class="container">
+        <div class="section-header">
+          <h2 class="section-heading" id="research-heading">Research</h2>
+          <p class="section-subheading">Pushing the frontier of safe, interpretable AI</p>
+        </div>
+      </div>
+
+      <!-- Row 1: image left / text right -->
+      <article class="feature-row feature-row--normal">
+        <div class="feature-image" aria-hidden="true">
+          <div class="feature-image-placeholder gradient-1"></div>
+        </div>
+        <div class="feature-text">
+          <span class="category-tag">Research</span>
+          <h3 class="feature-heading">Constitutional AI</h3>
+          <p class="feature-body">Constitutional AI is a technique for training AI systems to be helpful, harmless, and honest using a set of guiding principles rather than purely human feedback.</p>
+          <a href="#" class="text-link">Read the paper <span aria-hidden="true">→</span></a>
+        </div>
+      </article>
+      <hr class="divider" />
+
+      <!-- Row 2: image right / text left -->
+      <article class="feature-row feature-row--reversed">
+        <div class="feature-text">
+          <span class="category-tag">Interpretability</span>
+          <h3 class="feature-heading">Mechanistic Interpretability</h3>
+          <p class="feature-body">We study how neural networks store and process information at the circuit level, building tools to understand what models actually learn.</p>
+          <a href="#" class="text-link">Explore the research <span aria-hidden="true">→</span></a>
+        </div>
+        <div class="feature-image" aria-hidden="true">
+          <div class="feature-image-placeholder gradient-2"></div>
+        </div>
+      </article>
+      <hr class="divider" />
+
+      <!-- Row 3: image left / text right -->
+      <article class="feature-row feature-row--normal">
+        <div class="feature-image" aria-hidden="true">
+          <div class="feature-image-placeholder gradient-3"></div>
+        </div>
+        <div class="feature-text">
+          <span class="category-tag">Alignment</span>
+          <h3 class="feature-heading">Scalable Oversight</h3>
+          <p class="feature-body">How do we supervise AI systems that may be smarter than us? Scalable oversight research develops techniques for maintaining human control as capabilities grow.</p>
+          <a href="#" class="text-link">Learn more <span aria-hidden="true">→</span></a>
+        </div>
+      </article>
+    </section>
+
+    <!-- ═══════════════════════════════════════════════
+         NEWS / BLOG CARD GRID
+    ════════════════════════════════════════════════════ -->
+    <section class="news-section" id="news" aria-labelledby="news-heading">
+      <div class="container">
+        <div class="section-header">
+          <h2 class="section-heading" id="news-heading">Latest News</h2>
+          <p class="section-subheading">Updates from Anthropic</p>
+        </div>
+        <div class="card-grid card-grid--3 news-grid">
+
+          <!-- News card 1 -->
+          <article class="news-card">
+            <div class="news-card-image">
+              <div class="news-image-placeholder gradient-news-1"></div>
+            </div>
+            <div class="news-card-body">
+              <span class="category-tag">Announcement</span>
+              <time class="news-date" datetime="2025-06-01">June 1, 2025</time>
+              <h3 class="news-headline">Introducing Claude 4: Our Most Capable Model Yet</h3>
+              <p class="news-excerpt">Claude 4 sets a new standard for reasoning, coding, and safe AI deployment in enterprise environments.</p>
+              <p class="news-author">By the Anthropic Team</p>
+            </div>
+          </article>
+
+          <!-- News card 2 -->
+          <article class="news-card">
+            <div class="news-card-image">
+              <div class="news-image-placeholder gradient-news-2"></div>
+            </div>
+            <div class="news-card-body">
+              <span class="category-tag">Research</span>
+              <time class="news-date" datetime="2025-05-14">May 14, 2025</time>
+              <h3 class="news-headline">New Findings in Sparse Autoencoders for Feature Extraction</h3>
+              <p class="news-excerpt">Our interpretability team shares novel results using sparse autoencoders to identify meaningful features inside large language models.</p>
+              <p class="news-author">Interpretability Team</p>
+            </div>
+          </article>
+
+          <!-- News card 3 -->
+          <article class="news-card">
+            <div class="news-card-image">
+              <div class="news-image-placeholder gradient-news-3"></div>
+            </div>
+            <div class="news-card-body">
+              <span class="category-tag">Policy</span>
+              <time class="news-date" datetime="2025-04-28">April 28, 2025</time>
+              <h3 class="news-headline">Anthropic's Approach to Responsible Scaling Policy</h3>
+              <p class="news-excerpt">We update our Responsible Scaling Policy and detail how we evaluate models at each capability threshold.</p>
+              <p class="news-author">Policy Team</p>
+            </div>
+          </article>
+
+        </div>
+        <div class="view-all-wrap">
+          <a href="#" class="text-link text-link--lg">View all news <span aria-hidden="true">→</span></a>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══════════════════════════════════════════════
+         DARK CTA BANNER (Careers / Company)
+    ════════════════════════════════════════════════════ -->
+    <section class="cta-banner" id="company" aria-labelledby="careers-heading">
+      <div class="container cta-banner-inner">
+        <h2 class="cta-banner-heading" id="careers-heading">Work with us</h2>
+        <p class="cta-banner-body">We're hiring researchers, engineers, and operators who share our commitment to AI safety and beneficial AI development.</p>
+        <a href="#" class="btn btn-filled">View open roles</a>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ═══════════════════════════════════════════════
+       FOOTER
+  ════════════════════════════════════════════════════ -->
+  <footer class="site-footer" role="contentinfo">
+    <div class="container footer-grid">
+      <!-- Brand column -->
+      <div class="footer-col footer-col--brand">
+        <a href="/" class="footer-logo" aria-label="Anthropic home">
+          <svg viewBox="0 0 160 32" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <text x="0" y="24" font-family="Georgia, serif" font-size="22" font-weight="600" fill="currentColor">Anthropic</text>
+          </svg>
+        </a>
+        <p class="footer-tagline">AI safety for humanity's long-term benefit.</p>
+        <div class="social-links" aria-label="Social media">
+          <!-- Twitter / X -->
+          <a href="#" class="social-icon" aria-label="Anthropic on X (Twitter)">
+            <svg viewBox="0 0 20 20" fill="currentColor" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+              <path d="M11.68 8.78 18.26 1h-1.56L10.97 7.8 5.9 1H1l6.9 10.03L1 19h1.56l6.03-7.01L14.1 19H19l-7.32-10.22zm-2.13 2.48-.7-.99L3.14 2.13h2.4l4.49 6.41.7.99 5.83 8.34h-2.4l-4.61-6.59z"/>
+            </svg>
+          </a>
+          <!-- LinkedIn -->
+          <a href="#" class="social-icon" aria-label="Anthropic on LinkedIn">
+            <svg viewBox="0 0 20 20" fill="currentColor" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+              <path d="M4.48 2A2.48 2.48 0 1 1 4.48 6.96 2.48 2.48 0 0 1 4.48 2zM2.24 8.4h4.48V18H2.24V8.4zM7.52 8.4h4.29v1.32h.06c.6-1.13 2.06-2.32 4.23-2.32C20.08 7.4 21 9.73 21 13.46V18h-4.48v-3.87c0-1.34-.47-2.53-1.68-2.53-1.49 0-2.24 1-2.24 2.41V18H8.1v-9.6h-.58z"/>
+            </svg>
+          </a>
+          <!-- GitHub -->
+          <a href="#" class="social-icon" aria-label="Anthropic on GitHub">
+            <svg viewBox="0 0 20 20" fill="currentColor" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+              <path fill-rule="evenodd" clip-rule="evenodd" d="M10 0C4.477 0 0 4.586 0 10.253c0 4.53 2.865 8.37 6.839 9.727.5.092.682-.221.682-.491 0-.242-.009-.883-.013-1.732-2.782.619-3.369-1.377-3.369-1.377-.454-1.18-1.109-1.495-1.109-1.495-.907-.635.069-.622.069-.622 1.002.072 1.53 1.054 1.53 1.054.891 1.563 2.341 1.111 2.91.849.091-.66.348-1.111.634-1.367-2.22-.259-4.555-1.138-4.555-5.063 0-1.118.39-2.032 1.029-2.748-.103-.26-.446-1.301.098-2.712 0 0 .84-.276 2.75 1.051A9.396 9.396 0 0 1 10 4.836c.85.004 1.705.118 2.504.345 1.909-1.327 2.747-1.051 2.747-1.051.546 1.411.202 2.452.1 2.712.64.716 1.028 1.63 1.028 2.748 0 3.935-2.338 4.801-4.566 5.054.359.317.678.943.678 1.901 0 1.372-.012 2.479-.012 2.816 0 .273.18.589.687.489C17.138 18.619 20 14.782 20 10.253 20 4.586 15.523 0 10 0z"/>
+            </svg>
+          </a>
+        </div>
+      </div>
+
+      <!-- Nav columns -->
+      <div class="footer-col">
+        <h4 class="footer-col-heading">About</h4>
+        <ul class="footer-links">
+          <li><a href="#" class="footer-link">Our Story</a></li>
+          <li><a href="#" class="footer-link">Team</a></li>
+          <li><a href="#" class="footer-link">Careers</a></li>
+          <li><a href="#" class="footer-link">Press</a></li>
+        </ul>
+      </div>
+
+      <div class="footer-col">
+        <h4 class="footer-col-heading">Research</h4>
+        <ul class="footer-links">
+          <li><a href="#" class="footer-link">Overview</a></li>
+          <li><a href="#" class="footer-link">Publications</a></li>
+          <li><a href="#" class="footer-link">Interpretability</a></li>
+          <li><a href="#" class="footer-link">Alignment</a></li>
+        </ul>
+      </div>
+
+      <div class="footer-col">
+        <h4 class="footer-col-heading">Products</h4>
+        <ul class="footer-links">
+          <li><a href="#" class="footer-link">Claude.ai</a></li>
+          <li><a href="#" class="footer-link">Claude API</a></li>
+          <li><a href="#" class="footer-link">Claude for Work</a></li>
+          <li><a href="#" class="footer-link">Pricing</a></li>
+        </ul>
+      </div>
+
+      <div class="footer-col">
+        <h4 class="footer-col-heading">Legal</h4>
+        <ul class="footer-links">
+          <li><a href="#" class="footer-link">Privacy Policy</a></li>
+          <li><a href="#" class="footer-link">Terms of Service</a></li>
+          <li><a href="#" class="footer-link">Cookie Policy</a></li>
+          <li><a href="#" class="footer-link">Usage Policy</a></li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="footer-bottom">
+      <div class="container footer-bottom-inner">
+        <p class="footer-copy">&copy; 2025 Anthropic, PBC. All rights reserved.</p>
+        <div class="footer-bottom-links">
+          <a href="#" class="footer-link">Privacy</a>
+          <a href="#" class="footer-link">Terms</a>
+          <a href="#" class="footer-link">Cookies</a>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <script src="main.js"></script>
+</body>
+</html>
