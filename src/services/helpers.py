@@ -22,7 +22,9 @@ def fetch_secret(secret_name: str) -> str:
             url,
             headers={LAMBDA_EXTENSION_TOKEN_HEADER: os.environ["AWS_SESSION_TOKEN"]},
         )
-        with urllib.request.urlopen(req, timeout=LAMBDA_EXTENSION_TIMEOUT_SECONDS) as resp:
+        with urllib.request.urlopen(
+            req, timeout=LAMBDA_EXTENSION_TIMEOUT_SECONDS
+        ) as resp:
             return json.loads(json.loads(resp.read())["SecretString"])["value"]
     except Exception:
         response = _secrets_client.get_secret_value(SecretId=secret_name)

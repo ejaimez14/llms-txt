@@ -1,6 +1,11 @@
 import os
 
-from src.constants import AgentType, ArtifactType, IMPLEMENTER_BASE_BRANCH, IMPLEMENTER_REPO
+from src.constants import (
+    AgentType,
+    ArtifactType,
+    IMPLEMENTER_BASE_BRANCH,
+    IMPLEMENTER_REPO,
+)
 from src.models import TaskConfig
 from src.services.storage import get_artifact_content
 

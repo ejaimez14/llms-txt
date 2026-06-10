@@ -5,7 +5,12 @@ from pathlib import Path
 
 from claude_agent_sdk import ClaudeAgentOptions, query
 
-from src.constants import AgentType, ArtifactType, IMPLEMENTER_BASE_BRANCH, IMPLEMENTER_REPO
+from src.constants import (
+    AgentType,
+    ArtifactType,
+    IMPLEMENTER_BASE_BRANCH,
+    IMPLEMENTER_REPO,
+)
 from src.models import TaskConfig
 from src.services.hooks import JobHooks
 from src.services.llm import create_agent, run_agent
@@ -59,7 +64,9 @@ async def _run_sdk(hooks: JobHooks, url: str, config: TaskConfig) -> None:
         )
         output_path = Path(workspace, config.output_file)
         async with asyncio.timeout(config.timeout_seconds):
-            async for _ in query(prompt=_build_implement_prompt(url, config), options=options):
+            async for _ in query(
+                prompt=_build_implement_prompt(url, config), options=options
+            ):
                 if output_path.exists():
                     break
         output = config.output_model.model_validate_json(
@@ -97,9 +104,9 @@ def _build_implement_prompt(url: str, config: TaskConfig) -> str:
         f"   Capture the URL printed on stdout (e.g. https://github.com/.../pull/N).\n"
         f"6. Write output:   write `{config.output_file}` in the working directory (not inside repo/).\n"
         f"   Schema: {config.output_schema_hint}\n"
-        f"   Example: {{\"pr_url\": \"<exact URL from step 5>\", \"debug\": \"\"}}\n\n"
+        f'   Example: {{"pr_url": "<exact URL from step 5>", "debug": ""}}\n\n'
         f"If any step fails, write `{config.output_file}` immediately with:\n"
-        f"   {{\"pr_url\": \"\", \"debug\": \"step N failed: <exact error message from the failed command>\"}}\n"
+        f'   {{"pr_url": "", "debug": "step N failed: <exact error message from the failed command>"}}\n'
         f"and stop. Include the full error output in debug.\n\n"
         f"## UI Plan\n\n{plan_content}"
     )

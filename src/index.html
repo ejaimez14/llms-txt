@@ -122,6 +122,19 @@
 
     @keyframes spin { to { transform: rotate(360deg); } }
 
+    /* --- Job progress --- */
+    .job-progress {
+      margin: 0.5rem 0;
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+    }
+
+    .progress-line {
+      font-size: 0.9rem;
+      color: #495057;
+    }
+
     /* --- Messages --- */
     .error-msg {
       background: #fff3cd;
@@ -378,6 +391,7 @@
       <div class="spinner-ring"></div>
       <span>Generating reports…</span>
     </div>
+    <div id="report-progress" class="job-progress"></div>
     <div id="report-error"></div>
     <div id="report-artifact"></div>
   </section>
@@ -396,6 +410,7 @@
       <div class="spinner-ring"></div>
       <span>Generating comparison…</span>
     </div>
+    <div id="compare-progress" class="job-progress"></div>
     <div id="compare-error"></div>
     <div id="compare-artifact"></div>
   </section>
@@ -530,7 +545,7 @@ function buildArtifactErrorCard(title, message) {
 // ---------------------------------------------------------------------------
 // Generic job poller — returns a Promise that resolves with the completed job
 // ---------------------------------------------------------------------------
-function pollJob(jobId, spinnerId, errorId) {
+function pollJob(jobId, spinnerId, errorId, onPoll) {
   return new Promise((resolve, reject) => {
     const poll = setInterval(async () => {
       let job
@@ -544,6 +559,8 @@ function pollJob(jobId, spinnerId, errorId) {
         return
       }
 
+      if (onPoll) onPoll(job)
+
       if (job.status !== STATUS.PROCESSING) {
         clearInterval(poll)
         hideSpinner(spinnerId)
@@ -551,6 +568,38 @@ function pollJob(jobId, spinnerId, errorId) {
       }
     }, 3000)
   })
+}
+
+// Renders a single "<label>: <icon> <status>" line into a progress container,
+// keyed by label so repeated polls update the same line in place.
+function renderProgressLine(containerId, label, status) {
+  const container = document.getElementById(containerId)
+  const id = `progress-${containerId}-${label.replace(/\W+/g, '-')}`
+  let line = document.getElementById(id)
+  if (!line) {
+    line = document.createElement('div')
+    line.id = id
+    line.className = 'progress-line'
+    container.appendChild(line)
+  }
+  const icons = {
+    [STATUS.PROCESSING]: '⏳',
+    [STATUS.COMPLETE]: '✅',
+    [STATUS.FAILED]: '❌',
+  }
+  const icon = icons[status] || '⏳'
+  const shown = status || STATUS.PROCESSING
+  line.textContent = `${label}: ${icon} ${shown}`
+}
+
+function reportArtifactStatus(job) {
+  const info = job.artifacts && job.artifacts.report
+  return info ? info.status : STATUS.PROCESSING
+}
+
+function comparisonArtifactStatus(job) {
+  const info = job.artifacts && job.artifacts.comparison
+  return info ? info.status : STATUS.PROCESSING
 }
 
 // ---------------------------------------------------------------------------
@@ -687,6 +736,7 @@ document.getElementById('report-form').addEventListener('submit', async (e) => {
   e.preventDefault()
   clearEl('report-error')
   clearEl('report-artifact')
+  clearEl('report-progress')
 
   const url = document.getElementById('report-url').value.trim()
   const submitBtn = e.target.querySelector('button[type=submit]')
@@ -711,11 +761,18 @@ document.getElementById('report-form').addEventListener('submit', async (e) => {
     return
   }
 
+  renderProgressLine('report-progress', 'Report — Claude', STATUS.PROCESSING)
+  renderProgressLine('report-progress', 'Report — OpenAI', STATUS.PROCESSING)
+
   let jobs
   try {
     jobs = await Promise.all([
-      pollJob(jobIdClaude, 'report-spinner', 'report-error'),
-      pollJob(jobIdOpenai, 'report-spinner', 'report-error'),
+      pollJob(jobIdClaude, 'report-spinner', 'report-error', (job) =>
+        renderProgressLine('report-progress', 'Report — Claude', reportArtifactStatus(job))
+      ),
+      pollJob(jobIdOpenai, 'report-spinner', 'report-error', (job) =>
+        renderProgressLine('report-progress', 'Report — OpenAI', reportArtifactStatus(job))
+      ),
     ])
   } catch {
     submitBtn.disabled = false
@@ -753,6 +810,7 @@ document.getElementById('compare-form').addEventListener('submit', async (e) => 
   e.preventDefault()
   clearEl('compare-error')
   clearEl('compare-artifact')
+  clearEl('compare-progress')
 
   const url = document.getElementById('compare-url').value.trim()
   const submitBtn = e.target.querySelector('button[type=submit]')
@@ -773,9 +831,13 @@ document.getElementById('compare-form').addEventListener('submit', async (e) => 
     return
   }
 
+  renderProgressLine('compare-progress', 'Comparison', STATUS.PROCESSING)
+
   let job
   try {
-    job = await pollJob(jobId, 'compare-spinner', 'compare-error')
+    job = await pollJob(jobId, 'compare-spinner', 'compare-error', (polled) =>
+      renderProgressLine('compare-progress', 'Comparison', comparisonArtifactStatus(polled))
+    )
   } catch {
     submitBtn.disabled = false
     return

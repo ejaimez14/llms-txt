@@ -6,7 +6,7 @@ resource "aws_lambda_function" "api" {
   handler       = "src.handler.handler"
   runtime       = "python3.11"
   memory_size   = 1024
-  timeout       = 120
+  timeout       = 600
 
   environment {
     variables = {

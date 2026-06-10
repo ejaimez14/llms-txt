@@ -83,4 +83,6 @@ def test_comparer_fails_artifact_on_unexpected_error(mocker: MockerFixture) -> N
     with pytest.raises(RuntimeError, match="db error"):
         run_comparer("job-compare-1", "job-a-1", "job-b-1", "claude")
 
-    mock_fail.assert_called_once_with("job-compare-1", ArtifactType.COMPARISON, "db error")
+    mock_fail.assert_called_once_with(
+        "job-compare-1", ArtifactType.COMPARISON, "db error"
+    )

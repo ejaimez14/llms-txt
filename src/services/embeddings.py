@@ -3,7 +3,12 @@ import json
 import boto3
 from botocore.exceptions import ClientError
 
-from src.constants import AWS_REGION, TITAN_EMBED_DIMENSIONS, TITAN_EMBED_MODEL, TITAN_MAX_INPUT_CHARS
+from src.constants import (
+    AWS_REGION,
+    TITAN_EMBED_DIMENSIONS,
+    TITAN_EMBED_MODEL,
+    TITAN_MAX_INPUT_CHARS,
+)
 from src.services.logger import get_logger
 
 logger = get_logger(__name__)
