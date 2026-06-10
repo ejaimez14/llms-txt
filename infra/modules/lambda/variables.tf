@@ -57,3 +57,9 @@ variable "recrawl_queue_url" {
   description = "URL of the SQS re-crawl queue — passed to Lambda as RECRAWL_QUEUE_URL."
   type        = string
 }
+
+variable "secrets_extension_layer_arn" {
+  description = "ARN of the AWS Parameters and Secrets Lambda Extension layer (us-east-1) that serves the localhost:2773 cache fetch_secret reads."
+  type        = string
+  default     = "arn:aws:lambda:us-east-1:177933569100:layer:AWS-Parameters-and-Secrets-Lambda-Extension:17"
+}

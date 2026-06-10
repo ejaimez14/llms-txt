@@ -8,6 +8,9 @@ resource "aws_lambda_function" "api" {
   memory_size   = 1024
   timeout       = 600
 
+  # Provides the localhost:2773 secrets cache that fetch_secret reads at runtime.
+  layers = [var.secrets_extension_layer_arn]
+
   environment {
     variables = {
       BUCKET                          = var.bucket_name
