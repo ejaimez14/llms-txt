@@ -86,7 +86,6 @@ class JobHooks:
 
         elif self.agent_type == AgentType.IMPLEMENT:
             pr_url = raw_output["pr_url"]
-            debug = raw_output.get("debug", "")
             store_implement_result(self.job_id, pr_url)
             log_job_event(
                 logger,
@@ -94,7 +93,6 @@ class JobHooks:
                 self.job_id,
                 duration_ms=duration_ms,
                 pr_url=pr_url,
-                debug=debug,
             )
             return
 
