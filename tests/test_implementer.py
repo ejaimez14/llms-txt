@@ -5,6 +5,7 @@ from unittest.mock import MagicMock
 import pytest
 from pytest_mock import MockerFixture
 
+import src.prompts as prompts_module
 import src.services.hooks as hooks_module
 import src.tasks.base as tasks_base
 from src.constants import (
@@ -12,15 +13,16 @@ from src.constants import (
     IMPLEMENTER_BASE_BRANCH,
     IMPLEMENTER_REPO,
 )
+from src.prompts import _build_implement_prompt
 from src.services.hooks import JobHooks
-from src.tasks.base import _build_implement_prompt, run_task
+from src.tasks.base import run_task
 from src.tasks.registry import REGISTRY
 
 
 @pytest.fixture
 def mock_get_artifact_content(mocker: MockerFixture) -> MagicMock:
     return mocker.patch.object(
-        tasks_base, "get_artifact_content", return_value="## UI Plan\n..."
+        prompts_module, "get_artifact_content", return_value="## UI Plan\n..."
     )
 
 
@@ -73,7 +75,7 @@ def test_run_task_implement_calls_on_error_on_failure(
 def test_build_implement_prompt_raises_when_plan_unavailable(
     mocker: MockerFixture,
 ) -> None:
-    mocker.patch.object(tasks_base, "get_artifact_content", return_value=None)
+    mocker.patch.object(prompts_module, "get_artifact_content", return_value=None)
     config = REGISTRY.get(AgentType.IMPLEMENT)
 
     with pytest.raises(
@@ -102,7 +104,7 @@ def test_build_implement_prompt_missing_plan_triggers_on_error(
     mocker: MockerFixture,
 ) -> None:
     """Verifies run_task calls on_error and re-raises when _build_implement_prompt raises ValueError."""
-    mocker.patch.object(tasks_base, "get_artifact_content", return_value=None)
+    mocker.patch.object(prompts_module, "get_artifact_content", return_value=None)
     mock_hooks = mocker.patch.object(tasks_base, "JobHooks", return_value=MagicMock())
     config = REGISTRY.get(AgentType.IMPLEMENT)
 

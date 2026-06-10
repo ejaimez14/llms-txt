@@ -12,7 +12,6 @@ from src.constants import (
     AgentType,
     ArtifactStatus,
     ArtifactType,
-    JobStatus,
     JobType,
     ModelName,
 )
@@ -32,6 +31,7 @@ from src.services.storage import (
     fail_artifact,
     get_artifact_content,
     get_job,
+    get_latest_report_job_by_model,
     get_site,
     list_jobs,
     list_jobs_for_url,
@@ -142,48 +142,57 @@ def search(q: str = Query(...)) -> SearchResponse:
     return run_search(q)
 
 
-@router.post("/report", status_code=202, summary="Generate a site report")
+@router.post("/report", status_code=202, summary="Generate site reports for both models")
 def report(req: ReportRequest) -> dict:
-    """Looks up the latest crawl for the URL and generates a structured analysis report in the background."""
+    """Looks up the latest crawl for the URL and fires a report job for each model in the background."""
     if get_site(req.url) is None:
         raise HTTPException(
             status_code=404,
             detail=f"No crawl found for {req.url}. Crawl the site first.",
         )
-    job_id = str(uuid.uuid4())
-    create_job(job_id, req.url, req.model, JobType.REPORT)
-    _run_in_thread(run_reporter, job_id, req.url, req.model)
-    return {"jobId": job_id, "status": "processing"}
+    job_id_claude = str(uuid.uuid4())
+    job_id_openai = str(uuid.uuid4())
+    create_job(job_id_claude, req.url, ModelName.CLAUDE.value, JobType.REPORT)
+    create_job(job_id_openai, req.url, ModelName.OPENAI.value, JobType.REPORT)
+    _run_in_thread(run_reporter, job_id_claude, req.url, ModelName.CLAUDE.value)
+    _run_in_thread(run_reporter, job_id_openai, req.url, ModelName.OPENAI.value)
+    return {
+        "jobIdClaude": job_id_claude,
+        "jobIdOpenai": job_id_openai,
+        "status": "processing",
+    }
 
 
-@router.post("/compare", status_code=202, summary="Compare two crawl jobs")
+@router.post("/compare", status_code=202, summary="Compare both models' reports for a URL")
 def compare(req: CompareRequest) -> dict:
-    """Fetches llms.txt from two complete crawl jobs and generates a diff-focused comparison in the background."""
-    if req.job_id_a == req.job_id_b:
+    """Finds the latest completed report per model for the URL and generates a diff-focused comparison in the background."""
+    if get_site(req.url) is None:
         raise HTTPException(
-            status_code=400, detail="job_id_a and job_id_b must be different"
+            status_code=404,
+            detail=f"No crawl found for {req.url}. Crawl the site first.",
         )
 
-    job_a = get_job(req.job_id_a)
-    if job_a is None:
-        raise HTTPException(status_code=404, detail=f"Job {req.job_id_a} not found")
-
-    job_b = get_job(req.job_id_b)
-    if job_b is None:
-        raise HTTPException(status_code=404, detail=f"Job {req.job_id_b} not found")
-
-    if job_a.get("status") != JobStatus.COMPLETE:
+    report_jobs = get_latest_report_job_by_model(req.url)
+    if report_jobs[ModelName.CLAUDE] is None:
         raise HTTPException(
-            status_code=400, detail=f"Job {req.job_id_a} is not complete"
+            status_code=404,
+            detail=f"No completed claude report found for {req.url}. Run POST /report first.",
         )
-    if job_b.get("status") != JobStatus.COMPLETE:
+    if report_jobs[ModelName.OPENAI] is None:
         raise HTTPException(
-            status_code=400, detail=f"Job {req.job_id_b} is not complete"
+            status_code=404,
+            detail=f"No completed openai report found for {req.url}. Run POST /report first.",
         )
 
     job_id = str(uuid.uuid4())
-    create_job(job_id, job_a["url"], req.model, JobType.COMPARE)
-    _run_in_thread(run_comparer, job_id, req.job_id_a, req.job_id_b, req.model)
+    create_job(job_id, req.url, ModelName.CLAUDE.value, JobType.COMPARE)
+    _run_in_thread(
+        run_comparer,
+        job_id,
+        report_jobs[ModelName.CLAUDE],
+        report_jobs[ModelName.OPENAI],
+        ModelName.CLAUDE.value,
+    )
     return {"jobId": job_id, "status": "processing"}
 
 

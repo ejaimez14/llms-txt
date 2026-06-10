@@ -1,3 +1,9 @@
+import os
+
+from src.constants import AgentType, ArtifactType, IMPLEMENTER_BASE_BRANCH, IMPLEMENTER_REPO
+from src.models import TaskConfig
+from src.services.storage import get_artifact_content
+
 CRAWL_SYSTEM_PROMPT = """
 You are a web crawler that produces llms.txt files.
 
@@ -101,55 +107,55 @@ Produce your output as valid JSON with one field:
 """.strip()
 
 COMPARE_SYSTEM_PROMPT = """
-You are an analyst comparing two llms.txt files for the same website — each produced by a different AI model.
+You are an analyst comparing two site-analysis reports for the same website — each produced by a different AI model.
 
-Given two llms.txt documents labeled Model A and Model B, produce a comparison focused on differences:
+Given two reports labeled Model A and Model B, produce a comparison focused on differences:
 
 ## Summary
-2-3 sentences on the most significant differences between the two outputs.
+2-3 sentences on the most significant differences between the two reports.
 
 ## Agreement
-What both models included and described consistently — keep this section brief.
+What both reports concluded consistently — keep this section brief.
 
 ## Differences
 
 ### Coverage
-Pages or sections that one model included but the other omitted.
+Findings or aspects that one report included but the other omitted.
 
 ### Descriptions
-The same pages described differently — quote both where useful.
+The same aspects characterized differently — quote both where useful.
 
 ### Structure
-How each model organized and categorized the content differently.
+How each report organized and prioritized its analysis differently.
 
 ## Sentiment
 
 ### Model A
 How Model A characterizes the site's tone and emotional register — confident, cautious,
-authoritative, approachable, technical, etc. Quote specific language from the document.
+authoritative, approachable, technical, etc. Quote specific language from the report.
 
 ### Model B
 The same assessment for Model B.
 
 ### Comparison
-Where the two models diverge in how they perceive the site's emotional positioning.
+Where the two reports diverge in how they perceive the site's emotional positioning.
 
 ## Side-by-Side
 
 | Aspect | Model A | Model B |
 |--------|---------|---------|
-| Total links | N | N |
-| Section count | N | N |
+| Key strengths | ... | ... |
+| Coverage depth | ... | ... |
 | Dominant focus | ... | ... |
 | Sentiment | ... | ... |
 
 ## Assessment
-Which output is more complete or useful for understanding the site — and why.
-Be specific and evidence-based; do not give a blanket verdict without quoting the documents.
+Which report is more complete or useful for understanding the site — and why.
+Be specific and evidence-based; do not give a blanket verdict without quoting the reports.
 
 Rules:
 - Focus on differences — agreements get one short section
-- Quote from the actual documents when comparing specific descriptions
+- Quote from the actual reports when comparing specific characterizations
 - "Model A is more detailed" is not useful without citing what it includes that B does not
 
 Produce your output as valid JSON with one field:
@@ -203,7 +209,7 @@ Rules:
 def _build_compare_message(
     job_a: dict, content_a: str, job_b: dict, content_b: str
 ) -> str:
-    """Formats both llms.txt outputs into a labeled comparison message for the agent."""
+    """Formats both reports into a labeled comparison message for the agent."""
     model_a = job_a.get("model", "unknown")
     model_b = job_b.get("model", "unknown")
     url_a = job_a.get("url", "")
@@ -214,7 +220,39 @@ def _build_compare_message(
         url_note = f"\nNote: Job A is for {url_a} and Job B is for {url_b} — these are different URLs.\n"
 
     return (
-        f"Compare these two llms.txt outputs for the same website.{url_note}\n\n"
+        f"Compare these two reports for the same website.{url_note}\n\n"
         f"--- Model A ({model_a}) ---\n{content_a}\n\n"
         f"--- Model B ({model_b}) ---\n{content_b}"
+    )
+
+
+def _build_prompt(url: str, config: TaskConfig) -> str:
+    if config.agent_type == AgentType.IMPLEMENT:
+        return _build_implement_prompt(url, config)
+    return (
+        f"{config.system_prompt}\n\n"
+        f"After completing your analysis, write your output as a JSON object to "
+        f"`{config.output_file}` in the working directory. "
+        f"The JSON must have exactly these fields: {config.output_schema_hint}.\n\n"
+        f"{config.task_instruction.format(url=url)}"
+    )
+
+
+def _build_implement_prompt(url: str, config: TaskConfig) -> str:
+    """Builds the implementer prompt by fetching the UI plan from storage and injecting repo context."""
+    plan_content = get_artifact_content(url, ArtifactType.PLAN)
+    if plan_content is None:
+        raise ValueError(f"UI plan artifact unavailable for job {url}")
+
+    branch_name = f"ui-implement/{os.environ['AGENT_ID'][:8]}"
+
+    return (
+        f"{config.system_prompt}\n\n"
+        f"Repository: {IMPLEMENTER_REPO}\n"
+        f"Base branch: {IMPLEMENTER_BASE_BRANCH}\n"
+        f"Implementation branch: {branch_name}\n\n"
+        f"Implement this UI plan:\n\n{plan_content}\n\n"
+        f"After opening the GitHub PR, write your output as a JSON object to "
+        f"`{config.output_file}` in the working directory. "
+        f"The JSON must have exactly one field: {config.output_schema_hint}."
     )
