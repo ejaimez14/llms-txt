@@ -16,7 +16,6 @@ class CrawlRequest(BaseModel):
 
 class ReportRequest(BaseModel):
     url: str
-    model: ModelName = ModelName.CLAUDE
 
 
 class CompareRequest(BaseModel):
