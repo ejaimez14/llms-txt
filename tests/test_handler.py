@@ -103,14 +103,14 @@ def test_report_fires_both_models_and_returns_202(mocker: MockerFixture) -> None
         {"tech_stack": [], "integrations": [], "content_types": []},
         "claude",
     )
-    mock_run_in_thread = mocker.patch("src.handler._run_in_thread")
+    mock_enqueue_report = mocker.patch("src.handler.enqueue_report")
     response = client.post("/api/report", json={"url": "https://example.com"})
 
     assert response.status_code == 202
     body = response.json()
     assert "jobIdClaude" in body
     assert "jobIdOpenai" in body
-    assert mock_run_in_thread.call_count == 2
+    assert mock_enqueue_report.call_count == 2
 
     assert storage.get_job(body["jobIdClaude"])["model"] == ModelName.CLAUDE.value
     assert storage.get_job(body["jobIdOpenai"])["model"] == ModelName.OPENAI.value
@@ -161,16 +161,16 @@ def test_compare_returns_202_when_both_reports_complete(mocker: MockerFixture) -
     _seed_site("https://example.com")
     _seed_complete_report("rep-claude", "https://example.com", "claude")
     _seed_complete_report("rep-openai", "https://example.com", "openai")
-    mock_run_in_thread = mocker.patch("src.handler._run_in_thread")
+    mock_enqueue_compare = mocker.patch("src.handler.enqueue_compare")
     response = client.post("/api/compare", json={"url": "https://example.com"})
     assert response.status_code == 202
     assert "jobId" in response.json()
-    mock_run_in_thread.assert_called_once()
+    mock_enqueue_compare.assert_called_once()
 
-    thread_args = mock_run_in_thread.call_args.args
-    assert thread_args[2] == "rep-claude"  # claude report threaded as job_id_a
-    assert thread_args[3] == "rep-openai"  # openai report threaded as job_id_b
-    assert thread_args[4] == ModelName.CLAUDE.value
+    enqueue_args = mock_enqueue_compare.call_args.args
+    assert enqueue_args[1] == "rep-claude"  # claude report enqueued as job_id_a
+    assert enqueue_args[2] == "rep-openai"  # openai report enqueued as job_id_b
+    assert enqueue_args[3] == ModelName.CLAUDE.value
     compare_job = storage.get_job(response.json()["jobId"])
     assert compare_job["type"] == JobType.COMPARE
 
