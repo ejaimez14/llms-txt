@@ -1,13 +1,9 @@
 import uuid
-from collections.abc import Callable
-from threading import Thread
 
 from fastapi import APIRouter, FastAPI, HTTPException, Query
 from fastapi.responses import FileResponse
 from mangum import Mangum
 
-from src.agents.comparer import run_comparer
-from src.agents.reporter import run_reporter
 from src.constants import (
     AgentType,
     ArtifactStatus,
@@ -24,7 +20,12 @@ from src.models import (
 )
 from src.services.fargate import trigger_task
 from src.services.logger import get_logger
-from src.services.recrawl import handle_schedule, handle_sqs
+from src.services.recrawl import (
+    enqueue_compare,
+    enqueue_report,
+    handle_schedule,
+    handle_sqs,
+)
 from src.services.search import run_search
 from src.services.storage import (
     create_job,
@@ -156,8 +157,8 @@ def report(req: ReportRequest) -> dict:
     job_id_openai = str(uuid.uuid4())
     create_job(job_id_claude, req.url, ModelName.CLAUDE.value, JobType.REPORT)
     create_job(job_id_openai, req.url, ModelName.OPENAI.value, JobType.REPORT)
-    _run_in_thread(run_reporter, job_id_claude, req.url, ModelName.CLAUDE.value)
-    _run_in_thread(run_reporter, job_id_openai, req.url, ModelName.OPENAI.value)
+    enqueue_report(job_id_claude, req.url, ModelName.CLAUDE.value)
+    enqueue_report(job_id_openai, req.url, ModelName.OPENAI.value)
     return {
         "jobIdClaude": job_id_claude,
         "jobIdOpenai": job_id_openai,
@@ -190,8 +191,7 @@ def compare(req: CompareRequest) -> dict:
 
     job_id = str(uuid.uuid4())
     create_job(job_id, req.url, ModelName.CLAUDE.value, JobType.COMPARE)
-    _run_in_thread(
-        run_comparer,
+    enqueue_compare(
         job_id,
         report_jobs[ModelName.CLAUDE],
         report_jobs[ModelName.OPENAI],
@@ -220,14 +220,6 @@ def implement(req: ImplementRequest) -> dict:
 def serve_frontend() -> FileResponse:
     # In prod CloudFront serves index.html from S3 — this route is for local dev only.
     return FileResponse("src/index.html")
-
-
-# --- Internal ---
-
-
-def _run_in_thread(fn: Callable[..., object], *args: object) -> None:
-    """Starts fn(*args) in a daemon thread for single-agent background jobs."""
-    Thread(target=fn, args=args, daemon=True).start()
 
 
 app.include_router(router)
