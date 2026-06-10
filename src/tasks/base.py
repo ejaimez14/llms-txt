@@ -40,6 +40,7 @@ def run_task(job_id: str, url: str, model: str, config: TaskConfig) -> None:
 
 
 def _run_implement(job_id: str, url: str, config: TaskConfig) -> None:
+    """Runs the implement task: sets up hooks, delegates to the Claude Code SDK, handles errors."""
     hooks = JobHooks(job_id, config.agent_type, url, "claude")
     hooks.on_start()
     try:
@@ -51,6 +52,7 @@ def _run_implement(job_id: str, url: str, config: TaskConfig) -> None:
 
 
 async def _run_sdk(hooks: JobHooks, url: str, config: TaskConfig) -> None:
+    """Drives the Claude Code SDK query loop, reads the output file, and calls hooks.on_complete."""
     with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as workspace:
         options = ClaudeAgentOptions(
             cwd=workspace,
