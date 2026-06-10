@@ -6,7 +6,7 @@ import pytest
 from moto import mock_aws
 
 import src.services.storage as storage
-from src.constants import ArtifactStatus, ArtifactType, JobStatus, JobType
+from src.constants import ArtifactStatus, ArtifactType, JobStatus, JobType, ModelName
 
 
 @pytest.fixture(autouse=True)
@@ -181,3 +181,44 @@ def test_save_report_and_comparison_return_correct_keys() -> None:
     assert (
         storage.save_comparison("job-c3", "content") == "results/job-c3/comparison.md"
     )
+
+
+def test_get_latest_report_job_by_model_returns_correct_jobs() -> None:
+    """Returns the newest completed report per model, ignoring older, incomplete, and non-report jobs."""
+    url = "https://example.com"
+    storage.create_job("crawl", url, "claude", JobType.CRAWL)  # ignored: not a report
+    storage.create_job("r-claude-old", url, "claude", JobType.REPORT)
+    storage.complete_artifact(
+        "r-claude-old", ArtifactType.REPORT, "results/r-claude-old/report.md"
+    )
+    storage.create_job("r-openai", url, "openai", JobType.REPORT)
+    storage.complete_artifact(
+        "r-openai", ArtifactType.REPORT, "results/r-openai/report.md"
+    )
+    storage.create_job("r-claude-new", url, "claude", JobType.REPORT)
+    storage.complete_artifact(
+        "r-claude-new", ArtifactType.REPORT, "results/r-claude-new/report.md"
+    )
+    storage.create_job("r-claude-pending", url, "claude", JobType.REPORT)  # incomplete
+
+    latest = storage.get_latest_report_job_by_model(url)
+    assert latest[ModelName.CLAUDE] == "r-claude-new"
+    assert latest[ModelName.OPENAI] == "r-openai"
+
+
+def test_get_latest_report_job_by_model_returns_none_when_missing() -> None:
+    """Returns None for a model with no completed report and for a URL with no reports."""
+    url = "https://example.com"
+    storage.create_job("r-claude", url, "claude", JobType.REPORT)
+    storage.complete_artifact(
+        "r-claude", ArtifactType.REPORT, "results/r-claude/report.md"
+    )
+
+    latest = storage.get_latest_report_job_by_model(url)
+    assert latest[ModelName.CLAUDE] == "r-claude"
+    assert latest[ModelName.OPENAI] is None
+
+    assert storage.get_latest_report_job_by_model("https://never.com") == {
+        ModelName.CLAUDE: None,
+        ModelName.OPENAI: None,
+    }

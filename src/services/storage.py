@@ -6,7 +6,7 @@ import boto3
 import boto3.dynamodb.conditions as dynamo_conditions
 from botocore.exceptions import ClientError
 
-from src.constants import ArtifactStatus, ArtifactType, JobStatus, JobType
+from src.constants import ArtifactStatus, ArtifactType, JobStatus, JobType, ModelName
 from src.services.logger import get_logger
 
 _s3 = boto3.client("s3")
@@ -228,6 +228,23 @@ def list_jobs_for_url(url: str) -> list[dict]:
         logger.error({"event": "list_jobs_for_url_failed", "error": str(exc)})
         raise
     return response.get("Items", [])
+
+
+def get_latest_report_job_by_model(url: str) -> dict[ModelName, str | None]:
+    """Returns the most recent completed report job ID for each model, or None when a model has none."""
+    latest: dict[ModelName, str | None] = {
+        ModelName.CLAUDE: None,
+        ModelName.OPENAI: None,
+    }
+    for job in list_jobs_for_url(url):  # newest-first via the GSI
+        if job.get("type") != JobType.REPORT or job.get("status") != JobStatus.COMPLETE:
+            continue
+        for model_name in latest:
+            if job.get("model") == model_name.value and latest[model_name] is None:
+                latest[model_name] = job["jobId"]
+        if all(latest.values()):
+            break
+    return latest
 
 
 # --- Sites Table Operations ---
