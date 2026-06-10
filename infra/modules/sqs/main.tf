@@ -5,8 +5,8 @@ resource "aws_sqs_queue" "recrawl_dlq" {
 
 resource "aws_sqs_queue" "recrawl" {
   name = var.queue_name
-  # Must match Lambda timeout (120s) to prevent double-processing before visibility expires.
-  visibility_timeout_seconds = 120
+  # Must match Lambda timeout (600s) to prevent double-processing before visibility expires.
+  visibility_timeout_seconds = 600
   redrive_policy = jsonencode({
     deadLetterTargetArn = aws_sqs_queue.recrawl_dlq.arn
     maxReceiveCount     = 3
