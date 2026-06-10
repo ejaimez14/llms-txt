@@ -9,8 +9,11 @@ import uuid
 
 from src.services.storage import create_job
 
-url = sys.argv[1]
-model = sys.argv[2]
-job_id = str(uuid.uuid4())
-create_job(job_id, url, model)
-print(job_id, end="")
+def main(url: str, model: str) -> None:
+    job_id = str(uuid.uuid4())
+    create_job(job_id, url, model)
+    print(job_id, end="")
+
+
+if __name__ == "__main__":
+    main(sys.argv[1], sys.argv[2])
