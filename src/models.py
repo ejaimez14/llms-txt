@@ -122,6 +122,7 @@ class ImplementOutput(BaseModel):
     """Structured output returned by the UI implementer agent."""
 
     pr_url: str
+    debug: str = ""
 
 
 # --- Task config ---

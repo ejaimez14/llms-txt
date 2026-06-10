@@ -181,3 +181,16 @@ def test_save_report_and_comparison_return_correct_keys() -> None:
     assert (
         storage.save_comparison("job-c3", "content") == "results/job-c3/comparison.md"
     )
+
+
+def test_store_implement_result_sets_pr_url_and_completes_job() -> None:
+    storage.create_job("job-impl", "parent-job-id", "claude", JobType.IMPLEMENT)
+    storage.store_implement_result("job-impl", "https://github.com/owner/repo/pull/1")
+    job = storage.get_job("job-impl")
+    assert job["status"] == JobStatus.COMPLETE
+    assert job["artifacts"][ArtifactType.PR_URL]["status"] == ArtifactStatus.COMPLETE
+    assert (
+        job["artifacts"][ArtifactType.PR_URL]["prUrl"]
+        == "https://github.com/owner/repo/pull/1"
+    )
+    assert "s3Key" not in job["artifacts"][ArtifactType.PR_URL]
