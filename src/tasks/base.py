@@ -71,7 +71,7 @@ async def _run_sdk(hooks: JobHooks, url: str, config: TaskConfig) -> None:
 
 
 def _build_implement_prompt(url: str, config: TaskConfig) -> str:
-    """Builds the implementer prompt, injecting the UI plan fetched from S3.
+    """Builds the implementer prompt with literal shell commands (no placeholders).
 
     Embeds GITHUB_TOKEN directly in the clone URL so git push works inside the
     Claude Code SDK subprocess without relying on credential helper configuration.
@@ -82,19 +82,35 @@ def _build_implement_prompt(url: str, config: TaskConfig) -> str:
 
     branch_name = f"ui-implement/{os.environ['AGENT_ID'][:8]}"
     github_token = os.environ.get("GITHUB_TOKEN", "")
+    logger.info({"event": "implement_github_token_check", "available": bool(github_token)})
     repo_url = (
         f"https://{github_token}@github.com/ejaimez14/llms-txt-erick-jaimez.git"
         if github_token
-        else IMPLEMENTER_REPO
+        else f"{IMPLEMENTER_REPO}.git"
+    )
+
+    clone_cmd = f"git clone {repo_url} repo"
+    branch_cmd = f"git checkout -b {branch_name}"
+    push_cmd = f"git add -A && git commit -m 'Implement UI plan' && git push origin {branch_name}"
+    pr_cmd = (
+        f"gh pr create"
+        f" --title 'UI Implementation'"
+        f" --body 'Automated UI implementation from plan'"
+        f" --base {IMPLEMENTER_BASE_BRANCH}"
+        f" --head {branch_name}"
     )
 
     return (
         f"{config.system_prompt}\n\n"
-        f"Repository (use this exact URL to clone — credentials are embedded): {repo_url}\n"
-        f"Base branch: {IMPLEMENTER_BASE_BRANCH}\n"
-        f"Implementation branch: {branch_name}\n\n"
-        f"Implement this UI plan:\n\n{plan_content}\n\n"
-        f"IMPORTANT — before you finish, write `{config.output_file}` to the working directory.\n"
-        f"The file must contain: {config.output_schema_hint}\n"
-        f"Write this file even if the PR fails — it is required for the task to be marked complete."
+        f"Execute these exact steps in order:\n\n"
+        f"1. Clone:          {clone_cmd}\n"
+        f"2. Create branch:  cd repo && {branch_cmd}\n"
+        f"3. Implement:      write all UI files directly inside repo/ (see ## UI Plan below)\n"
+        f"4. Commit & push:  {push_cmd}\n"
+        f"   If push fails, write `{config.output_file}` with {{\"pr_url\": \"\"}} and stop.\n"
+        f"5. Create PR:      {pr_cmd}\n"
+        f"   Capture the URL printed on stdout (e.g. https://github.com/.../pull/N).\n"
+        f"6. Write output:   write `{config.output_file}` in the working directory (not inside repo/):\n"
+        f"   {{\"pr_url\": \"<exact URL from step 5>\"}}\n\n"
+        f"## UI Plan\n\n{plan_content}"
     )

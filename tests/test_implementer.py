@@ -95,7 +95,7 @@ def test_build_implement_prompt_includes_plan_and_repo(
     assert IMPLEMENTER_BASE_BRANCH in prompt
     assert "ui-implement/abcdef12" in prompt
     assert "implement-output.json" in prompt
-    assert "`pr_url` (string)" in prompt
+    assert '"pr_url"' in prompt
 
 
 def test_build_implement_prompt_missing_plan_triggers_on_error(
