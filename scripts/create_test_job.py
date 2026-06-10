@@ -1,9 +1,4 @@
-"""Creates a minimal job record in DynamoDB for local task testing.
-
-Prints the generated job ID to stdout so it can be captured by the Makefile.
-
-Usage: uv run python scripts/create_test_job.py <url> <model>
-"""
+"""Agent troubleshooting helper: seeds a DynamoDB job record for use with make local-task."""
 import sys
 import uuid
 

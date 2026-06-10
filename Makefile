@@ -43,12 +43,7 @@ docker-push: docker-login
 	docker build -f Dockerfile.agent -t $(ECR_URL):latest .
 	docker push $(ECR_URL):latest
 
-# Run a single agent task locally (no Docker) against real AWS.
-# Creates a fresh DynamoDB job record, then executes the task module directly.
-# Use this to validate task logic before building and pushing the Docker image.
-#
-#   make local-task                                              # claude crawl of anthropic.com
-#   make local-task AGENT_URL=https://example.com AGENT_TYPE=crawl AGENT_MODEL=openai
+# Run an agent task locally against real AWS (no Docker). Override AGENT_URL, AGENT_MODEL, AGENT_TYPE as needed.
 local-task:
 	@bash -c '\
 	  set -a; source .env 2>/dev/null; set +a; \
