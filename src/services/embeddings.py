@@ -1,4 +1,5 @@
 import json
+import os
 
 import boto3
 from botocore.exceptions import ClientError
@@ -8,7 +9,10 @@ from src.services.logger import get_logger
 
 logger = get_logger(__name__)
 
-_bedrock_client = boto3.client("bedrock-runtime", region_name="us-east-1")
+_bedrock_client = boto3.client(
+    "bedrock-runtime",
+    region_name=os.environ.get("AWS_DEFAULT_REGION", "us-east-1"),
+)
 
 
 def embed_text(text: str | None) -> list[float]:
