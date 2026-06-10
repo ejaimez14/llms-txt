@@ -4,10 +4,6 @@ import urllib.request
 
 import boto3
 
-from src.services.logger import get_logger
-
-logger = get_logger(__name__)
-
 _secrets_client = boto3.client(
     "secretsmanager",
     region_name=os.environ.get("AWS_DEFAULT_REGION", "us-east-1"),
@@ -29,7 +25,6 @@ def fetch_secret(secret_name: str) -> str:
         )
         with urllib.request.urlopen(req, timeout=2) as resp:
             return json.loads(json.loads(resp.read())["SecretString"])["value"]
-    except Exception as exc:
-        logger.error({"event": "lambda_extension_unavailable", "error": str(exc)})
+    except Exception:
         response = _secrets_client.get_secret_value(SecretId=secret_name)
         return json.loads(response["SecretString"])["value"]

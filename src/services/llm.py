@@ -17,7 +17,10 @@ from src.constants import (
 from src.models import CompareOutput, CrawlOutput, ReportOutput, UIPlanOutput
 from src.services.helpers import fetch_secret
 from src.services.hooks import JobHooks
+from src.services.logger import get_logger
 from src.services.tools import web_fetch_tool
+
+logger = get_logger(__name__)
 
 _AGENT_OUTPUT_MODEL = {
     AgentType.CRAWL: CrawlOutput,
@@ -134,6 +137,7 @@ def _run_claude(agent_ctx: dict, user_content: str) -> dict:
         hooks.on_complete(output_dict, completion.usage)
         return output_dict
     except Exception as exc:
+        logger.error({"event": "claude_agent_failed", "error": str(exc)})
         hooks.on_error(exc)
         raise
 
@@ -148,6 +152,7 @@ def _run_openai(agent_ctx: dict, user_content: str) -> dict:
         hooks.on_complete(raw_output, result.context_wrapper.usage)
         return raw_output
     except Exception as exc:
+        logger.error({"event": "openai_agent_failed", "error": str(exc)})
         hooks.on_error(exc)
         raise
 
