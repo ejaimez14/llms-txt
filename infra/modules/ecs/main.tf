@@ -63,10 +63,8 @@ resource "aws_ecs_task_definition" "agent" {
   }])
 }
 
-# Separate task definition for the implement agent.
-# Deliberately omits ANTHROPIC_API_KEY so the Claude Code CLI falls through to
-# CLAUDE_CODE_OAUTH_TOKEN (position 5 in auth chain). ANTHROPIC_API_KEY is position 3
-# and would override OAuth if present.
+# Omits ANTHROPIC_API_KEY so Claude Code CLI uses CLAUDE_CODE_OAUTH_TOKEN (OAuth is
+# position 5 in auth chain; API key at position 3 would override it).
 resource "aws_ecs_task_definition" "implement" {
   family                   = var.implement_task_family
   requires_compatibilities = ["FARGATE"]
