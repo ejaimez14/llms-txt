@@ -5,12 +5,7 @@ from pathlib import Path
 
 from claude_agent_sdk import ClaudeAgentOptions, query
 
-from src.constants import (
-    AgentType,
-    ArtifactType,
-    IMPLEMENTER_BASE_BRANCH,
-    IMPLEMENTER_REPO,
-)
+from src.constants import AgentType, ArtifactType, IMPLEMENTER_BASE_BRANCH, IMPLEMENTER_REPO
 from src.models import TaskConfig
 from src.services.hooks import JobHooks
 from src.services.llm import create_agent, run_agent
@@ -21,42 +16,40 @@ logger = get_logger(__name__)
 
 
 def run_task(job_id: str, url: str, model: str, config: TaskConfig) -> None:
-    """Fargate entry point: routes to SDK loop (Claude) or agent factory (OpenAI)."""
-    if model == "claude":
-        _run_claude(job_id, url, config)
+    """Routes implement jobs to the Claude Code SDK; all other types through llm.py."""
+    if config.agent_type == AgentType.IMPLEMENT:
+        _run_implement(job_id, url, config)
     else:
-        _run_openai(job_id, url, model, config)
+        agent = create_agent(
+            model,
+            config.agent_type,
+            job_id,
+            url,
+            config.system_prompt,
+            max_turns=config.max_turns,
+            timeout_seconds=config.timeout_seconds,
+        )
+        run_agent(agent, config.task_instruction.format(url=url))
 
 
 # --- Internal ---
 
 
-def _run_claude(job_id: str, url: str, config: TaskConfig) -> None:
+def _run_implement(job_id: str, url: str, config: TaskConfig) -> None:
+    """Runs the implement task: sets up hooks, delegates to the Claude Code SDK, handles errors."""
     hooks = JobHooks(job_id, config.agent_type, url, "claude")
     hooks.on_start()
     try:
         asyncio.run(_run_sdk(hooks, url, config))
     except Exception as exc:
-        logger.error(
-            {"event": f"{config.agent_type.value}_task_failed", "error": str(exc)}
-        )
+        logger.error({"event": "implement_task_failed", "error": str(exc)})
         hooks.on_error(exc)
         raise
 
 
-def _run_openai(job_id: str, url: str, model: str, config: TaskConfig) -> None:
-    agent = create_agent(
-        model=model,
-        agent_type=config.agent_type,
-        job_id=job_id,
-        url=url,
-        system_prompt=config.system_prompt,
-    )
-    run_agent(agent, config.task_instruction.format(url=url))
-
-
 async def _run_sdk(hooks: JobHooks, url: str, config: TaskConfig) -> None:
-    with tempfile.TemporaryDirectory() as workspace:
+    """Drives the SDK query loop in a temp workspace and calls hooks.on_complete."""
+    with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as workspace:
         options = ClaudeAgentOptions(
             cwd=workspace,
             model=config.claude_model,
@@ -64,42 +57,49 @@ async def _run_sdk(hooks: JobHooks, url: str, config: TaskConfig) -> None:
             allowed_tools=config.allowed_tools,
             max_turns=config.max_turns,
         )
+        output_path = Path(workspace, config.output_file)
         async with asyncio.timeout(config.timeout_seconds):
-            async for _ in query(prompt=_build_prompt(url, config), options=options):
-                pass
+            async for _ in query(prompt=_build_implement_prompt(url, config), options=options):
+                if output_path.exists():
+                    break
         output = config.output_model.model_validate_json(
             Path(workspace, config.output_file).read_text()
         )
         hooks.on_complete(output.model_dump())
 
 
-def _build_prompt(url: str, config: TaskConfig) -> str:
-    if config.agent_type == AgentType.IMPLEMENT:
-        return _build_implement_prompt(url, config)
-    return (
-        f"{config.system_prompt}\n\n"
-        f"After completing your analysis, write your output as a JSON object to "
-        f"`{config.output_file}` in the working directory. "
-        f"The JSON must have exactly these fields: {config.output_schema_hint}.\n\n"
-        f"{config.task_instruction.format(url=url)}"
-    )
-
-
 def _build_implement_prompt(url: str, config: TaskConfig) -> str:
-    """Builds the implementer prompt by fetching the UI plan from storage and injecting repo context."""
+    """Builds the agent prompt with git/gh commands; no token in URLs (auth via gh credential helper)."""
     plan_content = get_artifact_content(url, ArtifactType.PLAN)
     if plan_content is None:
         raise ValueError(f"UI plan artifact unavailable for job {url}")
 
     branch_name = f"ui-implement/{os.environ['AGENT_ID'][:8]}"
+    clone_cmd = f"git clone {IMPLEMENTER_REPO}.git repo"
+    branch_cmd = f"git checkout -b {branch_name}"
+    push_cmd = f"git add -A && git commit -m 'Implement UI plan' && git push origin {branch_name}"
+    pr_cmd = (
+        f"gh pr create"
+        f" --title 'UI Implementation'"
+        f" --body 'Automated UI implementation from plan'"
+        f" --base {IMPLEMENTER_BASE_BRANCH}"
+        f" --head {branch_name}"
+    )
 
     return (
         f"{config.system_prompt}\n\n"
-        f"Repository: {IMPLEMENTER_REPO}\n"
-        f"Base branch: {IMPLEMENTER_BASE_BRANCH}\n"
-        f"Implementation branch: {branch_name}\n\n"
-        f"Implement this UI plan:\n\n{plan_content}\n\n"
-        f"After opening the GitHub PR, write your output as a JSON object to "
-        f"`{config.output_file}` in the working directory. "
-        f"The JSON must have exactly one field: {config.output_schema_hint}."
+        f"Execute these exact steps in order:\n\n"
+        f"1. Clone:          {clone_cmd}\n"
+        f"2. Create branch:  cd repo && {branch_cmd}\n"
+        f"3. Implement:      write all UI files directly inside repo/ (see ## UI Plan below)\n"
+        f"4. Commit & push:  {push_cmd}\n"
+        f"5. Create PR:      {pr_cmd}\n"
+        f"   Capture the URL printed on stdout (e.g. https://github.com/.../pull/N).\n"
+        f"6. Write output:   write `{config.output_file}` in the working directory (not inside repo/).\n"
+        f"   Schema: {config.output_schema_hint}\n"
+        f"   Example: {{\"pr_url\": \"<exact URL from step 5>\", \"debug\": \"\"}}\n\n"
+        f"If any step fails, write `{config.output_file}` immediately with:\n"
+        f"   {{\"pr_url\": \"\", \"debug\": \"step N failed: <exact error message from the failed command>\"}}\n"
+        f"and stop. Include the full error output in debug.\n\n"
+        f"## UI Plan\n\n{plan_content}"
     )
