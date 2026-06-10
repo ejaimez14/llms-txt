@@ -7,6 +7,7 @@ from botocore.exceptions import ClientError
 from pytest_mock import MockerFixture
 
 import src.services.embeddings as embeddings_module
+from src.constants import TITAN_EMBED_DIMENSIONS, TITAN_EMBED_MODEL
 from src.services.embeddings import embed_text
 
 
@@ -29,8 +30,11 @@ def test_embed_calls_titan_model(mock_bedrock: MagicMock) -> None:
     embed_text("some text")
 
     call_kwargs = mock_bedrock.invoke_model.call_args.kwargs
-    assert call_kwargs["modelId"] == "amazon.titan-embed-text-v1"
-    assert json.loads(call_kwargs["body"])["inputText"] == "some text"
+    assert call_kwargs["modelId"] == TITAN_EMBED_MODEL
+    body = json.loads(call_kwargs["body"])
+    assert body["inputText"] == "some text"
+    assert body["dimensions"] == TITAN_EMBED_DIMENSIONS
+    assert body["normalize"] is True
 
 
 def test_embed_truncates_long_input(mock_bedrock: MagicMock) -> None:

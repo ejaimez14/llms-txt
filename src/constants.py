@@ -49,8 +49,11 @@ CLAUDE_REPORT_MODEL = "claude-sonnet-4-6"
 CLAUDE_COMPARE_MODEL = "claude-sonnet-4-6"
 CLAUDE_MAX_OUTPUT_TOKENS = 8192
 
-TITAN_EMBED_MODEL = "amazon.titan-embed-text-v1"
+TITAN_EMBED_MODEL = "amazon.titan-embed-text-v2:0"
+TITAN_EMBED_DIMENSIONS = 512
 TITAN_MAX_INPUT_CHARS = 25000
+
+AWS_REGION = "us-east-1"
 
 ANTHROPIC_SECRET_NAME = "secrets/anthropic-api-key"
 PINECONE_SECRET_NAME = "secrets/pinecone-api-key"
