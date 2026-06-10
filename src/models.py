@@ -19,9 +19,7 @@ class ReportRequest(BaseModel):
 
 
 class CompareRequest(BaseModel):
-    job_id_a: str
-    job_id_b: str
-    model: ModelName = ModelName.CLAUDE
+    url: str
 
 
 class ImplementRequest(BaseModel):
