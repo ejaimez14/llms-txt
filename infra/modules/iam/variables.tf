@@ -3,3 +3,8 @@ variable "role_name" {
   type        = string
   default     = "llms-txt-app-role"
 }
+
+variable "aws_region" {
+  description = "AWS region where resources are deployed."
+  type        = string
+}
