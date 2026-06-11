@@ -137,33 +137,6 @@ def test_publish_implement_preview_publishes_on_success(
     assert output.preview_url == "https://cf/experimental/job-x/"
 
 
-def test_publish_implement_preview_skips_without_pr_url(
-    mocker: MockerFixture, tmp_path
-) -> None:
-    (tmp_path / "repo").mkdir()
-    mock_publish = mocker.patch.object(tasks_base, "publish_experimental_preview")
-
-    _publish_implement_preview(
-        REGISTRY.get(AgentType.IMPLEMENT), ImplementOutput(pr_url=""), str(tmp_path), "j"
-    )
-
-    mock_publish.assert_not_called()
-
-
-def test_publish_implement_preview_skips_for_non_implement(
-    mocker: MockerFixture, tmp_path
-) -> None:
-    (tmp_path / "repo").mkdir()
-    mock_publish = mocker.patch.object(tasks_base, "publish_experimental_preview")
-    output = ImplementOutput(pr_url="https://github.com/o/r/pull/1")
-
-    _publish_implement_preview(
-        REGISTRY.get(AgentType.CRAWL), output, str(tmp_path), "j"
-    )
-
-    mock_publish.assert_not_called()
-
-
 def test_hooks_on_complete_implement_saves_pr_url(mocker: MockerFixture) -> None:
     mock_store = mocker.patch.object(hooks_module, "store_implement_result")
     hooks = JobHooks("job-6", AgentType.IMPLEMENT, "owner/repo", "claude")

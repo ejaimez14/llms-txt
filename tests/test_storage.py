@@ -199,26 +199,18 @@ def test_save_report_and_comparison_return_correct_keys() -> None:
 
 def test_store_implement_result_sets_pr_url_and_completes_job() -> None:
     storage.create_job("job-impl", "parent-job-id", "claude", JobType.IMPLEMENT)
-    storage.store_implement_result("job-impl", "https://github.com/owner/repo/pull/1")
-    job = storage.get_job("job-impl")
-    assert job["status"] == JobStatus.COMPLETE
-    assert job["artifacts"][ArtifactType.PR_URL]["status"] == ArtifactStatus.COMPLETE
-    assert (
-        job["artifacts"][ArtifactType.PR_URL]["prUrl"]
-        == "https://github.com/owner/repo/pull/1"
-    )
-    assert "s3Key" not in job["artifacts"][ArtifactType.PR_URL]
-
-
-def test_store_implement_result_stores_preview_url() -> None:
-    storage.create_job("job-impl", "parent-job-id", "claude", JobType.IMPLEMENT)
     storage.store_implement_result(
         "job-impl",
         "https://github.com/owner/repo/pull/1",
         "https://test.cloudfront.net/experimental/job-impl/",
     )
-    artifact = storage.get_job("job-impl")["artifacts"][ArtifactType.PR_URL]
+    job = storage.get_job("job-impl")
+    artifact = job["artifacts"][ArtifactType.PR_URL]
+    assert job["status"] == JobStatus.COMPLETE
+    assert artifact["status"] == ArtifactStatus.COMPLETE
+    assert artifact["prUrl"] == "https://github.com/owner/repo/pull/1"
     assert artifact["previewUrl"] == "https://test.cloudfront.net/experimental/job-impl/"
+    assert "s3Key" not in artifact
 
 
 def test_publish_experimental_preview_uploads_web_assets_only(tmp_path) -> None:
