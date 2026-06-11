@@ -1266,6 +1266,16 @@ function artifactLinks(info) {
   return links.length ? ` ${links.join(' ')}` : ''
 }
 
+/** Sums input/output token counts across a job's artifacts (full record only — slim list omits them). */
+function jobTokenTotals(job) {
+  let input = 0, output = 0
+  for (const info of Object.values(job.artifacts || {})) {
+    input += Number(info.inputTokens) || 0
+    output += Number(info.outputTokens) || 0
+  }
+  return { input, output, total: input + output }
+}
+
 /** Returns artifact fetch definitions for a job based on its artifact keys. */
 function buildArtifactDefsForJob(job) {
   const all = [
@@ -1302,10 +1312,14 @@ async function renderJobDetail(jobId) {
 
   const createdAt = job.createdAt ? new Date(job.createdAt).toLocaleString() : '—'
   const prArtifact = (job.artifacts && job.artifacts.prUrl) || {}
+  const tokens = jobTokenTotals(job)
+  const tokenMeta = tokens.total
+    ? ` · ${tokens.input.toLocaleString()} in / ${tokens.output.toLocaleString()} out tokens`
+    : ''
   header.innerHTML = `
     <span class="job-detail-url">${escapeHtml(job.url)}</span>
     ${statusBadge(job.status)}
-    <span class="job-detail-meta">${escapeHtml(job.model || '')} · ${escapeHtml(job.type || 'job')} · ${createdAt}</span>
+    <span class="job-detail-meta">${escapeHtml(job.model || '')} · ${escapeHtml(job.type || 'job')} · ${createdAt}${tokenMeta}</span>
     ${artifactLinks(prArtifact)}
   `
 
