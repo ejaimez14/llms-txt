@@ -11,7 +11,7 @@ The browser only ever talks to CloudFront. CloudFront serves the static UI from 
 ```mermaid
 flowchart LR
   Browser -->|"basic auth"| CloudFront
-  CloudFront -->|"static UI"| S3UI["S3 — index.html"]
+  CloudFront -->|"static UI + /experimental previews"| S3UI["S3 — frontend bucket"]
   CloudFront -->|"/api/*"| APIGateway["API Gateway"]
   APIGateway -->|"x-api-key"| Lambda["Lambda — FastAPI"]
 ```
@@ -34,13 +34,17 @@ flowchart TD
   Lambda -->|"crawl · ui-plan · implement"| Fargate["Fargate agents"]
   Lambda -->|"report · compare"| SQS(["SQS queue"])
   SQS --> Consumer["Lambda — SQS consumer"]
-  EventBridge["EventBridge schedule"] -->|"recrawl fan-out"| Lambda
+  EventBridge["EventBridge schedule"] -->|"one message per site"| SQS
+  Consumer -->|"recrawl → crawl"| Fargate
 
-  Fargate --> Models["Claude · OpenAI · Titan"]
-  Consumer --> Models
+  Fargate -->|"generate"| Models["Claude · OpenAI"]
+  Consumer -->|"generate"| Models
+  Fargate -->|"embed (crawl only)"| Titan["Bedrock Titan — embeddings"]
+  Titan --> Pinecone
+
   Fargate --> Store
   Consumer --> Store
-  Lambda -->|"reads + search"| Store
+  Lambda -->|"reads + GET /search"| Store
 
   subgraph Store["Stores"]
     Jobs["DynamoDB — jobs"]
@@ -81,15 +85,15 @@ All routes are served under the `/api` prefix.
 | Method | Path | Purpose |
 | --- | --- | --- |
 | POST | `/api/crawl` | Start a crawl — produces the llms.txt + UI plan |
-| GET | `/api/job` | Poll one job's status and per-artifact state |
+| GET | `/api/job?id=<jobId>` | Poll one job's status and per-artifact state |
 | GET | `/api/job/{id}/llms-txt` | Fetch the llms.txt artifact |
 | GET | `/api/job/{id}/plan` | Fetch the UI plan artifact |
 | GET | `/api/job/{id}/report` | Fetch the report artifact |
 | GET | `/api/job/{id}/comparison` | Fetch the comparison artifact |
 | GET | `/api/job/{id}/pr-url` | Fetch an implement job's PR URL + preview URL |
-| GET | `/api/jobs` | List all jobs (optional `model` filter) |
-| GET | `/api/site` | Latest site record + crawl history for a URL |
-| GET | `/api/search` | Semantic search over crawled content (synchronous) |
+| GET | `/api/jobs?model=<claude\|openai>` | List all jobs (the `model` filter is optional) |
+| GET | `/api/site?url=<url>` | Latest site record + crawl history for a URL |
+| GET | `/api/search?q=<query>` | Semantic search over crawled content (synchronous) |
 | POST | `/api/report` | Generate a report on **both** models for a crawled URL |
 | POST | `/api/compare` | Compare the latest report from each model for a URL |
 | POST | `/api/implement` | Open a GitHub PR for a UI plan and publish a live preview |
@@ -126,8 +130,8 @@ Create a `.env` file (gitignored) with the following variable **names** — supp
 | `BUCKET` | S3 bucket for artifact content |
 | `TABLE` | DynamoDB jobs table name |
 | `SITES_TABLE` | DynamoDB sites table name |
-| `AWS_DEFAULT_REGION` | AWS region (optional; defaults to `us-east-1`) |
-| `ECS_CLUSTER`, `ECS_TASK_DEFINITION`, `ECS_SUBNET_IDS`, `ECS_SECURITY_GROUP` | Required only to dispatch Fargate tasks (crawl, ui-plan, implement) |
+| `AWS_DEFAULT_REGION` | AWS credentials region (the app itself is pinned to `us-east-1` in `src/constants.py`) |
+| `ECS_CLUSTER`, `ECS_TASK_DEFINITION`, `ECS_IMPLEMENT_TASK_DEFINITION`, `ECS_SUBNET_IDS`, `ECS_SECURITY_GROUP` | Required only to dispatch Fargate tasks (crawl, ui-plan, implement) |
 | `FRONTEND_BUCKET`, `CLOUDFRONT_URL` | Required only by the implement task to publish `/experimental` previews |
 | `RECRAWL_QUEUE_URL` | SQS queue URL for the recrawl handler |
 
