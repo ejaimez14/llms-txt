@@ -13,9 +13,10 @@ from src.constants import (
     IMPLEMENTER_BASE_BRANCH,
     IMPLEMENTER_REPO,
 )
+from src.models import ImplementOutput
 from src.prompts import _build_implement_prompt
 from src.services.hooks import JobHooks
-from src.tasks.base import run_task
+from src.tasks.base import _publish_implement_preview, run_task
 from src.tasks.registry import REGISTRY
 
 
@@ -117,11 +118,39 @@ def test_build_implement_prompt_missing_plan_triggers_on_error(
     assert "source-job-5" in str(error_arg)
 
 
+def test_publish_implement_preview_publishes_on_success(
+    mocker: MockerFixture, tmp_path
+) -> None:
+    (tmp_path / "repo").mkdir()
+    mock_publish = mocker.patch.object(
+        tasks_base,
+        "publish_experimental_preview",
+        return_value="https://cf/experimental/job-x/",
+    )
+    output = ImplementOutput(pr_url="https://github.com/o/r/pull/1")
+
+    _publish_implement_preview(
+        REGISTRY.get(AgentType.IMPLEMENT), output, str(tmp_path), "job-x"
+    )
+
+    mock_publish.assert_called_once_with("job-x", str(tmp_path / "repo"))
+    assert output.preview_url == "https://cf/experimental/job-x/"
+
+
 def test_hooks_on_complete_implement_saves_pr_url(mocker: MockerFixture) -> None:
     mock_store = mocker.patch.object(hooks_module, "store_implement_result")
     hooks = JobHooks("job-6", AgentType.IMPLEMENT, "owner/repo", "claude")
     hooks._start_time = time.time()
 
-    hooks.on_complete({"pr_url": "https://github.com/owner/repo/pull/42"})
+    hooks.on_complete(
+        {
+            "pr_url": "https://github.com/owner/repo/pull/42",
+            "preview_url": "https://test.cloudfront.net/experimental/job-6/",
+        }
+    )
 
-    mock_store.assert_called_once_with("job-6", "https://github.com/owner/repo/pull/42")
+    mock_store.assert_called_once_with(
+        "job-6",
+        "https://github.com/owner/repo/pull/42",
+        "https://test.cloudfront.net/experimental/job-6/",
+    )

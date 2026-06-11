@@ -17,6 +17,8 @@ os.environ["BUCKET"] = "test-bucket"
 os.environ["TABLE"] = "test-jobs"
 os.environ["SITES_TABLE"] = "test-sites"
 os.environ["PINECONE_INDEX"] = "test-index"
+os.environ["FRONTEND_BUCKET"] = "test-frontend-bucket"
+os.environ["CLOUDFRONT_URL"] = "https://test.cloudfront.net"
 os.environ["ECS_CLUSTER"] = "test-cluster"
 os.environ["ECS_TASK_DEFINITION"] = (
     "arn:aws:ecs:us-east-1:000000000000:task-definition/test-agent:1"

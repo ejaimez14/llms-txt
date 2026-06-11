@@ -2,6 +2,7 @@ from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 import pytest
+from pydantic import ValidationError
 from pytest_mock import MockerFixture
 
 from agents import WebSearchTool
@@ -38,10 +39,20 @@ def test_create_agent_unknown_agent_type_raises() -> None:
 # --- run_agent (claude) ---
 
 
+def test_site_metadata_requires_string_fields() -> None:
+    with pytest.raises(ValidationError):
+        SiteMetadata(tech_stack=[], integrations=[])
+
+
 def test_run_agent_calls_instructor_and_returns_dict(mocker: MockerFixture) -> None:
     crawl_output = CrawlOutput(
         llms_txt="# Content",
-        metadata=SiteMetadata(tech_stack=[], integrations=[]),
+        metadata=SiteMetadata(
+            site_category="docs",
+            business_model="open-source",
+            target_audience="developers",
+            content_tone="technical",
+        ),
     )
     mock_completion = SimpleNamespace(
         usage=SimpleNamespace(input_tokens=10, output_tokens=5)
@@ -62,7 +73,12 @@ def test_run_agent_calls_instructor_and_returns_dict(mocker: MockerFixture) -> N
 def test_run_agent_passes_extra_tools_when_present(mocker: MockerFixture) -> None:
     crawl_output = CrawlOutput(
         llms_txt="# Content",
-        metadata=SiteMetadata(tech_stack=[], integrations=[]),
+        metadata=SiteMetadata(
+            site_category="docs",
+            business_model="open-source",
+            target_audience="developers",
+            content_tone="technical",
+        ),
     )
     mock_completion = SimpleNamespace(
         usage=SimpleNamespace(input_tokens=10, output_tokens=5)
@@ -114,9 +130,9 @@ def test_crawl_on_complete_embeds_text(mocker: MockerFixture) -> None:
                 "primary_topics": [],
                 "tech_stack": [],
                 "integrations": [],
-                "business_model": None,
-                "target_audience": None,
-                "content_tone": None,
+                "business_model": "open-source",
+                "target_audience": "developers",
+                "content_tone": "technical",
                 "has_public_api": False,
                 "languages": [],
             },
@@ -187,9 +203,9 @@ def test_run_openai_returns_structured_output() -> None:
         metadata=SiteMetadata(
             site_category="docs",
             tech_stack=[],
-            business_model=None,
-            target_audience=None,
-            content_tone=None,
+            business_model="open-source",
+            target_audience="developers",
+            content_tone="technical",
             integrations=[],
         ),
     )

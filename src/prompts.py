@@ -35,7 +35,8 @@ Produce your output as valid JSON with two fields:
     - `content_tone`: brand voice (e.g. technical, formal, playful, promotional)
     - `has_public_api`: true if the site documents a programmatic API, otherwise false
     - `languages`: ISO codes of languages the site publishes in (e.g. ["en", "es"])
-  Use null for any string field and [] for any list you cannot determine — never guess.
+  Always provide a value for every field — use "unknown" for any string you cannot determine and []
+  only for a list that genuinely has no entries. Never use null.
 """.strip()
 
 UI_PLAN_SYSTEM_PROMPT = """
