@@ -55,3 +55,11 @@ variable "vpc_id" {
 variable "implement_task_family" {
   description = "ECS task definition family name for the implement agent (no ANTHROPIC_API_KEY; uses CLAUDE_CODE_OAUTH_TOKEN)"
 }
+
+variable "frontend_bucket_name" {
+  description = "S3 bucket serving the frontend — implement agent publishes UI previews under experimental/<jobId>/"
+}
+
+variable "cloudfront_url" {
+  description = "Public CloudFront URL used to build the experimental preview link returned by the implement agent"
+}
