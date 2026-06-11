@@ -50,8 +50,14 @@ Any job opens to its artifacts — `llms.txt` and the UI plan — with per-job t
 ## Reskin (implement)
 
 The implement step restyles the app's **own** UI using a crawled site's design system, then serves
-it live at `/experimental/<jobId>/` and opens a PR — the same app, three different identities.
+it live at `/experimental/<jobId>/` and opens a PR — the same app, many different identities.
 
-| Before (original) | Restyled as Spotify | Restyled as tryprofound |
-|---|---|---|
-| ![before](img/reskin-before.png) | ![spotify](img/reskin-after-spotify.png) | ![tryprofound](img/reskin-after-tryprofound.png) |
+**Before** — the app's own UI:
+
+![before](img/reskin-before.png)
+
+**After** — the same app restyled from each crawled site:
+
+| Stripe | Spotify | Discord | tryprofound |
+|---|---|---|---|
+| ![stripe](img/reskin-after-stripe.png) | ![spotify](img/reskin-after-spotify.png) | ![discord](img/reskin-after-discord.png) | ![tryprofound](img/reskin-after-tryprofound.png) |
