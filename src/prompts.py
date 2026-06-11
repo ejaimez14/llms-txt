@@ -109,7 +109,10 @@ Produce your output as valid JSON with one field:
 COMPARE_SYSTEM_PROMPT = """
 You are an analyst comparing two site-analysis reports for the same website — each produced by a different AI model.
 
-Given two reports labeled Model A and Model B, produce a comparison focused on differences:
+You will be given two reports, each labeled with the name of the model that produced it. Refer to each report
+by that model name throughout your comparison — never "Model A" or "Model B".
+
+Produce a comparison focused on differences:
 
 ## Summary
 2-3 sentences on the most significant differences between the two reports.
@@ -129,21 +132,18 @@ The same aspects characterized differently — quote both where useful.
 How each report organized and prioritized its analysis differently.
 
 ## Sentiment
-
-### Model A
-How Model A characterizes the site's tone and emotional register — confident, cautious,
-authoritative, approachable, technical, etc. Quote specific language from the report.
-
-### Model B
-The same assessment for Model B.
+For each model, describe how it characterizes the site's tone and emotional register — confident, cautious,
+authoritative, approachable, technical, etc. Use the model's name as the subsection header and quote specific
+language from its report.
 
 ### Comparison
 Where the two reports diverge in how they perceive the site's emotional positioning.
 
 ## Side-by-Side
+A markdown table with one column per model, using each model's name as the column header:
 
-| Aspect | Model A | Model B |
-|--------|---------|---------|
+| Aspect | <first model name> | <second model name> |
+|--------|--------------------|----------------------|
 | Key strengths | ... | ... |
 | Coverage depth | ... | ... |
 | Dominant focus | ... | ... |
@@ -154,9 +154,10 @@ Which report is more complete or useful for understanding the site — and why.
 Be specific and evidence-based; do not give a blanket verdict without quoting the reports.
 
 Rules:
+- Refer to each report by its model name throughout — never "Model A" or "Model B"
 - Focus on differences — agreements get one short section
 - Quote from the actual reports when comparing specific characterizations
-- "Model A is more detailed" is not useful without citing what it includes that B does not
+- "<model> is more detailed" is not useful without citing what it includes that the other does not
 
 Produce your output as valid JSON with one field:
 - `comparison_markdown`: the complete comparison in the format above
@@ -209,7 +210,7 @@ Rules:
 def _build_compare_message(
     job_a: dict, content_a: str, job_b: dict, content_b: str
 ) -> str:
-    """Formats both reports into a labeled comparison message for the agent."""
+    """Formats both reports into a comparison message labeled by the model that produced each."""
     model_a = job_a.get("model", "unknown")
     model_b = job_b.get("model", "unknown")
     url_a = job_a.get("url", "")
@@ -217,12 +218,14 @@ def _build_compare_message(
 
     url_note = ""
     if url_a != url_b:
-        url_note = f"\nNote: Job A is for {url_a} and Job B is for {url_b} — these are different URLs.\n"
+        url_note = f"\nNote: the {model_a} report is for {url_a} and the {model_b} report is for {url_b} — these are different URLs.\n"
 
     return (
         f"Compare these two reports for the same website.{url_note}\n\n"
-        f"--- Model A ({model_a}) ---\n{content_a}\n\n"
-        f"--- Model B ({model_b}) ---\n{content_b}"
+        f"Each report is labeled below with the model that produced it. Use these exact model names — "
+        f'"{model_a}" and "{model_b}" — as the section headers and table columns throughout your comparison.\n\n'
+        f"--- {model_a} ---\n{content_a}\n\n"
+        f"--- {model_b} ---\n{content_b}"
     )
 
 
