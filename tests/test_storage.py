@@ -131,12 +131,12 @@ def test_list_jobs_for_url_returns_sorted_history() -> None:
 def test_upsert_site_overwrites_previous() -> None:
     """Second upsert for same URL replaces the first — one row per URL always."""
     metadata = {
+        "site_category": "docs",
+        "primary_topics": ["payments"],
         "tech_stack": ["React"],
-        "audience": "devs",
-        "tone": None,
-        "business_model": None,
+        "target_audience": "devs",
+        "has_public_api": True,
         "integrations": [],
-        "content_types": [],
     }
     storage.upsert_site(
         "https://example.com", "job-a", "results/job-a/llms.txt", metadata, "claude"
@@ -151,6 +151,8 @@ def test_upsert_site_overwrites_previous() -> None:
     assert len(sites) == 1
     assert sites[0]["latestJobId"] == "job-b"
     assert sites[0]["tech_stack"] == ["Vue"]
+    assert sites[0]["site_category"] == "docs"
+    assert sites[0]["has_public_api"] is True
 
 
 def test_report_and_compare_jobs_initialize_correct_artifacts() -> None:

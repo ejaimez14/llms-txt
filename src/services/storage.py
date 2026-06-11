@@ -284,12 +284,15 @@ def upsert_site(url: str, job_id: str, s3_key: str, metadata: dict, model: str) 
                 "lastCrawledAt": _utc_now(),
                 "model": model,
                 # SiteMetadata fields stored flat (not nested)
+                "site_category": metadata.get("site_category"),
+                "primary_topics": metadata.get("primary_topics", []),
                 "tech_stack": metadata.get("tech_stack", []),
-                "audience": metadata.get("audience"),
-                "tone": metadata.get("tone"),
-                "business_model": metadata.get("business_model"),
                 "integrations": metadata.get("integrations", []),
-                "content_types": metadata.get("content_types", []),
+                "business_model": metadata.get("business_model"),
+                "target_audience": metadata.get("target_audience"),
+                "content_tone": metadata.get("content_tone"),
+                "has_public_api": metadata.get("has_public_api", False),
+                "languages": metadata.get("languages", []),
             }
         )
     except ClientError as exc:

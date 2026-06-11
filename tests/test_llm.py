@@ -41,7 +41,7 @@ def test_create_agent_unknown_agent_type_raises() -> None:
 def test_run_agent_calls_instructor_and_returns_dict(mocker: MockerFixture) -> None:
     crawl_output = CrawlOutput(
         llms_txt="# Content",
-        metadata=SiteMetadata(tech_stack=[], integrations=[], content_types=[]),
+        metadata=SiteMetadata(tech_stack=[], integrations=[]),
     )
     mock_completion = SimpleNamespace(
         usage=SimpleNamespace(input_tokens=10, output_tokens=5)
@@ -62,7 +62,7 @@ def test_run_agent_calls_instructor_and_returns_dict(mocker: MockerFixture) -> N
 def test_run_agent_passes_extra_tools_when_present(mocker: MockerFixture) -> None:
     crawl_output = CrawlOutput(
         llms_txt="# Content",
-        metadata=SiteMetadata(tech_stack=[], integrations=[], content_types=[]),
+        metadata=SiteMetadata(tech_stack=[], integrations=[]),
     )
     mock_completion = SimpleNamespace(
         usage=SimpleNamespace(input_tokens=10, output_tokens=5)
@@ -110,12 +110,15 @@ def test_crawl_on_complete_embeds_text(mocker: MockerFixture) -> None:
         {
             "llms_txt": "# Site",
             "metadata": {
+                "site_category": "docs",
+                "primary_topics": [],
                 "tech_stack": [],
-                "audience": None,
-                "tone": None,
-                "business_model": None,
                 "integrations": [],
-                "content_types": [],
+                "business_model": None,
+                "target_audience": None,
+                "content_tone": None,
+                "has_public_api": False,
+                "languages": [],
             },
         }
     )
@@ -182,12 +185,12 @@ def test_run_openai_returns_structured_output() -> None:
     crawl_output = CrawlOutput(
         llms_txt="# Site",
         metadata=SiteMetadata(
+            site_category="docs",
             tech_stack=[],
-            audience=None,
-            tone=None,
             business_model=None,
+            target_audience=None,
+            content_tone=None,
             integrations=[],
-            content_types=[],
         ),
     )
     mock_usage = SimpleNamespace(input_tokens=10, output_tokens=5)

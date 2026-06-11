@@ -69,14 +69,17 @@ class ArtifactContent(BaseModel):
 
 
 class SiteMetadata(BaseModel):
-    """Structured metadata the crawl agent extracts alongside the llms.txt content."""
+    """Structured site-level metadata the crawl agent extracts alongside the llms.txt content."""
 
+    site_category: str | None = None
+    primary_topics: list[str] = []
     tech_stack: list[str] = []
-    audience: str | None = None
-    tone: str | None = None
-    business_model: str | None = None
     integrations: list[str] = []
-    content_types: list[str] = []
+    business_model: str | None = None
+    target_audience: str | None = None
+    content_tone: str | None = None
+    has_public_api: bool = False
+    languages: list[str] = []
 
 
 class CrawlOutput(BaseModel):

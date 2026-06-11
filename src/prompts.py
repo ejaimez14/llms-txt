@@ -25,8 +25,17 @@ Rules:
 
 Produce your output as valid JSON with two fields:
 - `llms_txt`: the complete document in the format above
-- `metadata`: structured site metadata you observed during crawling.
-  Use null for any field you cannot determine — never guess.
+- `metadata`: structured site-level metadata you observed during crawling, with these fields:
+    - `site_category`: single primary classification (e.g. docs, saas-product, ecommerce, marketing, blog, portfolio, api-reference)
+    - `primary_topics`: 3-6 normalized subject tags (e.g. ["payments", "authentication"])
+    - `tech_stack`: detected frameworks, CMS, languages, or hosting
+    - `integrations`: named third-party services (e.g. Stripe, Auth0, Segment)
+    - `business_model`: single value (e.g. saas-subscription, ecommerce, marketplace, ads, open-source, services)
+    - `target_audience`: one concise descriptor of who the site is for (e.g. "backend developers")
+    - `content_tone`: brand voice (e.g. technical, formal, playful, promotional)
+    - `has_public_api`: true if the site documents a programmatic API, otherwise false
+    - `languages`: ISO codes of languages the site publishes in (e.g. ["en", "es"])
+  Use null for any string field and [] for any list you cannot determine — never guess.
 """.strip()
 
 UI_PLAN_SYSTEM_PROMPT = """
