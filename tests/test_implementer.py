@@ -13,9 +13,10 @@ from src.constants import (
     IMPLEMENTER_BASE_BRANCH,
     IMPLEMENTER_REPO,
 )
+from src.models import ImplementOutput
 from src.prompts import _build_implement_prompt
 from src.services.hooks import JobHooks
-from src.tasks.base import run_task
+from src.tasks.base import _publish_implement_preview, run_task
 from src.tasks.registry import REGISTRY
 
 
@@ -115,6 +116,52 @@ def test_build_implement_prompt_missing_plan_triggers_on_error(
     error_arg = mock_hooks.return_value.on_error.call_args[0][0]
     assert isinstance(error_arg, ValueError)
     assert "source-job-5" in str(error_arg)
+
+
+def test_publish_implement_preview_publishes_on_success(
+    mocker: MockerFixture, tmp_path
+) -> None:
+    (tmp_path / "repo").mkdir()
+    mock_publish = mocker.patch.object(
+        tasks_base,
+        "publish_experimental_preview",
+        return_value="https://cf/experimental/job-x/",
+    )
+    output = ImplementOutput(pr_url="https://github.com/o/r/pull/1")
+
+    _publish_implement_preview(
+        REGISTRY.get(AgentType.IMPLEMENT), output, str(tmp_path), "job-x"
+    )
+
+    mock_publish.assert_called_once_with("job-x", str(tmp_path / "repo"))
+    assert output.preview_url == "https://cf/experimental/job-x/"
+
+
+def test_publish_implement_preview_skips_without_pr_url(
+    mocker: MockerFixture, tmp_path
+) -> None:
+    (tmp_path / "repo").mkdir()
+    mock_publish = mocker.patch.object(tasks_base, "publish_experimental_preview")
+
+    _publish_implement_preview(
+        REGISTRY.get(AgentType.IMPLEMENT), ImplementOutput(pr_url=""), str(tmp_path), "j"
+    )
+
+    mock_publish.assert_not_called()
+
+
+def test_publish_implement_preview_skips_for_non_implement(
+    mocker: MockerFixture, tmp_path
+) -> None:
+    (tmp_path / "repo").mkdir()
+    mock_publish = mocker.patch.object(tasks_base, "publish_experimental_preview")
+    output = ImplementOutput(pr_url="https://github.com/o/r/pull/1")
+
+    _publish_implement_preview(
+        REGISTRY.get(AgentType.CRAWL), output, str(tmp_path), "j"
+    )
+
+    mock_publish.assert_not_called()
 
 
 def test_hooks_on_complete_implement_saves_pr_url(mocker: MockerFixture) -> None:

@@ -221,12 +221,15 @@ def test_store_implement_result_stores_preview_url() -> None:
     assert artifact["previewUrl"] == "https://test.cloudfront.net/experimental/job-impl/"
 
 
-def test_publish_experimental_preview_uploads_files_and_returns_url(tmp_path) -> None:
+def test_publish_experimental_preview_uploads_web_assets_only(tmp_path) -> None:
     (tmp_path / "index.html").write_text("<h1>hi</h1>")
     (tmp_path / "assets").mkdir()
     (tmp_path / "assets" / "app.css").write_text("body{}")
     (tmp_path / ".git").mkdir()
     (tmp_path / ".git" / "config").write_text("secret")
+    # Source/config files must NOT be served from the public preview path.
+    (tmp_path / "main.py").write_text("print('x')")
+    (tmp_path / "README.md").write_text("# repo")
 
     preview_url = storage.publish_experimental_preview("job-impl", str(tmp_path))
 

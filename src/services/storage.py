@@ -8,7 +8,14 @@ import boto3
 import boto3.dynamodb.conditions as dynamo_conditions
 from botocore.exceptions import ClientError
 
-from src.constants import ArtifactStatus, ArtifactType, JobStatus, JobType, ModelName
+from src.constants import (
+    ArtifactStatus,
+    ArtifactType,
+    JobStatus,
+    JobType,
+    ModelName,
+    WEB_PREVIEW_EXTENSIONS,
+)
 from src.services.logger import get_logger
 
 _s3 = boto3.client("s3")
@@ -139,14 +146,19 @@ def store_implement_result(job_id: str, pr_url: str, preview_url: str = "") -> N
 
 
 def publish_experimental_preview(job_id: str, source_dir: str) -> str:
-    """Uploads a built UI directory to the frontend bucket under experimental/<job_id>/ and returns its CloudFront URL."""
+    """Uploads the built UI's web assets to the frontend bucket under experimental/<job_id>/ and returns its CloudFront URL."""
     bucket = os.environ["FRONTEND_BUCKET"]
     base_url = os.environ["CLOUDFRONT_URL"].rstrip("/")
     source = Path(source_dir)
     try:
         for path in source.rglob("*"):
             relative = path.relative_to(source)
-            if not path.is_file() or any(part.startswith(".") for part in relative.parts):
+            skip = (
+                not path.is_file()
+                or any(part.startswith(".") for part in relative.parts)
+                or path.suffix.lower() not in WEB_PREVIEW_EXTENSIONS
+            )
+            if skip:
                 continue
             content_type = mimetypes.guess_type(path.name)[0] or "application/octet-stream"
             _s3.upload_file(
