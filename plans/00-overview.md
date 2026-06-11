@@ -1,6 +1,8 @@
 # Execution Overview
 
-This document defines the build order and current state. Use it to understand what is done, what is next, and what can run in parallel.
+> **Historical build plan.** This document (and the rest of `plans/`) captures how the system was built, phase by phase. **The build has since shipped in full** — the phase statuses below are frozen at an early point and no longer reflect reality. For the current system, see the [README](../README.md), [docs/architecture.md](../docs/architecture.md), and [docs/endpoints.md](../docs/endpoints.md).
+
+This document defines the original build order — read it as design-intent history, not current state.
 
 ---
 
