@@ -27,18 +27,20 @@ flowchart LR
 
 ## What the workers write
 
-Both lanes call the model providers and write to the same stores. Only the crawl path embeds into Pinecone (via Bedrock Titan); the API reads back from the stores to serve `GET` requests and search.
+Both lanes call the model providers and write to the same stores. Bedrock Titan turns text into vectors on two paths: the crawl worker embeds the `llms.txt` to **upsert** into Pinecone, and the API embeds the search query to **query** Pinecone. The API also reads artifacts back from DynamoDB + S3 to serve `GET` requests.
 
 ```mermaid
 flowchart TD
   Fargate["Fargate agents"] --> LLM["Claude · OpenAI"]
   Consumer["SQS consumer"] --> LLM
-  Fargate -->|"embed (crawl only)"| Titan["Bedrock Titan"] --> Pinecone[("Pinecone")]
 
-  Fargate --> Data[("DynamoDB + S3")]
+  Fargate -->|"crawl: embed llms.txt"| Titan["Bedrock Titan"]
+  API["FastAPI API"] -->|"search: embed query"| Titan
+  Titan -->|"crawl: upsert · search: query"| Pinecone[("Pinecone — vectors")]
+
+  Fargate --> Data[("DynamoDB + S3 — jobs, sites, artifacts")]
   Consumer --> Data
-  API["FastAPI API"] -->|"reads + search"| Data
-  API --> Pinecone
+  API -->|"reads"| Data
 ```
 
 DynamoDB holds two tables — `jobs` (one record per crawl/report/compare/implement run) and `sites` (the latest record per URL, with the search-filterable metadata). S3 holds the artifact content (`llms.txt`, `plan.md`, `report.md`, `comparison.md`).
@@ -64,7 +66,7 @@ sequenceDiagram
     API-->>C: { status, artifacts }
   end
   C->>API: GET /api/job/{id}/llms-txt
-  API-->>C: { content }
+  API-->>C: artifact content
 ```
 
 A single `POST /api/crawl` dispatches **two** Fargate tasks under one `jobId` — the crawler and the UI planner — which is why one crawl yields both the `llms.txt` and the UI plan artifacts.
