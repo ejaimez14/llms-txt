@@ -4,6 +4,12 @@ Give it a website URL and it produces four things — an [`llms.txt`](https://ll
 
 Crawl, report, and compare can each run on **Anthropic Claude** or **OpenAI**, so you can put the two models' output side by side.
 
+## Demo
+
+![Walkthrough](docs/demo/walkthrough.gif)
+
+A full tour — crawl, semantic search, reports, comparison, history, and the reskin step that restyles the app's own UI from a crawled site — with screenshots of every page is in **[docs/demo](docs/demo/)**.
+
 ## Architecture at a glance
 
 The browser only ever talks to CloudFront. CloudFront serves the static UI from S3 and proxies API calls to the Lambda; everything is gated by basic auth.
@@ -20,6 +26,7 @@ The API itself is fast; anything slow is handed to a background worker and the c
 
 ## Documentation
 
+- **[Demo](docs/demo/)** — screenshots of every page, the walkthrough GIF, and reskin examples.
 - **[Architecture](docs/architecture.md)** — how jobs run, the two async lanes, and the request lifecycle.
 - **[API reference](docs/endpoints.md)** — every endpoint, request bodies, implement previews, and site metadata.
 - **[Contributor conventions](CLAUDE.md)** — code style, error handling, testing, and PR format.
