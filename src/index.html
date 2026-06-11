@@ -4,119 +4,296 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>llms.txt Crawler</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <script>
+    // Resolve the effective theme before paint to avoid a flash: stored choice, else system preference.
+    try {
+      const stored = localStorage.getItem('theme')
+      const dark = stored ? stored === 'dark' : window.matchMedia('(prefers-color-scheme: dark)').matches
+      document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light')
+    } catch {}
+  </script>
   <style>
+    :root {
+      --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      --font-mono: 'JetBrains Mono', 'SFMono-Regular', Consolas, monospace;
+
+      --accent: #5e6ad2;
+      --accent-hover: #4f5bc4;
+      --accent-soft: rgba(94, 106, 210, 0.12);
+      --accent-ring: rgba(94, 106, 210, 0.32);
+      --on-accent: #ffffff;
+
+      --bg: #f7f8fa;
+      --surface: #ffffff;
+      --surface-2: #f3f4f6;
+      --border: #e7e9ec;
+      --border-strong: #d7dade;
+      --text: #1a1d21;
+      --text-muted: #5f6772;
+      --text-faint: #8b929c;
+
+      --shadow-sm: 0 1px 2px rgba(16, 24, 40, 0.04), 0 1px 3px rgba(16, 24, 40, 0.06);
+      --shadow-md: 0 4px 16px rgba(16, 24, 40, 0.08);
+
+      --radius: 10px;
+      --radius-md: 8px;
+      --radius-sm: 6px;
+
+      --ok-bg: #dcfce7;     --ok-fg: #15803d;
+      --warn-bg: #fef3c7;   --warn-fg: #92400e;
+      --bad-bg: #fee2e2;    --bad-fg: #b91c1c;
+      --partial-bg: #ffedd5; --partial-fg: #9a3412;
+    }
+
+    :root[data-theme="dark"] {
+      --accent: #7c87e8;
+      --accent-hover: #8d97ec;
+      --accent-soft: rgba(124, 135, 232, 0.16);
+      --accent-ring: rgba(124, 135, 232, 0.4);
+
+      --bg: #0c0d10;
+      --surface: #16181d;
+      --surface-2: #1d2026;
+      --border: #272a31;
+      --border-strong: #353941;
+      --text: #e6e7ea;
+      --text-muted: #9aa0aa;
+      --text-faint: #6b7280;
+
+      --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+      --shadow-md: 0 6px 20px rgba(0, 0, 0, 0.45);
+
+      --ok-bg: rgba(34, 197, 94, 0.16);   --ok-fg: #4ade80;
+      --warn-bg: rgba(245, 158, 11, 0.16); --warn-fg: #fbbf24;
+      --bad-bg: rgba(239, 68, 68, 0.16);   --bad-fg: #f87171;
+      --partial-bg: rgba(249, 115, 22, 0.16); --partial-fg: #fb923c;
+    }
+
+    /* The pre-paint script sets data-theme to "dark" or "light" (stored choice or system preference),
+       so the light defaults above and this dark block are the only token sets to maintain. */
+
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
+    html { -webkit-text-size-adjust: 100%; }
+
     body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      background: #f8f9fa;
-      color: #212529;
-      padding: 1rem;
+      font-family: var(--font-sans);
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.55;
+      -webkit-font-smoothing: antialiased;
+      text-rendering: optimizeLegibility;
+      padding: 2rem 1rem 3rem;
     }
 
     .container {
-      max-width: 800px;
+      max-width: 880px;
       margin: 0 auto;
     }
 
-    h1 {
-      font-size: 1.6rem;
+    /* --- App header --- */
+    .app-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      margin-bottom: 0.75rem;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 0.65rem;
+    }
+
+    .brand-mark {
+      display: block;
+      border-radius: var(--radius-md);
+      box-shadow: var(--shadow-sm);
+      flex-shrink: 0;
+    }
+
+    .brand-name {
+      font-family: var(--font-mono);
+      font-size: 1.15rem;
+      font-weight: 600;
+      letter-spacing: -0.01em;
+      color: var(--text);
+    }
+
+    .brand-sub {
+      font-size: 1.15rem;
+      font-weight: 400;
+      color: var(--text-faint);
+      margin-left: 0.4rem;
+    }
+
+    .icon-btn {
+      width: 36px;
+      height: 36px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      color: var(--text-muted);
+      cursor: pointer;
+      font-size: 1rem;
+      line-height: 1;
+      transition: background 0.15s, border-color 0.15s, color 0.15s;
+    }
+
+    .icon-btn:hover {
+      background: var(--surface-2);
+      border-color: var(--border-strong);
+      color: var(--text);
+    }
+
+    .app-tagline {
+      color: var(--text-muted);
+      font-size: 0.95rem;
+      max-width: 60ch;
       margin-bottom: 1.5rem;
-      color: #1a1a2e;
+    }
+
+    /* --- App card --- */
+    .app-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow-sm);
+      overflow: hidden;
     }
 
     /* --- Tab nav --- */
     .tab-nav {
       display: flex;
-      gap: 0.25rem;
-      border-bottom: 2px solid #dee2e6;
-      margin-bottom: 1.5rem;
+      gap: 0.15rem;
+      padding: 0 0.5rem;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface-2);
       flex-wrap: wrap;
     }
 
     .tab-btn {
+      position: relative;
       background: none;
       border: none;
-      padding: 0.6rem 1rem;
+      padding: 0.85rem 1rem;
       cursor: pointer;
-      font-size: 0.95rem;
-      color: #6c757d;
-      border-bottom: 2px solid transparent;
-      margin-bottom: -2px;
-      transition: color 0.15s, border-color 0.15s;
+      font-family: inherit;
+      font-size: 0.9rem;
+      font-weight: 500;
+      color: var(--text-muted);
+      transition: color 0.15s;
     }
 
-    .tab-btn:hover { color: #343a40; }
-    .tab-btn.active { color: #0066cc; border-bottom-color: #0066cc; font-weight: 600; }
+    .tab-btn::after {
+      content: '';
+      position: absolute;
+      left: 0.6rem;
+      right: 0.6rem;
+      bottom: -1px;
+      height: 2px;
+      border-radius: 2px 2px 0 0;
+      background: transparent;
+      transition: background 0.15s;
+    }
+
+    .tab-btn:hover { color: var(--text); }
+    .tab-btn.active { color: var(--accent); font-weight: 600; }
+    .tab-btn.active::after { background: var(--accent); }
 
     /* --- Tab panels --- */
+    .panel-body { padding: 1.5rem; }
     .tab-panel { display: none; }
-    .tab-panel.active { display: block; }
+    .tab-panel.active { display: block; animation: fade-in 0.2s ease; }
+
+    @keyframes fade-in { from { opacity: 0; transform: translateY(2px); } to { opacity: 1; transform: none; } }
 
     /* --- Forms --- */
-    .form-group {
-      margin-bottom: 1rem;
-    }
+    .form-group { margin-bottom: 1rem; }
 
     label {
       display: block;
-      font-size: 0.9rem;
-      font-weight: 600;
-      margin-bottom: 0.35rem;
-      color: #495057;
+      font-size: 0.85rem;
+      font-weight: 500;
+      margin-bottom: 0.4rem;
+      color: var(--text-muted);
     }
 
     input[type="text"],
     select {
       width: 100%;
-      padding: 0.5rem 0.75rem;
-      border: 1px solid #ced4da;
-      border-radius: 4px;
-      font-size: 0.95rem;
-      background: #fff;
-      color: #212529;
+      padding: 0.6rem 0.75rem;
+      border: 1px solid var(--border-strong);
+      border-radius: var(--radius-sm);
+      font-family: inherit;
+      font-size: 0.92rem;
+      background: var(--surface);
+      color: var(--text);
+      transition: border-color 0.15s, box-shadow 0.15s;
     }
+
+    input[type="text"]::placeholder { color: var(--text-faint); }
 
     input[type="text"]:focus,
     select:focus {
       outline: none;
-      border-color: #0066cc;
-      box-shadow: 0 0 0 2px rgba(0,102,204,0.15);
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px var(--accent-ring);
     }
 
     .btn-primary {
-      background: #0066cc;
-      color: #fff;
+      background: var(--accent);
+      color: var(--on-accent);
       border: none;
-      padding: 0.55rem 1.25rem;
-      border-radius: 4px;
-      font-size: 0.95rem;
+      padding: 0.6rem 1.3rem;
+      border-radius: var(--radius-sm);
+      font-family: inherit;
+      font-size: 0.92rem;
+      font-weight: 500;
       cursor: pointer;
-      transition: background 0.15s;
+      transition: background 0.15s, transform 0.05s;
     }
 
-    .btn-primary:hover { background: #0052a3; }
-    .btn-primary:disabled { background: #6c9dcf; cursor: default; }
+    .btn-primary:hover { background: var(--accent-hover); }
+    .btn-primary:active { transform: translateY(1px); }
+    .btn-primary:disabled { opacity: 0.55; cursor: default; }
+    .btn-primary:disabled:active { transform: none; }
+
+    /* Keyboard focus rings for all interactive controls. */
+    .tab-btn:focus-visible,
+    .icon-btn:focus-visible,
+    .btn-primary:focus-visible,
+    .btn-download:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 2px;
+    }
 
     /* --- Spinner --- */
     .spinner {
       display: none;
       align-items: center;
-      gap: 0.75rem;
-      margin: 1rem 0;
-      color: #6c757d;
+      gap: 0.65rem;
+      margin: 1.25rem 0;
+      color: var(--text-muted);
       font-size: 0.9rem;
     }
 
     .spinner.visible { display: flex; }
 
     .spinner-ring {
-      width: 22px;
-      height: 22px;
-      border: 3px solid #dee2e6;
-      border-top-color: #0066cc;
+      width: 20px;
+      height: 20px;
+      border: 2.5px solid var(--border-strong);
+      border-top-color: var(--accent);
       border-radius: 50%;
-      animation: spin 0.75s linear infinite;
+      animation: spin 0.7s linear infinite;
       flex-shrink: 0;
     }
 
@@ -124,126 +301,145 @@
 
     /* --- Job progress --- */
     .job-progress {
-      margin: 0.5rem 0;
+      margin: 1rem 0;
       display: flex;
       flex-direction: column;
-      gap: 0.25rem;
+      gap: 0.4rem;
     }
 
     .progress-line {
-      font-size: 0.9rem;
-      color: #495057;
+      font-size: 0.88rem;
+      color: var(--text-muted);
+      padding: 0.55rem 0.75rem;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
     }
 
     /* --- Messages --- */
     .error-msg {
-      background: #fff3cd;
-      border: 1px solid #ffc107;
-      border-radius: 4px;
+      background: var(--bad-bg);
+      border: 1px solid transparent;
+      border-radius: var(--radius-sm);
       padding: 0.75rem 1rem;
       margin: 1rem 0;
       font-size: 0.9rem;
-      color: #856404;
+      color: var(--bad-fg);
     }
 
     .info-msg {
-      background: #e8f4fd;
-      border: 1px solid #bee5eb;
-      border-radius: 4px;
+      background: var(--accent-soft);
+      border: 1px solid transparent;
+      border-radius: var(--radius-sm);
       padding: 0.75rem 1rem;
       margin: 1rem 0;
       font-size: 0.9rem;
-      color: #0c5460;
+      color: var(--accent);
     }
 
     /* --- Artifact cards --- */
     .artifact-card {
-      background: #fff;
-      border: 1px solid #dee2e6;
-      border-radius: 6px;
-      padding: 1rem;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 1.1rem 1.25rem;
       margin-bottom: 1rem;
+      box-shadow: var(--shadow-sm);
     }
 
     .artifact-header {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      margin-bottom: 0.5rem;
+      gap: 0.75rem;
+      margin-bottom: 0.75rem;
+      padding-bottom: 0.6rem;
+      border-bottom: 1px solid var(--border);
     }
 
     .artifact-header h3 {
-      font-size: 1rem;
-      color: #343a40;
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: var(--text);
     }
 
     .btn-download {
       font-size: 0.8rem;
-      padding: 4px 10px;
+      padding: 0.3rem 0.7rem;
       cursor: pointer;
-      background: #f8f9fa;
-      border: 1px solid #ced4da;
-      border-radius: 4px;
-      color: #495057;
-      transition: background 0.15s;
+      background: var(--surface-2);
+      border: 1px solid var(--border-strong);
+      border-radius: var(--radius-sm);
+      color: var(--text-muted);
+      font-family: inherit;
+      transition: background 0.15s, color 0.15s;
     }
 
-    .btn-download:hover { background: #e9ecef; }
+    .btn-download:hover { background: var(--border); color: var(--text); }
 
     .artifact-error {
-      color: #842029;
+      color: var(--bad-fg);
       font-size: 0.9rem;
       padding: 0.5rem 0;
     }
 
     /* --- Markdown body --- */
-    .markdown-body { line-height: 1.6; }
-    .markdown-body h1 { font-size: 1.5rem; margin: 1rem 0 0.5rem; }
-    .markdown-body h2 { font-size: 1.2rem; margin: 1rem 0 0.4rem; border-bottom: 1px solid #e0e0e0; padding-bottom: 0.2rem; }
-    .markdown-body h3 { font-size: 1rem; margin: 0.8rem 0 0.3rem; }
-    .markdown-body pre { background: #f5f5f5; padding: 0.75rem; border-radius: 4px; overflow-x: auto; }
-    .markdown-body code { background: #f0f0f0; padding: 2px 4px; border-radius: 3px; font-size: 0.9em; font-family: 'SFMono-Regular', Consolas, monospace; }
-    .markdown-body pre code { background: none; padding: 0; }
-    .markdown-body blockquote { border-left: 3px solid #ccc; margin: 0.5rem 0; padding-left: 1rem; color: #555; }
+    .markdown-body { line-height: 1.65; font-size: 0.93rem; color: var(--text); }
+    .markdown-body h1 { font-size: 1.4rem; margin: 1.1rem 0 0.5rem; font-weight: 600; }
+    .markdown-body h2 { font-size: 1.15rem; margin: 1.1rem 0 0.45rem; font-weight: 600; border-bottom: 1px solid var(--border); padding-bottom: 0.25rem; }
+    .markdown-body h3 { font-size: 1rem; margin: 0.85rem 0 0.3rem; font-weight: 600; }
+    .markdown-body pre { background: var(--surface-2); border: 1px solid var(--border); padding: 0.85rem; border-radius: var(--radius-sm); overflow-x: auto; margin: 0.6rem 0; }
+    .markdown-body code { background: var(--surface-2); padding: 0.12em 0.4em; border-radius: 4px; font-size: 0.88em; font-family: var(--font-mono); }
+    .markdown-body pre code { background: none; padding: 0; font-size: 0.85em; }
+    .markdown-body blockquote { border-left: 3px solid var(--accent); margin: 0.6rem 0; padding: 0.1rem 0 0.1rem 1rem; color: var(--text-muted); }
     .markdown-body li { margin: 0.25rem 0; }
-    .markdown-body a { color: #0066cc; }
-    .markdown-body table { border-collapse: collapse; width: 100%; margin: 0.5rem 0; }
-    .markdown-body td, .markdown-body th { border: 1px solid #ddd; padding: 6px 12px; text-align: left; }
-    .markdown-body th { background: #f5f5f5; font-weight: 600; }
+    .markdown-body a { color: var(--accent); text-decoration: none; }
+    .markdown-body a:hover { text-decoration: underline; }
+    .markdown-body table { border-collapse: collapse; width: 100%; margin: 0.6rem 0; font-size: 0.9em; }
+    .markdown-body td, .markdown-body th { border: 1px solid var(--border); padding: 0.45rem 0.75rem; text-align: left; }
+    .markdown-body th { background: var(--surface-2); font-weight: 600; }
     .markdown-body ul, .markdown-body ol { padding-left: 1.5rem; margin: 0.5rem 0; }
     .markdown-body p { margin: 0.5rem 0; }
 
     /* --- Search results --- */
-    .search-results { margin-top: 1rem; }
+    .search-results { margin-top: 1.25rem; }
     .search-result-item {
-      background: #fff;
-      border: 1px solid #dee2e6;
-      border-radius: 6px;
-      padding: 0.75rem 1rem;
-      margin-bottom: 0.5rem;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 0.85rem 1rem;
+      margin-bottom: 0.6rem;
+      transition: border-color 0.15s, box-shadow 0.15s;
     }
 
+    .search-result-item:hover { border-color: var(--border-strong); box-shadow: var(--shadow-sm); }
+
     .search-result-url {
-      font-weight: 600;
-      color: #0066cc;
+      font-family: var(--font-mono);
+      font-size: 0.88rem;
+      font-weight: 500;
+      color: var(--accent);
       word-break: break-all;
-      margin-bottom: 0.25rem;
+      margin-bottom: 0.4rem;
     }
 
     .search-result-meta {
-      font-size: 0.85rem;
-      color: #6c757d;
+      font-size: 0.83rem;
+      color: var(--text-muted);
       display: flex;
       gap: 1rem;
       flex-wrap: wrap;
     }
 
+    .search-result-meta a { color: var(--accent); text-decoration: none; }
+    .search-result-meta a:hover { text-decoration: underline; }
+
     /* --- History --- */
     .history-controls {
       display: flex;
       align-items: center;
-      gap: 1rem;
-      margin-bottom: 1rem;
+      gap: 0.75rem;
+      margin-bottom: 1.25rem;
       flex-wrap: wrap;
     }
 
@@ -259,175 +455,216 @@
 
     .history-table-wrap {
       overflow-x: auto;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
     }
 
     .history-table {
       width: 100%;
       border-collapse: collapse;
-      font-size: 0.9rem;
-      background: #fff;
+      font-size: 0.88rem;
+      background: var(--surface);
     }
 
     .history-table th {
-      background: #f5f5f5;
-      padding: 0.6rem 0.75rem;
+      background: var(--surface-2);
+      padding: 0.65rem 0.85rem;
       text-align: left;
       font-weight: 600;
-      border-bottom: 2px solid #dee2e6;
+      color: var(--text-muted);
+      border-bottom: 1px solid var(--border);
       white-space: nowrap;
     }
 
     .history-table td {
-      padding: 0.6rem 0.75rem;
-      border-bottom: 1px solid #dee2e6;
+      padding: 0.65rem 0.85rem;
+      border-bottom: 1px solid var(--border);
       vertical-align: top;
       word-break: break-all;
     }
+
+    .history-table tbody tr:last-child td { border-bottom: none; }
 
     .history-table tbody tr {
       cursor: pointer;
       transition: background 0.1s;
     }
 
-    .history-table tbody tr:hover { background: #f0f4ff; }
+    .history-table tbody tr:hover { background: var(--accent-soft); }
+    .history-table tbody tr.expanded { background: var(--accent-soft); }
 
-    .history-table tbody tr.expanded { background: #f0f4ff; }
-
-    .history-row-detail {
-      background: #fafafa;
-    }
+    .history-row-detail { background: var(--surface-2); }
+    .history-row-detail:hover { background: var(--surface-2); }
 
     .history-row-detail td {
       padding: 1rem;
-      border-bottom: 2px solid #dee2e6;
+      border-bottom: 1px solid var(--border);
     }
 
     .status-badge {
       display: inline-block;
-      padding: 2px 8px;
-      border-radius: 12px;
-      font-size: 0.78rem;
+      padding: 0.12rem 0.55rem;
+      border-radius: 999px;
+      font-size: 0.74rem;
       font-weight: 600;
       text-transform: capitalize;
+      letter-spacing: 0.01em;
     }
 
-    .status-processing { background: #fff3cd; color: #856404; }
-    .status-complete   { background: #d1e7dd; color: #0f5132; }
-    .status-partial    { background: #fde8d8; color: #7a3e0a; }
-    .status-failed     { background: #f8d7da; color: #842029; }
+    .status-processing { background: var(--warn-bg); color: var(--warn-fg); }
+    .status-complete   { background: var(--ok-bg); color: var(--ok-fg); }
+    .status-partial    { background: var(--partial-bg); color: var(--partial-fg); }
+    .status-failed     { background: var(--bad-bg); color: var(--bad-fg); }
 
     .no-results {
       text-align: center;
-      color: #6c757d;
-      padding: 2rem;
-      font-size: 0.95rem;
+      color: var(--text-faint);
+      padding: 2.5rem 1rem;
+      font-size: 0.92rem;
     }
+
+    /* --- Footer --- */
+    .app-footer {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.6rem;
+      margin-top: 1.75rem;
+      color: var(--text-faint);
+      font-size: 0.82rem;
+    }
+
+    .app-footer .mono { font-family: var(--font-mono); }
+    .app-footer .dot { opacity: 0.5; }
   </style>
   <script src="https://cdn.jsdelivr.net/npm/marked@12/marked.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/dompurify@3/dist/purify.min.js"></script>
 </head>
 <body>
 <div class="container">
-  <h1>llms.txt Crawler</h1>
-
-  <!-- Tab nav -->
-  <nav class="tab-nav" role="tablist">
-    <button class="tab-btn active" data-tab="crawl" role="tab" aria-selected="true">Crawl</button>
-    <button class="tab-btn" data-tab="search" role="tab" aria-selected="false">Search</button>
-    <button class="tab-btn" data-tab="report" role="tab" aria-selected="false">Report</button>
-    <button class="tab-btn" data-tab="compare" role="tab" aria-selected="false">Compare</button>
-    <button class="tab-btn" data-tab="history" role="tab" aria-selected="false">History</button>
-  </nav>
-
-  <!-- Crawl tab -->
-  <section class="tab-panel active" id="tab-crawl">
-    <form id="crawl-form">
-      <div class="form-group">
-        <label for="crawl-url">Website URL</label>
-        <input type="text" id="crawl-url" placeholder="https://example.com" required />
-      </div>
-      <div class="form-group">
-        <label for="crawl-model">Model</label>
-        <select id="crawl-model">
-          <option value="claude">Claude (Bedrock)</option>
-          <option value="openai">OpenAI</option>
-        </select>
-      </div>
-      <button type="submit" class="btn-primary">Start Crawl</button>
-    </form>
-
-    <div class="spinner" id="crawl-spinner">
-      <div class="spinner-ring"></div>
-      <span>Crawling and generating artifacts…</span>
+  <!-- App header -->
+  <header class="app-header">
+    <div class="brand">
+      <svg class="brand-mark" width="30" height="30" viewBox="0 0 30 30" fill="none" aria-hidden="true">
+        <rect width="30" height="30" rx="8" fill="var(--accent)" />
+        <path d="M8 10.5h14 M8 15h14 M8 19.5h8" stroke="var(--on-accent)" stroke-width="2" stroke-linecap="round" />
+      </svg>
+      <span>
+        <span class="brand-name">llms.txt</span><span class="brand-sub">crawler</span>
+      </span>
     </div>
-    <div id="crawl-error"></div>
-    <div id="crawl-artifacts"></div>
-  </section>
+    <button id="theme-toggle" class="icon-btn" type="button" aria-label="Toggle color theme" title="Toggle theme">◐</button>
+  </header>
+  <p class="app-tagline">Turn any website into an llms.txt document, a UI implementation plan, structured analysis reports, and cross-model comparisons — with semantic search over everything crawled.</p>
 
-  <!-- Search tab -->
-  <section class="tab-panel" id="tab-search">
-    <form id="search-form">
-      <div class="form-group">
-        <label for="search-query">Search Query</label>
-        <input type="text" id="search-query" placeholder="e.g. authentication, pricing page…" required />
-      </div>
-      <button type="submit" class="btn-primary">Search</button>
-    </form>
-    <div id="search-error"></div>
-    <div class="search-results" id="search-results"></div>
-  </section>
+  <main class="app-card">
+    <!-- Tab nav -->
+    <nav class="tab-nav" role="tablist">
+      <button class="tab-btn active" data-tab="crawl" role="tab" aria-selected="true">Crawl</button>
+      <button class="tab-btn" data-tab="search" role="tab" aria-selected="false">Search</button>
+      <button class="tab-btn" data-tab="report" role="tab" aria-selected="false">Report</button>
+      <button class="tab-btn" data-tab="compare" role="tab" aria-selected="false">Compare</button>
+      <button class="tab-btn" data-tab="history" role="tab" aria-selected="false">History</button>
+    </nav>
 
-  <!-- Report tab -->
-  <section class="tab-panel" id="tab-report">
-    <form id="report-form">
-      <div class="form-group">
-        <label for="report-url">Website URL</label>
-        <input type="text" id="report-url" placeholder="https://example.com" required />
-      </div>
-      <button type="submit" class="btn-primary">Generate Reports</button>
-    </form>
+    <div class="panel-body">
+      <!-- Crawl tab -->
+      <section class="tab-panel active" id="tab-crawl">
+        <form id="crawl-form">
+          <div class="form-group">
+            <label for="crawl-url">Website URL</label>
+            <input type="text" id="crawl-url" placeholder="https://example.com" required />
+          </div>
+          <div class="form-group">
+            <label for="crawl-model">Model</label>
+            <select id="crawl-model">
+              <option value="claude">Claude (Anthropic)</option>
+              <option value="openai">OpenAI</option>
+            </select>
+          </div>
+          <button type="submit" class="btn-primary">Start Crawl</button>
+        </form>
 
-    <div class="spinner" id="report-spinner">
-      <div class="spinner-ring"></div>
-      <span>Generating reports…</span>
+        <div class="spinner" id="crawl-spinner">
+          <div class="spinner-ring"></div>
+          <span>Crawling and generating artifacts…</span>
+        </div>
+        <div id="crawl-error"></div>
+        <div id="crawl-artifacts"></div>
+      </section>
+
+      <!-- Search tab -->
+      <section class="tab-panel" id="tab-search">
+        <form id="search-form">
+          <div class="form-group">
+            <label for="search-query">Search Query</label>
+            <input type="text" id="search-query" placeholder="e.g. authentication, pricing page…" required />
+          </div>
+          <button type="submit" class="btn-primary">Search</button>
+        </form>
+        <div id="search-error"></div>
+        <div class="search-results" id="search-results"></div>
+      </section>
+
+      <!-- Report tab -->
+      <section class="tab-panel" id="tab-report">
+        <form id="report-form">
+          <div class="form-group">
+            <label for="report-url">Website URL</label>
+            <input type="text" id="report-url" placeholder="https://example.com" required />
+          </div>
+          <button type="submit" class="btn-primary">Generate Reports</button>
+        </form>
+
+        <div class="spinner" id="report-spinner">
+          <div class="spinner-ring"></div>
+          <span>Generating reports…</span>
+        </div>
+        <div id="report-progress" class="job-progress"></div>
+        <div id="report-error"></div>
+        <div id="report-artifact"></div>
+      </section>
+
+      <!-- Compare tab -->
+      <section class="tab-panel" id="tab-compare">
+        <form id="compare-form">
+          <div class="form-group">
+            <label for="compare-url">Website URL</label>
+            <input type="text" id="compare-url" placeholder="https://example.com" required />
+          </div>
+          <button type="submit" class="btn-primary">Compare</button>
+        </form>
+
+        <div class="spinner" id="compare-spinner">
+          <div class="spinner-ring"></div>
+          <span>Generating comparison…</span>
+        </div>
+        <div id="compare-progress" class="job-progress"></div>
+        <div id="compare-error"></div>
+        <div id="compare-artifact"></div>
+      </section>
+
+      <!-- History tab -->
+      <section class="tab-panel" id="tab-history">
+        <div class="history-controls">
+          <label for="history-model-filter">Filter by model:</label>
+          <select id="history-model-filter">
+            <option value="">All models</option>
+            <option value="claude">Claude (Anthropic)</option>
+            <option value="openai">OpenAI</option>
+          </select>
+        </div>
+        <div id="history-error"></div>
+        <div id="history-content"></div>
+      </section>
     </div>
-    <div id="report-progress" class="job-progress"></div>
-    <div id="report-error"></div>
-    <div id="report-artifact"></div>
-  </section>
+  </main>
 
-  <!-- Compare tab -->
-  <section class="tab-panel" id="tab-compare">
-    <form id="compare-form">
-      <div class="form-group">
-        <label for="compare-url">Website URL</label>
-        <input type="text" id="compare-url" placeholder="https://example.com" required />
-      </div>
-      <button type="submit" class="btn-primary">Compare</button>
-    </form>
-
-    <div class="spinner" id="compare-spinner">
-      <div class="spinner-ring"></div>
-      <span>Generating comparison…</span>
-    </div>
-    <div id="compare-progress" class="job-progress"></div>
-    <div id="compare-error"></div>
-    <div id="compare-artifact"></div>
-  </section>
-
-  <!-- History tab -->
-  <section class="tab-panel" id="tab-history">
-    <div class="history-controls">
-      <label for="history-model-filter">Filter by model:</label>
-      <select id="history-model-filter">
-        <option value="">All models</option>
-        <option value="claude">Claude (Bedrock)</option>
-        <option value="openai">OpenAI</option>
-      </select>
-    </div>
-    <div id="history-error"></div>
-    <div id="history-content"></div>
-  </section>
+  <footer class="app-footer">
+    <span class="mono">llms.txt</span>
+    <span class="dot">·</span>
+    <span>FastAPI on Lambda &amp; Fargate</span>
+  </footer>
 </div>
 
 <script>
@@ -985,7 +1222,7 @@ async function toggleHistoryRow(tr, job) {
 
   detailTd.innerHTML = ''
   if (detailContainer.children.length === 0) {
-    detailTd.innerHTML = '<p style="color:#6c757d;font-size:0.9rem;">No artifacts available.</p>'
+    detailTd.innerHTML = '<p style="color:var(--text-muted);font-size:0.9rem;">No artifacts available.</p>'
   } else {
     detailTd.appendChild(detailContainer)
   }
@@ -1028,6 +1265,22 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
     }
   })
 })
+</script>
+
+<script>
+// Theme toggle — light / dark, persisted; defaults to system preference.
+(function () {
+  const btn = document.getElementById('theme-toggle')
+  if (!btn) return
+  btn.addEventListener('click', () => {
+    const current = document.documentElement.getAttribute('data-theme')
+    const systemDark = window.matchMedia('(prefers-color-scheme: dark)').matches
+    const isDark = current ? current === 'dark' : systemDark
+    const next = isDark ? 'light' : 'dark'
+    document.documentElement.setAttribute('data-theme', next)
+    try { localStorage.setItem('theme', next) } catch {}
+  })
+})()
 </script>
 </body>
 </html>
