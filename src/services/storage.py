@@ -364,17 +364,19 @@ def list_sites() -> list[dict]:
 
 
 def _web_assets(source: Path) -> list[Path]:
-    """Returns the web-servable files under source, skipping hidden paths (e.g. .git) and non-web extensions."""
-    assets = []
-    for path in source.rglob("*"):
-        if not path.is_file():
-            continue
-        if any(part.startswith(".") for part in path.relative_to(source).parts):
-            continue
-        if path.suffix.lower() not in WEB_PREVIEW_EXTENSIONS:
-            continue
-        assets.append(path)
-    return assets
+    """Returns the files under source that are safe to serve: real web files, not hidden (e.g. .git)."""
+    return [
+        path
+        for path in source.rglob("*")
+        if path.is_file()
+        and path.suffix.lower() in WEB_PREVIEW_EXTENSIONS
+        and not _is_hidden(path.relative_to(source))
+    ]
+
+
+def _is_hidden(relative: Path) -> bool:
+    """True if any segment of the path is a dotfile or dot-directory (e.g. .git/config)."""
+    return any(segment.startswith(".") for segment in relative.parts)
 
 
 def _bucket() -> str:
