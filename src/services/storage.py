@@ -301,7 +301,7 @@ def get_latest_report_job_by_model(url: str) -> dict[ModelName, str | None]:
 def upsert_site(url: str, job_id: str, s3_key: str, metadata: dict, model: str) -> None:
     """
     Creates or overwrites the canonical site record for this URL.
-    SiteMetadata fields are stored flat so they can be used directly as Pinecone metadata.
+    The full SiteMetadata is stored as a nested `metadata` map so the schema can evolve freely.
     """
     table = _sites_table()
     try:
@@ -312,16 +312,7 @@ def upsert_site(url: str, job_id: str, s3_key: str, metadata: dict, model: str) 
                 "latestS3Key": s3_key,
                 "lastCrawledAt": _utc_now(),
                 "model": model,
-                # SiteMetadata fields stored flat (not nested)
-                "site_category": metadata.get("site_category"),
-                "primary_topics": metadata.get("primary_topics", []),
-                "tech_stack": metadata.get("tech_stack", []),
-                "integrations": metadata.get("integrations", []),
-                "business_model": metadata.get("business_model"),
-                "target_audience": metadata.get("target_audience"),
-                "content_tone": metadata.get("content_tone"),
-                "has_public_api": metadata.get("has_public_api", False),
-                "languages": metadata.get("languages", []),
+                "metadata": metadata,
             }
         )
     except ClientError as exc:

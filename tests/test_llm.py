@@ -44,11 +44,34 @@ def test_site_metadata_requires_string_fields() -> None:
         SiteMetadata(tech_stack=[], integrations=[])
 
 
+def test_site_metadata_to_search_text_includes_assessment() -> None:
+    text = SiteMetadata(
+        summary="Payments infrastructure for the internet.",
+        sentiment="Polished and trustworthy.",
+        site_category="saas-product",
+        industry="fintech",
+        primary_topics=["payments", "billing"],
+        business_model="saas-subscription",
+        target_audience="developers",
+        content_tone="technical",
+        has_public_api=True,
+    ).to_search_text()
+    # The embedded text must carry the agent's prose assessment plus the queryable facets.
+    assert "Payments infrastructure for the internet." in text
+    assert "Polished and trustworthy." in text
+    assert "fintech" in text and "developers" in text
+    assert "payments, billing" in text
+    assert "Has a public API" in text
+
+
 def test_run_agent_calls_instructor_and_returns_dict(mocker: MockerFixture) -> None:
     crawl_output = CrawlOutput(
         llms_txt="# Content",
         metadata=SiteMetadata(
+            summary="A docs site for a tool.",
+            sentiment="Clear and well organized.",
             site_category="docs",
+            industry="developer-tools",
             business_model="open-source",
             target_audience="developers",
             content_tone="technical",
@@ -74,7 +97,10 @@ def test_run_agent_passes_extra_tools_when_present(mocker: MockerFixture) -> Non
     crawl_output = CrawlOutput(
         llms_txt="# Content",
         metadata=SiteMetadata(
+            summary="A docs site for a tool.",
+            sentiment="Clear and well organized.",
             site_category="docs",
+            industry="developer-tools",
             business_model="open-source",
             target_audience="developers",
             content_tone="technical",
@@ -126,7 +152,10 @@ def test_crawl_on_complete_embeds_text(mocker: MockerFixture) -> None:
         {
             "llms_txt": "# Site",
             "metadata": {
+                "summary": "A docs site for a tool.",
+                "sentiment": "Clear and well organized.",
                 "site_category": "docs",
+                "industry": "developer-tools",
                 "primary_topics": [],
                 "tech_stack": [],
                 "integrations": [],
@@ -201,7 +230,10 @@ def test_run_openai_returns_structured_output() -> None:
     crawl_output = CrawlOutput(
         llms_txt="# Site",
         metadata=SiteMetadata(
+            summary="A docs site for a tool.",
+            sentiment="Clear and well organized.",
             site_category="docs",
+            industry="developer-tools",
             tech_stack=[],
             business_model="open-source",
             target_audience="developers",
