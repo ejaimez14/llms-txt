@@ -1,3 +1,4 @@
+from src.constants import SEARCH_TOP_K
 from src.models import ModelName, SearchResponse, SearchResult
 from src.services.embeddings import embed_text
 from src.services.pinecone_client import query_vectors
@@ -15,7 +16,7 @@ def run_search(query: str) -> SearchResponse:
 
     try:
         vector = embed_text(query)
-        matches = query_vectors(vector, top_k=10)
+        matches = query_vectors(vector, top_k=SEARCH_TOP_K)
     except Exception:
         return SearchResponse(query=query, results=[], error="Search unavailable")
 
