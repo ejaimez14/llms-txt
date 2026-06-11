@@ -84,26 +84,6 @@ class SiteMetadata(BaseModel):
     has_public_api: bool = False
     languages: list[str] = []
 
-    def to_search_text(self) -> str:
-        """Natural-language description of the site for embedding — what it is, who it's for, and how it feels."""
-        parts = [
-            self.summary,
-            self.sentiment,
-            f"{self.industry} · {self.site_category} · for {self.target_audience}"
-            f" · {self.business_model} · {self.content_tone} tone",
-        ]
-        if self.primary_topics:
-            parts.append("Topics: " + ", ".join(self.primary_topics))
-        if self.tech_stack:
-            parts.append("Tech: " + ", ".join(self.tech_stack))
-        if self.integrations:
-            parts.append("Integrations: " + ", ".join(self.integrations))
-        if self.has_public_api:
-            parts.append("Has a public API")
-        if self.languages:
-            parts.append("Languages: " + ", ".join(self.languages))
-        return ". ".join(parts)
-
 
 class CrawlOutput(BaseModel):
     """Structured output returned by the crawl agent's submit tool."""
