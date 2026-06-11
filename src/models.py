@@ -124,6 +124,7 @@ class ImplementOutput(BaseModel):
 
     pr_url: str
     debug: str = ""
+    preview_url: str = ""
 
 
 # --- Task config ---

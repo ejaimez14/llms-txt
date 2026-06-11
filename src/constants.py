@@ -121,3 +121,27 @@ CLAUDE_EXTRA_TOOLS: dict[AgentType, list[dict]] = {
         {"type": "web_fetch_20250305", "name": "web_fetch"},
     ],
 }
+
+# File extensions published to the /experimental UI preview — web assets only, so the
+# implemented repo's source and config files are never served from the frontend bucket.
+WEB_PREVIEW_EXTENSIONS = frozenset(
+    {
+        ".html",
+        ".css",
+        ".js",
+        ".mjs",
+        ".json",
+        ".map",
+        ".svg",
+        ".png",
+        ".jpg",
+        ".jpeg",
+        ".gif",
+        ".webp",
+        ".ico",
+        ".woff",
+        ".woff2",
+        ".ttf",
+        ".otf",
+    }
+)
