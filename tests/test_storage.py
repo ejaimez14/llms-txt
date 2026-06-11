@@ -119,6 +119,32 @@ def test_list_jobs_excludes_artifact_content() -> None:
     assert artifact["status"] == ArtifactStatus.COMPLETE
 
 
+def test_list_jobs_keeps_pr_and_preview_urls_for_implement_jobs() -> None:
+    """_slim_job preserves prUrl/previewUrl on the implement pr-url artifact; other artifacts keep only status."""
+    storage.create_job("job-impl-slim", "parent-job-id", "claude", JobType.IMPLEMENT)
+    storage.complete_artifact(
+        "job-impl-slim", ArtifactType.LLMS_TXT, "results/job-impl-slim/llms.txt"
+    )
+    storage.store_implement_result(
+        "job-impl-slim",
+        "https://github.com/owner/repo/pull/2",
+        "https://test.cloudfront.net/experimental/job-impl-slim/",
+    )
+
+    artifacts = next(
+        job for job in storage.list_jobs() if job["jobId"] == "job-impl-slim"
+    )["artifacts"]
+
+    pr_artifact = artifacts[ArtifactType.PR_URL]
+    assert pr_artifact["prUrl"] == "https://github.com/owner/repo/pull/2"
+    assert pr_artifact["previewUrl"] == "https://test.cloudfront.net/experimental/job-impl-slim/"
+
+    llms_artifact = artifacts[ArtifactType.LLMS_TXT]
+    assert "prUrl" not in llms_artifact
+    assert "previewUrl" not in llms_artifact
+    assert "s3Key" not in llms_artifact
+
+
 def test_list_jobs_for_url_returns_sorted_history() -> None:
     """list_jobs_for_url returns runs for a URL newest-first via GSI."""
     storage.create_job("job-old", "https://example.com", "claude")

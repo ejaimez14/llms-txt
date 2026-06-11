@@ -491,14 +491,48 @@
     }
 
     .history-table tbody tr:hover { background: var(--accent-soft); }
-    .history-table tbody tr.expanded { background: var(--accent-soft); }
 
-    .history-row-detail { background: var(--surface-2); }
-    .history-row-detail:hover { background: var(--surface-2); }
+    .history-count {
+      color: var(--text-muted);
+      font-size: 0.82rem;
+      margin-bottom: 0.6rem;
+    }
 
-    .history-row-detail td {
-      padding: 1rem;
+    .history-link { color: var(--accent); text-decoration: none; white-space: nowrap; }
+    .history-link:hover { text-decoration: underline; }
+
+    /* --- Job detail view --- */
+    .job-detail { padding: 1.5rem; }
+
+    .job-detail-back {
+      background: none;
+      border: none;
+      color: var(--accent);
+      font-size: 0.9rem;
+      cursor: pointer;
+      padding: 0;
+      margin-bottom: 1.25rem;
+    }
+    .job-detail-back:hover { text-decoration: underline; }
+
+    .job-detail-header {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      flex-wrap: wrap;
+      margin-bottom: 1.5rem;
+      padding-bottom: 1.25rem;
       border-bottom: 1px solid var(--border);
+    }
+
+    .job-detail-header .job-detail-url {
+      font-weight: 600;
+      word-break: break-all;
+    }
+
+    .job-detail-header .job-detail-meta {
+      color: var(--text-muted);
+      font-size: 0.85rem;
     }
 
     .status-badge {
@@ -557,7 +591,7 @@
   </header>
   <p class="app-tagline">Turn any website into an llms.txt document, a UI implementation plan, structured analysis reports, and cross-model comparisons — with semantic search over everything crawled.</p>
 
-  <main class="app-card">
+  <main id="app-main" class="app-card">
     <!-- Tab nav -->
     <nav class="tab-nav" role="tablist">
       <button class="tab-btn active" data-tab="crawl" role="tab" aria-selected="true">Crawl</button>
@@ -647,18 +681,43 @@
       <!-- History tab -->
       <section class="tab-panel" id="tab-history">
         <div class="history-controls">
-          <label for="history-model-filter">Filter by model:</label>
+          <label for="history-model-filter">Model:</label>
           <select id="history-model-filter">
             <option value="">All models</option>
             <option value="claude">Claude (Anthropic)</option>
             <option value="openai">OpenAI</option>
           </select>
+          <label for="history-status-filter">Status:</label>
+          <select id="history-status-filter">
+            <option value="">All statuses</option>
+            <option value="processing">Processing</option>
+            <option value="complete">Complete</option>
+            <option value="partial">Partial</option>
+            <option value="failed">Failed</option>
+          </select>
+          <label for="history-artifact-filter">Artifact:</label>
+          <select id="history-artifact-filter">
+            <option value="">Any artifact</option>
+            <option value="llmsTxt">llms.txt</option>
+            <option value="plan">UI plan</option>
+            <option value="report">Report</option>
+            <option value="comparison">Comparison</option>
+            <option value="prUrl">PR</option>
+          </select>
         </div>
+        <div id="history-count" class="history-count"></div>
         <div id="history-error"></div>
         <div id="history-content"></div>
       </section>
     </div>
   </main>
+
+  <section id="job-detail" class="app-card job-detail" hidden>
+    <button id="job-detail-back" class="job-detail-back" type="button">← Back to history</button>
+    <div id="job-detail-header"></div>
+    <div id="job-detail-error"></div>
+    <div id="job-detail-body"></div>
+  </section>
 
   <footer class="app-footer">
     <span class="mono">llms.txt</span>
@@ -1121,19 +1180,31 @@ async function loadHistory() {
   }
 
   allHistoryJobs = data.jobs || []
-  renderHistory(document.getElementById('history-model-filter').value)
+  renderHistory()
 }
 
-function renderHistory(modelFilter) {
+function renderHistory() {
   const container = document.getElementById('history-content')
+  const countEl = document.getElementById('history-count')
   container.innerHTML = ''
+  countEl.textContent = ''
 
-  const filtered = modelFilter
-    ? allHistoryJobs.filter(j => j.model === modelFilter)
-    : allHistoryJobs
+  const modelFilter = document.getElementById('history-model-filter').value
+  const statusFilter = document.getElementById('history-status-filter').value
+  const artifactFilter = document.getElementById('history-artifact-filter').value
+
+  const filtered = allHistoryJobs.filter(job =>
+    (!modelFilter || job.model === modelFilter) &&
+    (!statusFilter || job.status === statusFilter) &&
+    (!artifactFilter || (job.artifacts && artifactFilter in job.artifacts))
+  )
+
+  countEl.textContent = `Showing ${filtered.length} of ${allHistoryJobs.length} jobs`
 
   if (filtered.length === 0) {
-    container.innerHTML = '<div class="no-results">No jobs yet.</div>'
+    container.innerHTML = allHistoryJobs.length === 0
+      ? '<div class="no-results">No jobs yet.</div>'
+      : '<div class="no-results">No jobs match the selected filters.</div>'
     return
   }
 
@@ -1167,7 +1238,7 @@ function renderHistory(modelFilter) {
 
     const createdAt = job.createdAt ? new Date(job.createdAt).toLocaleString() : '—'
     const artifactCells = Object.entries(job.artifacts || {})
-      .map(([key, status]) => `<span style="white-space:nowrap">${escapeHtml(key)}: ${statusBadge(status)}</span>`)
+      .map(([key, info]) => `<span style="white-space:nowrap">${escapeHtml(key)}: ${statusBadge(info.status)}</span>${artifactLinks(info)}`)
       .join('<br>')
 
     tr.innerHTML = `
@@ -1178,54 +1249,31 @@ function renderHistory(modelFilter) {
       <td style="white-space:nowrap">${createdAt}</td>
     `
 
-    tr.addEventListener('click', () => toggleHistoryRow(tr, job))
+    tr.addEventListener('click', () => { location.hash = `#job/${job.jobId}` })
     tbody.appendChild(tr)
   })
 }
 
-async function toggleHistoryRow(tr, job) {
-  const existingDetail = tr.nextElementSibling
-  if (existingDetail && existingDetail.classList.contains('history-row-detail')) {
-    existingDetail.remove()
-    tr.classList.remove('expanded')
-    return
+/** Renders PR / Preview anchors for an artifact that carries link fields (implement jobs). */
+function artifactLinks(info) {
+  const links = []
+  if (info && info.prUrl) {
+    links.push(`<a class="history-link" href="${escapeHtml(info.prUrl)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">PR ↗</a>`)
   }
-
-  tr.classList.add('expanded')
-
-  const detailTr = document.createElement('tr')
-  detailTr.className = 'history-row-detail'
-  const detailTd = document.createElement('td')
-  detailTd.colSpan = 5
-  detailTd.innerHTML = '<div class="spinner visible"><div class="spinner-ring"></div><span>Loading artifacts…</span></div>'
-  detailTr.appendChild(detailTd)
-  tr.insertAdjacentElement('afterend', detailTr)
-
-  const artifactDefs = buildArtifactDefsForJob(job)
-  const detailContainer = document.createElement('div')
-
-  for (const def of artifactDefs) {
-    const info = job.artifacts && job.artifacts[def.key]
-    if (info === STATUS.COMPLETE || (info && info.status === STATUS.COMPLETE)) {
-      let data
-      try {
-        data = await callApi(`/api/job/${job.jobId}/${def.path}`, 'GET')
-        detailContainer.appendChild(buildArtifactCard(def.title, data.content, def.filename))
-      } catch (err) {
-        detailContainer.appendChild(buildArtifactErrorCard(def.title, `Failed to load: ${err.message}`))
-      }
-    } else {
-      const statusStr = typeof info === 'string' ? info : (info ? info.status : 'unknown')
-      detailContainer.appendChild(buildArtifactErrorCard(def.title, `Status: ${escapeHtml(statusStr)}`))
-    }
+  if (info && info.previewUrl) {
+    links.push(`<a class="history-link" href="${escapeHtml(info.previewUrl)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">Preview ↗</a>`)
   }
+  return links.length ? ` ${links.join(' ')}` : ''
+}
 
-  detailTd.innerHTML = ''
-  if (detailContainer.children.length === 0) {
-    detailTd.innerHTML = '<p style="color:var(--text-muted);font-size:0.9rem;">No artifacts available.</p>'
-  } else {
-    detailTd.appendChild(detailContainer)
+/** Sums input/output token counts across a job's artifacts (full record only — slim list omits them). */
+function jobTokenTotals(job) {
+  let input = 0, output = 0
+  for (const info of Object.values(job.artifacts || {})) {
+    input += Number(info.inputTokens) || 0
+    output += Number(info.outputTokens) || 0
   }
+  return { input, output, total: input + output }
 }
 
 /** Returns artifact fetch definitions for a job based on its artifact keys. */
@@ -1239,9 +1287,85 @@ function buildArtifactDefsForJob(job) {
   return all.filter(def => job.artifacts && def.key in job.artifacts)
 }
 
-document.getElementById('history-model-filter').addEventListener('change', (e) => {
-  renderHistory(e.target.value)
+;['history-model-filter', 'history-status-filter', 'history-artifact-filter'].forEach(id => {
+  document.getElementById(id).addEventListener('change', renderHistory)
 })
+
+// ---------------------------------------------------------------------------
+// Job-detail view (hash-routed: #job/<id>)
+// ---------------------------------------------------------------------------
+async function renderJobDetail(jobId) {
+  const header = document.getElementById('job-detail-header')
+  const body = document.getElementById('job-detail-body')
+  clearEl('job-detail-error')
+  header.innerHTML = ''
+  body.innerHTML = '<div class="spinner visible"><div class="spinner-ring"></div><span>Loading job…</span></div>'
+
+  let job
+  try {
+    job = await callApi(`/api/job?id=${encodeURIComponent(jobId)}`, 'GET')
+  } catch (err) {
+    body.innerHTML = ''
+    setError('job-detail-error', `<div class="error-msg">${err.message}</div>`)
+    return
+  }
+
+  const createdAt = job.createdAt ? new Date(job.createdAt).toLocaleString() : '—'
+  const prArtifact = (job.artifacts && job.artifacts.prUrl) || {}
+  const tokens = jobTokenTotals(job)
+  const tokenMeta = tokens.total
+    ? ` · ${tokens.input.toLocaleString()} in / ${tokens.output.toLocaleString()} out tokens`
+    : ''
+  header.innerHTML = `
+    <span class="job-detail-url">${escapeHtml(job.url)}</span>
+    ${statusBadge(job.status)}
+    <span class="job-detail-meta">${escapeHtml(job.model || '')} · ${escapeHtml(job.type || 'job')} · ${createdAt}${tokenMeta}</span>
+    ${artifactLinks(prArtifact)}
+  `
+
+  body.innerHTML = ''
+  const artifactDefs = buildArtifactDefsForJob(job)
+  for (const def of artifactDefs) {
+    const info = job.artifacts && job.artifacts[def.key]
+    const status = info && (typeof info === 'string' ? info : info.status)
+    if (status === STATUS.COMPLETE) {
+      const card = buildArtifactErrorCard(def.title, 'Loading…')
+      body.appendChild(card)
+      try {
+        const data = await callApi(`/api/job/${job.jobId}/${def.path}`, 'GET')
+        body.replaceChild(buildArtifactCard(def.title, data.content, def.filename), card)
+      } catch (err) {
+        body.replaceChild(buildArtifactErrorCard(def.title, `Failed to load: ${err.message}`), card)
+      }
+    } else {
+      body.appendChild(buildArtifactErrorCard(def.title, `Status: ${escapeHtml(status || 'unknown')}`))
+    }
+  }
+
+  if (body.children.length === 0) {
+    body.innerHTML = '<p style="color:var(--text-muted);font-size:0.9rem;">No artifacts available.</p>'
+  }
+}
+
+function handleRoute() {
+  const match = location.hash.match(/^#job\/(.+)$/)
+  const appMain = document.getElementById('app-main')
+  const detail = document.getElementById('job-detail')
+  if (match) {
+    appMain.hidden = true
+    detail.hidden = false
+    renderJobDetail(decodeURIComponent(match[1]))
+  } else {
+    detail.hidden = true
+    appMain.hidden = false
+  }
+}
+
+document.getElementById('job-detail-back').addEventListener('click', () => {
+  location.hash = ''
+})
+window.addEventListener('hashchange', handleRoute)
+window.addEventListener('load', handleRoute)
 
 // ---------------------------------------------------------------------------
 // Tab switching
