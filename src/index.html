@@ -6,7 +6,7 @@
   <title>llms.txt Crawler</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
   <script>
     // Resolve the effective theme before paint to avoid a flash: stored choice, else system preference.
     try {
@@ -17,67 +17,66 @@
   </script>
   <style>
     :root {
-      --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      --font-mono: 'JetBrains Mono', 'SFMono-Regular', Consolas, monospace;
+      --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      --font-mono: 'JetBrains Mono', 'Geist Mono', Menlo, Monaco, 'Lucida Console', monospace;
 
-      --accent: #5e6ad2;
-      --accent-hover: #4f5bc4;
-      --accent-soft: rgba(94, 106, 210, 0.12);
-      --accent-ring: rgba(94, 106, 210, 0.32);
+      /* Vercel dark-mode tokens — default */
+      --accent: #0070f3;
+      --accent-hover: #0060df;
+      --accent-soft: rgba(0, 112, 243, 0.1);
+      --accent-ring: rgba(0, 112, 243, 0.3);
       --on-accent: #ffffff;
 
-      --bg: #f7f8fa;
-      --surface: #ffffff;
-      --surface-2: #f3f4f6;
-      --border: #e7e9ec;
-      --border-strong: #d7dade;
-      --text: #1a1d21;
-      --text-muted: #5f6772;
-      --text-faint: #8b929c;
+      --bg: #000000;
+      --surface: #111111;
+      --surface-2: #0a0a0a;
+      --border: #333333;
+      --border-strong: #555555;
+      --text: #ffffff;
+      --text-muted: #888888;
+      --text-faint: #555555;
 
-      --shadow-sm: 0 1px 2px rgba(16, 24, 40, 0.04), 0 1px 3px rgba(16, 24, 40, 0.06);
-      --shadow-md: 0 4px 16px rgba(16, 24, 40, 0.08);
+      --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.6);
+      --shadow-md: 0 4px 24px rgba(0, 0, 0, 0.5);
 
-      --radius: 10px;
+      --radius: 12px;
       --radius-md: 8px;
-      --radius-sm: 6px;
+      --radius-sm: 8px;
 
-      --ok-bg: #dcfce7;     --ok-fg: #15803d;
-      --warn-bg: #fef3c7;   --warn-fg: #92400e;
-      --bad-bg: #fee2e2;    --bad-fg: #b91c1c;
-      --partial-bg: #ffedd5; --partial-fg: #9a3412;
+      --ok-bg: rgba(80, 227, 194, 0.12);      --ok-fg: #50e3c2;
+      --warn-bg: rgba(245, 158, 11, 0.12);    --warn-fg: #fbbf24;
+      --bad-bg: rgba(239, 68, 68, 0.12);      --bad-fg: #f87171;
+      --partial-bg: rgba(249, 115, 22, 0.12); --partial-fg: #fb923c;
     }
 
-    :root[data-theme="dark"] {
-      --accent: #7c87e8;
-      --accent-hover: #8d97ec;
-      --accent-soft: rgba(124, 135, 232, 0.16);
-      --accent-ring: rgba(124, 135, 232, 0.4);
+    :root[data-theme="light"] {
+      --accent: #0070f3;
+      --accent-hover: #0060df;
+      --accent-soft: rgba(0, 112, 243, 0.08);
+      --accent-ring: rgba(0, 112, 243, 0.25);
+      --on-accent: #ffffff;
 
-      --bg: #0c0d10;
-      --surface: #16181d;
-      --surface-2: #1d2026;
-      --border: #272a31;
-      --border-strong: #353941;
-      --text: #e6e7ea;
-      --text-muted: #9aa0aa;
-      --text-faint: #6b7280;
+      --bg: #fafafa;
+      --surface: #ffffff;
+      --surface-2: #f2f2f2;
+      --border: #e5e5e5;
+      --border-strong: #d1d1d1;
+      --text: #0a0a0a;
+      --text-muted: #737373;
+      --text-faint: #a3a3a3;
 
-      --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
-      --shadow-md: 0 6px 20px rgba(0, 0, 0, 0.45);
+      --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.08);
+      --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.1);
 
-      --ok-bg: rgba(34, 197, 94, 0.16);   --ok-fg: #4ade80;
-      --warn-bg: rgba(245, 158, 11, 0.16); --warn-fg: #fbbf24;
-      --bad-bg: rgba(239, 68, 68, 0.16);   --bad-fg: #f87171;
-      --partial-bg: rgba(249, 115, 22, 0.16); --partial-fg: #fb923c;
+      --ok-bg: rgba(22, 163, 74, 0.08);      --ok-fg: #16a34a;
+      --warn-bg: rgba(217, 119, 6, 0.08);    --warn-fg: #d97706;
+      --bad-bg: rgba(220, 38, 38, 0.08);     --bad-fg: #dc2626;
+      --partial-bg: rgba(234, 88, 12, 0.08); --partial-fg: #ea580c;
     }
-
-    /* The pre-paint script sets data-theme to "dark" or "light" (stored choice or system preference),
-       so the light defaults above and this dark block are the only token sets to maintain. */
 
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-    html { -webkit-text-size-adjust: 100%; }
+    html { -webkit-text-size-adjust: 100%; scroll-behavior: smooth; }
 
     body {
       font-family: var(--font-sans);
@@ -86,21 +85,64 @@
       line-height: 1.55;
       -webkit-font-smoothing: antialiased;
       text-rendering: optimizeLegibility;
-      padding: 2rem 1rem 3rem;
+      min-height: 100vh;
+      /* subtle dot-grid background pattern */
+      background-image: radial-gradient(circle, #333333 1px, transparent 1px);
+      background-size: 28px 28px;
+      background-attachment: fixed;
+    }
+
+    /* overlay to soften the dot pattern */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background: radial-gradient(ellipse 80% 60% at 50% -10%, rgba(0, 112, 243, 0.08) 0%, transparent 60%),
+                  radial-gradient(ellipse 60% 40% at 80% 100%, rgba(80, 227, 194, 0.04) 0%, transparent 50%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    :root[data-theme="light"] body {
+      background-image: radial-gradient(circle, #e5e5e5 1px, transparent 1px);
+    }
+
+    :root[data-theme="light"] body::before {
+      background: radial-gradient(ellipse 80% 60% at 50% -10%, rgba(0, 112, 243, 0.04) 0%, transparent 60%);
+    }
+
+    .page-wrap {
+      position: relative;
+      z-index: 1;
+      padding: 0 1rem 4rem;
     }
 
     .container {
-      max-width: 880px;
+      max-width: 860px;
       margin: 0 auto;
+      padding-top: 2.5rem;
     }
 
-    /* --- App header --- */
+    /* ─── App header ─── */
     .app-header {
+      position: sticky;
+      top: 0;
+      z-index: 100;
       display: flex;
       align-items: center;
       justify-content: space-between;
       gap: 1rem;
-      margin-bottom: 0.75rem;
+      padding: 0 1.5rem;
+      height: 64px;
+      background: rgba(0, 0, 0, 0.72);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+      margin: 0 -1rem;
+    }
+
+    :root[data-theme="light"] .app-header {
+      background: rgba(255, 255, 255, 0.8);
     }
 
     .brand {
@@ -109,26 +151,25 @@
       gap: 0.65rem;
     }
 
+    /* Vercel-style triangle logo */
     .brand-mark {
       display: block;
-      border-radius: var(--radius-md);
-      box-shadow: var(--shadow-sm);
       flex-shrink: 0;
     }
 
     .brand-name {
       font-family: var(--font-mono);
-      font-size: 1.15rem;
+      font-size: 1.05rem;
       font-weight: 600;
       letter-spacing: -0.01em;
       color: var(--text);
     }
 
     .brand-sub {
-      font-size: 1.15rem;
+      font-size: 1.05rem;
       font-weight: 400;
-      color: var(--text-faint);
-      margin-left: 0.4rem;
+      color: var(--text-muted);
+      margin-left: 0.35rem;
     }
 
     .icon-btn {
@@ -137,7 +178,7 @@
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      background: var(--surface);
+      background: transparent;
       border: 1px solid var(--border);
       border-radius: var(--radius-md);
       color: var(--text-muted);
@@ -148,34 +189,69 @@
     }
 
     .icon-btn:hover {
-      background: var(--surface-2);
+      background: rgba(255, 255, 255, 0.05);
       border-color: var(--border-strong);
       color: var(--text);
+    }
+
+    :root[data-theme="light"] .icon-btn:hover {
+      background: rgba(0, 0, 0, 0.04);
     }
 
     .app-tagline {
       color: var(--text-muted);
       font-size: 0.95rem;
       max-width: 60ch;
-      margin-bottom: 1.5rem;
+      margin-bottom: 2rem;
+      line-height: 1.6;
     }
 
-    /* --- App card --- */
+    /* ─── Page title area ─── */
+    .page-title-area {
+      margin-bottom: 2rem;
+    }
+
+    .page-title-area h1 {
+      font-size: clamp(24px, 4vw, 40px);
+      font-weight: 800;
+      color: var(--text);
+      letter-spacing: -0.03em;
+      line-height: 1.1;
+      margin-bottom: 0.6rem;
+      background: linear-gradient(180deg, #ffffff 0%, rgba(255, 255, 255, 0.65) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    :root[data-theme="light"] .page-title-area h1 {
+      background: linear-gradient(180deg, #000000 0%, rgba(0, 0, 0, 0.65) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    /* ─── App card ─── */
     .app-card {
       background: var(--surface);
       border: 1px solid var(--border);
       border-radius: var(--radius);
-      box-shadow: var(--shadow-sm);
+      box-shadow: var(--shadow-md);
       overflow: hidden;
+      transition: border-color 0.2s ease;
     }
 
-    /* --- Tab nav --- */
+    .app-card:hover {
+      border-color: var(--border-strong);
+    }
+
+    /* ─── Tab nav ─── */
     .tab-nav {
       display: flex;
-      gap: 0.15rem;
-      padding: 0 0.5rem;
+      gap: 0;
+      padding: 0 0.25rem;
       border-bottom: 1px solid var(--border);
-      background: var(--surface-2);
+      background: var(--surface);
       flex-wrap: wrap;
     }
 
@@ -183,20 +259,21 @@
       position: relative;
       background: none;
       border: none;
-      padding: 0.85rem 1rem;
+      padding: 0.85rem 1.1rem;
       cursor: pointer;
       font-family: inherit;
-      font-size: 0.9rem;
+      font-size: 0.875rem;
       font-weight: 500;
       color: var(--text-muted);
       transition: color 0.15s;
+      white-space: nowrap;
     }
 
     .tab-btn::after {
       content: '';
       position: absolute;
-      left: 0.6rem;
-      right: 0.6rem;
+      left: 0.5rem;
+      right: 0.5rem;
       bottom: -1px;
       height: 2px;
       border-radius: 2px 2px 0 0;
@@ -205,38 +282,46 @@
     }
 
     .tab-btn:hover { color: var(--text); }
-    .tab-btn.active { color: var(--accent); font-weight: 600; }
-    .tab-btn.active::after { background: var(--accent); }
+    .tab-btn.active { color: var(--text); font-weight: 600; }
+    .tab-btn.active::after { background: var(--text); }
 
-    /* --- Tab panels --- */
-    .panel-body { padding: 1.5rem; }
+    /* ─── Tab panels ─── */
+    .panel-body { padding: 1.75rem; }
     .tab-panel { display: none; }
     .tab-panel.active { display: block; animation: fade-in 0.2s ease; }
 
-    @keyframes fade-in { from { opacity: 0; transform: translateY(2px); } to { opacity: 1; transform: none; } }
+    @keyframes fade-in { from { opacity: 0; transform: translateY(3px); } to { opacity: 1; transform: none; } }
 
-    /* --- Forms --- */
-    .form-group { margin-bottom: 1rem; }
+    /* ─── Forms ─── */
+    .form-group { margin-bottom: 1.1rem; }
 
     label {
       display: block;
-      font-size: 0.85rem;
+      font-size: 0.8rem;
       font-weight: 500;
       margin-bottom: 0.4rem;
       color: var(--text-muted);
+      letter-spacing: 0.01em;
     }
 
     input[type="text"],
     select {
       width: 100%;
-      padding: 0.6rem 0.75rem;
-      border: 1px solid var(--border-strong);
-      border-radius: var(--radius-sm);
+      padding: 10px 14px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
       font-family: inherit;
-      font-size: 0.92rem;
-      background: var(--surface);
+      font-size: 0.875rem;
+      background: #000000;
       color: var(--text);
       transition: border-color 0.15s, box-shadow 0.15s;
+      appearance: none;
+      -webkit-appearance: none;
+    }
+
+    :root[data-theme="light"] input[type="text"],
+    :root[data-theme="light"] select {
+      background: var(--surface);
     }
 
     input[type="text"]::placeholder { color: var(--text-faint); }
@@ -244,29 +329,78 @@
     input[type="text"]:focus,
     select:focus {
       outline: none;
-      border-color: var(--accent);
-      box-shadow: 0 0 0 3px var(--accent-ring);
+      border-color: #ffffff;
+      box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.15);
     }
 
+    :root[data-theme="light"] input[type="text"]:focus,
+    :root[data-theme="light"] select:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 2px var(--accent-ring);
+    }
+
+    /* custom chevron for select */
+    .select-wrap {
+      position: relative;
+    }
+
+    .select-wrap::after {
+      content: '';
+      position: absolute;
+      right: 14px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 0;
+      height: 0;
+      border-left: 4px solid transparent;
+      border-right: 4px solid transparent;
+      border-top: 5px solid var(--text-muted);
+      pointer-events: none;
+    }
+
+    .select-wrap select {
+      padding-right: 36px;
+    }
+
+    /* ─── Primary button ─── */
     .btn-primary {
-      background: var(--accent);
-      color: var(--on-accent);
+      background: #ffffff;
+      color: #000000;
       border: none;
-      padding: 0.6rem 1.3rem;
-      border-radius: var(--radius-sm);
+      padding: 10px 20px;
+      border-radius: var(--radius-md);
       font-family: inherit;
-      font-size: 0.92rem;
+      font-size: 0.875rem;
       font-weight: 500;
       cursor: pointer;
-      transition: background 0.15s, transform 0.05s;
+      transition: background 0.15s ease, transform 0.1s ease;
+      box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.1);
     }
 
-    .btn-primary:hover { background: var(--accent-hover); }
-    .btn-primary:active { transform: translateY(1px); }
-    .btn-primary:disabled { opacity: 0.55; cursor: default; }
-    .btn-primary:disabled:active { transform: none; }
+    .btn-primary:hover {
+      background: #e5e5e5;
+      transform: scale(0.98);
+    }
 
-    /* Keyboard focus rings for all interactive controls. */
+    .btn-primary:active { transform: scale(0.97); }
+
+    .btn-primary:disabled {
+      opacity: 0.4;
+      cursor: default;
+      transform: none;
+    }
+
+    :root[data-theme="light"] .btn-primary {
+      background: #000000;
+      color: #ffffff;
+      box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.1);
+    }
+
+    :root[data-theme="light"] .btn-primary:hover {
+      background: #1a1a1a;
+    }
+
+    /* Keyboard focus rings */
     .tab-btn:focus-visible,
     .icon-btn:focus-visible,
     .btn-primary:focus-visible,
@@ -275,23 +409,23 @@
       outline-offset: 2px;
     }
 
-    /* --- Spinner --- */
+    /* ─── Spinner ─── */
     .spinner {
       display: none;
       align-items: center;
       gap: 0.65rem;
       margin: 1.25rem 0;
       color: var(--text-muted);
-      font-size: 0.9rem;
+      font-size: 0.875rem;
     }
 
     .spinner.visible { display: flex; }
 
     .spinner-ring {
-      width: 20px;
-      height: 20px;
-      border: 2.5px solid var(--border-strong);
-      border-top-color: var(--accent);
+      width: 18px;
+      height: 18px;
+      border: 2px solid var(--border);
+      border-top-color: var(--text);
       border-radius: 50%;
       animation: spin 0.7s linear infinite;
       flex-shrink: 0;
@@ -299,52 +433,68 @@
 
     @keyframes spin { to { transform: rotate(360deg); } }
 
-    /* --- Job progress --- */
+    /* ─── Job progress ─── */
     .job-progress {
       margin: 1rem 0;
       display: flex;
       flex-direction: column;
-      gap: 0.4rem;
+      gap: 0.35rem;
     }
 
     .progress-line {
-      font-size: 0.88rem;
+      font-size: 0.84rem;
       color: var(--text-muted);
-      padding: 0.55rem 0.75rem;
-      background: var(--surface-2);
+      padding: 0.5rem 0.75rem;
+      background: rgba(255, 255, 255, 0.03);
       border: 1px solid var(--border);
       border-radius: var(--radius-sm);
+      font-family: var(--font-mono);
     }
 
-    /* --- Messages --- */
+    :root[data-theme="light"] .progress-line {
+      background: var(--surface-2);
+    }
+
+    /* ─── Messages ─── */
     .error-msg {
       background: var(--bad-bg);
-      border: 1px solid transparent;
+      border: 1px solid rgba(239, 68, 68, 0.2);
       border-radius: var(--radius-sm);
       padding: 0.75rem 1rem;
       margin: 1rem 0;
-      font-size: 0.9rem;
+      font-size: 0.875rem;
       color: var(--bad-fg);
     }
 
     .info-msg {
       background: var(--accent-soft);
-      border: 1px solid transparent;
+      border: 1px solid rgba(0, 112, 243, 0.2);
       border-radius: var(--radius-sm);
       padding: 0.75rem 1rem;
       margin: 1rem 0;
-      font-size: 0.9rem;
+      font-size: 0.875rem;
       color: var(--accent);
     }
 
-    /* --- Artifact cards --- */
+    /* ─── Artifact cards ─── */
     .artifact-card {
       background: var(--surface);
       border: 1px solid var(--border);
+      border-top: 1px solid rgba(255, 255, 255, 0.12);
       border-radius: var(--radius-md);
-      padding: 1.1rem 1.25rem;
+      padding: 1.25rem 1.5rem;
       margin-bottom: 1rem;
-      box-shadow: var(--shadow-sm);
+      box-shadow: var(--shadow-md);
+      transition: border-color 0.2s ease, transform 0.2s ease;
+    }
+
+    .artifact-card:hover {
+      border-color: var(--border-strong);
+      transform: translateY(-1px);
+    }
+
+    :root[data-theme="light"] .artifact-card {
+      border-top: 1px solid var(--border);
     }
 
     .artifact-header {
@@ -352,71 +502,90 @@
       align-items: center;
       justify-content: space-between;
       gap: 0.75rem;
-      margin-bottom: 0.75rem;
+      margin-bottom: 0.85rem;
       padding-bottom: 0.6rem;
       border-bottom: 1px solid var(--border);
     }
 
     .artifact-header h3 {
-      font-size: 0.95rem;
+      font-size: 0.9rem;
       font-weight: 600;
       color: var(--text);
+      letter-spacing: -0.01em;
     }
 
     .btn-download {
-      font-size: 0.8rem;
-      padding: 0.3rem 0.7rem;
+      font-size: 0.78rem;
+      padding: 5px 12px;
       cursor: pointer;
-      background: var(--surface-2);
-      border: 1px solid var(--border-strong);
-      border-radius: var(--radius-sm);
+      background: transparent;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
       color: var(--text-muted);
       font-family: inherit;
-      transition: background 0.15s, color 0.15s;
+      font-weight: 500;
+      transition: border-color 0.15s, color 0.15s, background 0.15s;
     }
 
-    .btn-download:hover { background: var(--border); color: var(--text); }
+    .btn-download:hover {
+      border-color: var(--border-strong);
+      color: var(--text);
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    :root[data-theme="light"] .btn-download:hover {
+      background: rgba(0, 0, 0, 0.04);
+    }
 
     .artifact-error {
       color: var(--bad-fg);
-      font-size: 0.9rem;
+      font-size: 0.875rem;
       padding: 0.5rem 0;
     }
 
-    /* --- Markdown body --- */
-    .markdown-body { line-height: 1.65; font-size: 0.93rem; color: var(--text); }
-    .markdown-body h1 { font-size: 1.4rem; margin: 1.1rem 0 0.5rem; font-weight: 600; }
-    .markdown-body h2 { font-size: 1.15rem; margin: 1.1rem 0 0.45rem; font-weight: 600; border-bottom: 1px solid var(--border); padding-bottom: 0.25rem; }
-    .markdown-body h3 { font-size: 1rem; margin: 0.85rem 0 0.3rem; font-weight: 600; }
-    .markdown-body pre { background: var(--surface-2); border: 1px solid var(--border); padding: 0.85rem; border-radius: var(--radius-sm); overflow-x: auto; margin: 0.6rem 0; }
-    .markdown-body code { background: var(--surface-2); padding: 0.12em 0.4em; border-radius: 4px; font-size: 0.88em; font-family: var(--font-mono); }
-    .markdown-body pre code { background: none; padding: 0; font-size: 0.85em; }
-    .markdown-body blockquote { border-left: 3px solid var(--accent); margin: 0.6rem 0; padding: 0.1rem 0 0.1rem 1rem; color: var(--text-muted); }
+    /* ─── Markdown body ─── */
+    .markdown-body { line-height: 1.7; font-size: 0.9rem; color: var(--text); }
+    .markdown-body h1 { font-size: 1.35rem; margin: 1.1rem 0 0.5rem; font-weight: 700; letter-spacing: -0.02em; }
+    .markdown-body h2 { font-size: 1.1rem; margin: 1.1rem 0 0.45rem; font-weight: 600; border-bottom: 1px solid var(--border); padding-bottom: 0.25rem; letter-spacing: -0.01em; }
+    .markdown-body h3 { font-size: 0.975rem; margin: 0.85rem 0 0.3rem; font-weight: 600; }
+    .markdown-body pre { background: #000000; border: 1px solid var(--border); padding: 1rem 1.25rem; border-radius: var(--radius-md); overflow-x: auto; margin: 0.65rem 0; }
+    :root[data-theme="light"] .markdown-body pre { background: var(--surface-2); }
+    .markdown-body code { background: rgba(255,255,255,0.07); padding: 0.12em 0.45em; border-radius: 4px; font-size: 0.85em; font-family: var(--font-mono); color: var(--text); }
+    :root[data-theme="light"] .markdown-body code { background: var(--surface-2); }
+    .markdown-body pre code { background: none; padding: 0; font-size: 0.84em; }
+    .markdown-body blockquote { border-left: 2px solid var(--border-strong); margin: 0.65rem 0; padding: 0.1rem 0 0.1rem 1rem; color: var(--text-muted); }
     .markdown-body li { margin: 0.25rem 0; }
     .markdown-body a { color: var(--accent); text-decoration: none; }
     .markdown-body a:hover { text-decoration: underline; }
-    .markdown-body table { border-collapse: collapse; width: 100%; margin: 0.6rem 0; font-size: 0.9em; }
-    .markdown-body td, .markdown-body th { border: 1px solid var(--border); padding: 0.45rem 0.75rem; text-align: left; }
-    .markdown-body th { background: var(--surface-2); font-weight: 600; }
+    .markdown-body table { border-collapse: collapse; width: 100%; margin: 0.65rem 0; font-size: 0.875em; }
+    .markdown-body td, .markdown-body th { border-bottom: 1px solid var(--border); padding: 10px 14px; text-align: left; }
+    .markdown-body th { color: var(--text-muted); font-size: 0.75em; font-weight: 500; text-transform: uppercase; letter-spacing: 0.05em; background: transparent; }
+    .markdown-body tbody tr:hover { background: rgba(255,255,255,0.03); }
+    :root[data-theme="light"] .markdown-body tbody tr:hover { background: rgba(0,0,0,0.02); }
     .markdown-body ul, .markdown-body ol { padding-left: 1.5rem; margin: 0.5rem 0; }
     .markdown-body p { margin: 0.5rem 0; }
 
-    /* --- Search results --- */
+    /* ─── Search results ─── */
     .search-results { margin-top: 1.25rem; }
+
     .search-result-item {
       background: var(--surface);
       border: 1px solid var(--border);
       border-radius: var(--radius-md);
-      padding: 0.85rem 1rem;
+      padding: 1rem 1.1rem;
       margin-bottom: 0.6rem;
-      transition: border-color 0.15s, box-shadow 0.15s;
+      transition: border-color 0.15s, box-shadow 0.15s, transform 0.15s;
     }
 
-    .search-result-item:hover { border-color: var(--border-strong); box-shadow: var(--shadow-sm); }
+    .search-result-item:hover {
+      border-color: var(--border-strong);
+      box-shadow: 0 0 0 1px var(--border-strong);
+      transform: translateY(-1px);
+    }
 
     .search-result-url {
       font-family: var(--font-mono);
-      font-size: 0.88rem;
+      font-size: 0.84rem;
       font-weight: 500;
       color: var(--accent);
       word-break: break-all;
@@ -424,17 +593,17 @@
     }
 
     .search-result-meta {
-      font-size: 0.83rem;
+      font-size: 0.8rem;
       color: var(--text-muted);
       display: flex;
-      gap: 1rem;
+      gap: 1.1rem;
       flex-wrap: wrap;
     }
 
     .search-result-meta a { color: var(--accent); text-decoration: none; }
     .search-result-meta a:hover { text-decoration: underline; }
 
-    /* --- History --- */
+    /* ─── History ─── */
     .history-controls {
       display: flex;
       align-items: center;
@@ -448,9 +617,12 @@
       white-space: nowrap;
     }
 
-    .history-controls select {
-      width: auto;
+    .history-controls .select-wrap {
       min-width: 160px;
+    }
+
+    .history-controls .select-wrap select {
+      width: 100%;
     }
 
     .history-table-wrap {
@@ -462,25 +634,29 @@
     .history-table {
       width: 100%;
       border-collapse: collapse;
-      font-size: 0.88rem;
-      background: var(--surface);
+      font-size: 0.85rem;
+      background: transparent;
     }
 
     .history-table th {
-      background: var(--surface-2);
-      padding: 0.65rem 0.85rem;
+      background: transparent;
+      padding: 10px 14px;
       text-align: left;
-      font-weight: 600;
+      font-weight: 500;
+      font-size: 0.75rem;
       color: var(--text-muted);
       border-bottom: 1px solid var(--border);
       white-space: nowrap;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
     }
 
     .history-table td {
-      padding: 0.65rem 0.85rem;
+      padding: 10px 14px;
       border-bottom: 1px solid var(--border);
       vertical-align: top;
       word-break: break-all;
+      color: var(--text);
     }
 
     .history-table tbody tr:last-child td { border-bottom: none; }
@@ -490,181 +666,219 @@
       transition: background 0.1s;
     }
 
-    .history-table tbody tr:hover { background: var(--accent-soft); }
-    .history-table tbody tr.expanded { background: var(--accent-soft); }
+    .history-table tbody tr:hover { background: rgba(255, 255, 255, 0.03); }
+    .history-table tbody tr.expanded { background: rgba(255, 255, 255, 0.03); }
 
-    .history-row-detail { background: var(--surface-2); }
-    .history-row-detail:hover { background: var(--surface-2); }
+    :root[data-theme="light"] .history-table tbody tr:hover,
+    :root[data-theme="light"] .history-table tbody tr.expanded { background: rgba(0, 0, 0, 0.02); }
+
+    .history-row-detail { background: transparent; }
+    .history-row-detail:hover { background: transparent !important; }
 
     .history-row-detail td {
       padding: 1rem;
       border-bottom: 1px solid var(--border);
     }
 
+    /* ─── Status badges ─── */
     .status-badge {
       display: inline-block;
-      padding: 0.12rem 0.55rem;
+      padding: 3px 9px;
       border-radius: 999px;
-      font-size: 0.74rem;
-      font-weight: 600;
+      font-size: 0.7rem;
+      font-weight: 500;
       text-transform: capitalize;
-      letter-spacing: 0.01em;
+      letter-spacing: 0.02em;
+      border: 1px solid transparent;
     }
 
-    .status-processing { background: var(--warn-bg); color: var(--warn-fg); }
-    .status-complete   { background: var(--ok-bg); color: var(--ok-fg); }
-    .status-partial    { background: var(--partial-bg); color: var(--partial-fg); }
-    .status-failed     { background: var(--bad-bg); color: var(--bad-fg); }
+    .status-processing {
+      background: var(--warn-bg);
+      color: var(--warn-fg);
+      border-color: rgba(245, 158, 11, 0.2);
+    }
+    .status-complete {
+      background: var(--ok-bg);
+      color: var(--ok-fg);
+      border-color: rgba(80, 227, 194, 0.2);
+    }
+    .status-partial {
+      background: var(--partial-bg);
+      color: var(--partial-fg);
+      border-color: rgba(249, 115, 22, 0.2);
+    }
+    .status-failed {
+      background: var(--bad-bg);
+      color: var(--bad-fg);
+      border-color: rgba(239, 68, 68, 0.2);
+    }
 
     .no-results {
       text-align: center;
       color: var(--text-faint);
       padding: 2.5rem 1rem;
-      font-size: 0.92rem;
+      font-size: 0.9rem;
     }
 
-    /* --- Footer --- */
+    /* ─── Footer ─── */
     .app-footer {
       display: flex;
       align-items: center;
       justify-content: center;
       gap: 0.6rem;
-      margin-top: 1.75rem;
+      margin-top: 2rem;
       color: var(--text-faint);
-      font-size: 0.82rem;
+      font-size: 0.8rem;
     }
 
     .app-footer .mono { font-family: var(--font-mono); }
-    .app-footer .dot { opacity: 0.5; }
+    .app-footer .dot { opacity: 0.4; }
+
+    /* ─── Responsive tweaks ─── */
+    @media (max-width: 600px) {
+      .panel-body { padding: 1.25rem 1rem; }
+      .app-header { padding: 0 1rem; }
+    }
   </style>
   <script src="https://cdn.jsdelivr.net/npm/marked@12/marked.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/dompurify@3/dist/purify.min.js"></script>
 </head>
 <body>
-<div class="container">
-  <!-- App header -->
-  <header class="app-header">
-    <div class="brand">
-      <svg class="brand-mark" width="30" height="30" viewBox="0 0 30 30" fill="none" aria-hidden="true">
-        <rect width="30" height="30" rx="8" fill="var(--accent)" />
-        <path d="M8 10.5h14 M8 15h14 M8 19.5h8" stroke="var(--on-accent)" stroke-width="2" stroke-linecap="round" />
-      </svg>
-      <span>
-        <span class="brand-name">llms.txt</span><span class="brand-sub">crawler</span>
-      </span>
+<!-- Sticky header outside the container so it spans full width -->
+<header class="app-header">
+  <div class="brand">
+    <!-- Vercel-style triangle mark -->
+    <svg class="brand-mark" width="22" height="20" viewBox="0 0 22 20" fill="none" aria-hidden="true">
+      <path d="M11 0L22 20H0L11 0Z" fill="currentColor" />
+    </svg>
+    <span>
+      <span class="brand-name">llms.txt</span><span class="brand-sub">crawler</span>
+    </span>
+  </div>
+  <button id="theme-toggle" class="icon-btn" type="button" aria-label="Toggle color theme" title="Toggle theme">◐</button>
+</header>
+
+<div class="page-wrap">
+  <div class="container">
+    <!-- Page title area -->
+    <div class="page-title-area">
+      <h1>llms.txt Crawler</h1>
+      <p class="app-tagline">Turn any website into an llms.txt document, a UI implementation plan, structured analysis reports, and cross-model comparisons — with semantic search over everything crawled.</p>
     </div>
-    <button id="theme-toggle" class="icon-btn" type="button" aria-label="Toggle color theme" title="Toggle theme">◐</button>
-  </header>
-  <p class="app-tagline">Turn any website into an llms.txt document, a UI implementation plan, structured analysis reports, and cross-model comparisons — with semantic search over everything crawled.</p>
 
-  <main class="app-card">
-    <!-- Tab nav -->
-    <nav class="tab-nav" role="tablist">
-      <button class="tab-btn active" data-tab="crawl" role="tab" aria-selected="true">Crawl</button>
-      <button class="tab-btn" data-tab="search" role="tab" aria-selected="false">Search</button>
-      <button class="tab-btn" data-tab="report" role="tab" aria-selected="false">Report</button>
-      <button class="tab-btn" data-tab="compare" role="tab" aria-selected="false">Compare</button>
-      <button class="tab-btn" data-tab="history" role="tab" aria-selected="false">History</button>
-    </nav>
+    <main class="app-card">
+      <!-- Tab nav -->
+      <nav class="tab-nav" role="tablist">
+        <button class="tab-btn active" data-tab="crawl" role="tab" aria-selected="true">Crawl</button>
+        <button class="tab-btn" data-tab="search" role="tab" aria-selected="false">Search</button>
+        <button class="tab-btn" data-tab="report" role="tab" aria-selected="false">Report</button>
+        <button class="tab-btn" data-tab="compare" role="tab" aria-selected="false">Compare</button>
+        <button class="tab-btn" data-tab="history" role="tab" aria-selected="false">History</button>
+      </nav>
 
-    <div class="panel-body">
-      <!-- Crawl tab -->
-      <section class="tab-panel active" id="tab-crawl">
-        <form id="crawl-form">
-          <div class="form-group">
-            <label for="crawl-url">Website URL</label>
-            <input type="text" id="crawl-url" placeholder="https://example.com" required />
+      <div class="panel-body">
+        <!-- Crawl tab -->
+        <section class="tab-panel active" id="tab-crawl">
+          <form id="crawl-form">
+            <div class="form-group">
+              <label for="crawl-url">Website URL</label>
+              <input type="text" id="crawl-url" placeholder="https://example.com" required />
+            </div>
+            <div class="form-group">
+              <label for="crawl-model">Model</label>
+              <div class="select-wrap">
+                <select id="crawl-model">
+                  <option value="claude">Claude (Anthropic)</option>
+                  <option value="openai">OpenAI</option>
+                </select>
+              </div>
+            </div>
+            <button type="submit" class="btn-primary">Start Crawl</button>
+          </form>
+
+          <div class="spinner" id="crawl-spinner">
+            <div class="spinner-ring"></div>
+            <span>Crawling and generating artifacts…</span>
           </div>
-          <div class="form-group">
-            <label for="crawl-model">Model</label>
-            <select id="crawl-model">
-              <option value="claude">Claude (Anthropic)</option>
-              <option value="openai">OpenAI</option>
-            </select>
+          <div id="crawl-error"></div>
+          <div id="crawl-artifacts"></div>
+        </section>
+
+        <!-- Search tab -->
+        <section class="tab-panel" id="tab-search">
+          <form id="search-form">
+            <div class="form-group">
+              <label for="search-query">Search Query</label>
+              <input type="text" id="search-query" placeholder="e.g. authentication, pricing page…" required />
+            </div>
+            <button type="submit" class="btn-primary">Search</button>
+          </form>
+          <div id="search-error"></div>
+          <div class="search-results" id="search-results"></div>
+        </section>
+
+        <!-- Report tab -->
+        <section class="tab-panel" id="tab-report">
+          <form id="report-form">
+            <div class="form-group">
+              <label for="report-url">Website URL</label>
+              <input type="text" id="report-url" placeholder="https://example.com" required />
+            </div>
+            <button type="submit" class="btn-primary">Generate Reports</button>
+          </form>
+
+          <div class="spinner" id="report-spinner">
+            <div class="spinner-ring"></div>
+            <span>Generating reports…</span>
           </div>
-          <button type="submit" class="btn-primary">Start Crawl</button>
-        </form>
+          <div id="report-progress" class="job-progress"></div>
+          <div id="report-error"></div>
+          <div id="report-artifact"></div>
+        </section>
 
-        <div class="spinner" id="crawl-spinner">
-          <div class="spinner-ring"></div>
-          <span>Crawling and generating artifacts…</span>
-        </div>
-        <div id="crawl-error"></div>
-        <div id="crawl-artifacts"></div>
-      </section>
+        <!-- Compare tab -->
+        <section class="tab-panel" id="tab-compare">
+          <form id="compare-form">
+            <div class="form-group">
+              <label for="compare-url">Website URL</label>
+              <input type="text" id="compare-url" placeholder="https://example.com" required />
+            </div>
+            <button type="submit" class="btn-primary">Compare</button>
+          </form>
 
-      <!-- Search tab -->
-      <section class="tab-panel" id="tab-search">
-        <form id="search-form">
-          <div class="form-group">
-            <label for="search-query">Search Query</label>
-            <input type="text" id="search-query" placeholder="e.g. authentication, pricing page…" required />
+          <div class="spinner" id="compare-spinner">
+            <div class="spinner-ring"></div>
+            <span>Generating comparison…</span>
           </div>
-          <button type="submit" class="btn-primary">Search</button>
-        </form>
-        <div id="search-error"></div>
-        <div class="search-results" id="search-results"></div>
-      </section>
+          <div id="compare-progress" class="job-progress"></div>
+          <div id="compare-error"></div>
+          <div id="compare-artifact"></div>
+        </section>
 
-      <!-- Report tab -->
-      <section class="tab-panel" id="tab-report">
-        <form id="report-form">
-          <div class="form-group">
-            <label for="report-url">Website URL</label>
-            <input type="text" id="report-url" placeholder="https://example.com" required />
+        <!-- History tab -->
+        <section class="tab-panel" id="tab-history">
+          <div class="history-controls">
+            <label for="history-model-filter">Filter by model:</label>
+            <div class="select-wrap">
+              <select id="history-model-filter">
+                <option value="">All models</option>
+                <option value="claude">Claude (Anthropic)</option>
+                <option value="openai">OpenAI</option>
+              </select>
+            </div>
           </div>
-          <button type="submit" class="btn-primary">Generate Reports</button>
-        </form>
+          <div id="history-error"></div>
+          <div id="history-content"></div>
+        </section>
+      </div>
+    </main>
 
-        <div class="spinner" id="report-spinner">
-          <div class="spinner-ring"></div>
-          <span>Generating reports…</span>
-        </div>
-        <div id="report-progress" class="job-progress"></div>
-        <div id="report-error"></div>
-        <div id="report-artifact"></div>
-      </section>
-
-      <!-- Compare tab -->
-      <section class="tab-panel" id="tab-compare">
-        <form id="compare-form">
-          <div class="form-group">
-            <label for="compare-url">Website URL</label>
-            <input type="text" id="compare-url" placeholder="https://example.com" required />
-          </div>
-          <button type="submit" class="btn-primary">Compare</button>
-        </form>
-
-        <div class="spinner" id="compare-spinner">
-          <div class="spinner-ring"></div>
-          <span>Generating comparison…</span>
-        </div>
-        <div id="compare-progress" class="job-progress"></div>
-        <div id="compare-error"></div>
-        <div id="compare-artifact"></div>
-      </section>
-
-      <!-- History tab -->
-      <section class="tab-panel" id="tab-history">
-        <div class="history-controls">
-          <label for="history-model-filter">Filter by model:</label>
-          <select id="history-model-filter">
-            <option value="">All models</option>
-            <option value="claude">Claude (Anthropic)</option>
-            <option value="openai">OpenAI</option>
-          </select>
-        </div>
-        <div id="history-error"></div>
-        <div id="history-content"></div>
-      </section>
-    </div>
-  </main>
-
-  <footer class="app-footer">
-    <span class="mono">llms.txt</span>
-    <span class="dot">·</span>
-    <span>FastAPI on Lambda &amp; Fargate</span>
-  </footer>
+    <footer class="app-footer">
+      <span class="mono">llms.txt</span>
+      <span class="dot">·</span>
+      <span>FastAPI on Lambda &amp; Fargate</span>
+    </footer>
+  </div>
 </div>
 
 <script>
