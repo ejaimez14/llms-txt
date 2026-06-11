@@ -40,10 +40,12 @@ Produce your output as valid JSON with two fields:
 """.strip()
 
 UI_PLAN_SYSTEM_PROMPT = """
-You are a UI engineer that produces implementation plans for recreating website designs.
+You are a UI engineer that captures a website's visual design system so it can be applied to an
+existing app's UI.
 
-Given a website's HTML structure and CSS stylesheets, produce a detailed markdown plan that
-another developer or agent could follow to rebuild the UI from scratch.
+Given a website's HTML structure and CSS stylesheets, produce a detailed markdown plan describing
+the site's design language — its tokens and how its components are styled — so another agent can
+restyle a different app to look like this site WITHOUT changing that app's structure or behavior.
 
 Your plan must include:
 
@@ -54,31 +56,23 @@ Your plan must include:
 - Heading font: font-name, weight
 - Body font: font-name, base size
 
-## Layout Overview
-- Overall page structure (header, main, sidebar, footer, etc.)
-- Responsive behavior if evident from CSS
+## Component Styling
+For each common UI element (buttons, inputs, selects, cards, nav/tabs, tables, headings, links),
+describe its visual treatment: colors, borders, radius, spacing, shadows, hover/active states, and
+typography — exact values from CSS. Describe how the element LOOKS, not how it is structured.
 
-## [Section name] (one section per major UI region)
-- Layout pattern (e.g. 3-column card grid, full-width hero)
-- Key components with their visual properties
-- Exact colors, spacing, and typography from CSS
-
-## Component Inventory
-Checkbox list of all distinct UI components to build
-
-## Suggested Build Order
-Ordered steps from layout scaffolding to final details
-
-## Estimated Complexity
-Low / Medium / High with a one-line justification
+## Aesthetic Summary
+- Overall mood and visual character (e.g. minimal, editorial, playful, corporate)
+- Spacing density, corner sharpness, contrast, and any signature visual motifs
 
 Rules:
 - Use exact values from CSS — never estimate colors or fonts visually
-- If CSS is not available, note it explicitly and describe structure only
-- Be specific enough that an engineer can implement without seeing the site
+- If CSS is not available, note it explicitly and describe the visual treatment only
+- Describe the design system, not page-by-page layout — the goal is a reusable style, not a rebuild
+- Be specific enough that an engineer can restyle an app's existing markup to match this aesthetic
 
 Produce your output as valid JSON with two fields:
-- `plan_markdown`: the complete implementation plan in the format above
+- `plan_markdown`: the complete design-system description in the format above
 - `design_tokens`: exact CSS values extracted from the stylesheets.
   Use null for any token you cannot find — never guess.
 """.strip()
@@ -182,9 +176,9 @@ Produce your output as valid JSON with one field:
 
 
 IMPLEMENT_SYSTEM_PROMPT = """
-You are a frontend engineer that implements UI designs from structured plans.
+You are a frontend engineer that restyles an existing app's UI to match a captured design system.
 
-You will be given a UI implementation plan, a target GitHub repository, and a branch name.
+You will be given a UI design-system plan, a target GitHub repository, and a branch name.
 Work in this exact order — do not deviate:
 
 1. Clone the repository (git and gh credentials are pre-configured — do not modify git config):
@@ -192,12 +186,16 @@ Work in this exact order — do not deviate:
    git clone <Repository URL> repo
    ```
 2. Create the specified branch from the base branch inside `repo`
-3. Implement all components from the plan directly inside `repo`:
-   - Use the exact colors, fonts, and spacing from Design Tokens
-   - Implement every component in the Component Inventory
-   - Follow the Suggested Build Order
-   - Prefer semantic HTML and clean CSS — no frameworks unless the plan specifies one
-   - Each file must be complete and runnable — no placeholders, no TODOs
+3. Open `repo/src/index.html` and restyle it IN PLACE using the design tokens and aesthetic from
+   the plan. Apply the captured site's look — colors, fonts, spacing, component styling — to this
+   existing UI. Do NOT create a new root `index.html`; edit `repo/src/index.html` specifically.
+   Hard constraints — the app must keep working (it calls `/api/*`):
+   - Preserve EVERY element `id` exactly — do not rename or remove any id.
+   - Keep the ENTIRE `<script>` block(s) unchanged — do not alter any JavaScript behavior.
+   - Keep all `<form>`s, every `<select>`/`<option>` value, and the tab wiring (`data-tab`,
+     tab/panel ids, `role` attributes) intact.
+   - Change ONLY CSS and presentational markup/structure — never the functional wiring above.
+   - Each change must leave the file complete and runnable — no placeholders, no TODOs.
 4. Commit and push the branch:
    ```
    git add -A && git commit -m "Implement UI plan" && git push origin <branch-name>
@@ -269,7 +267,10 @@ def _build_implement_prompt(url: str, config: TaskConfig) -> str:
         f"Execute these exact steps in order:\n\n"
         f"1. Clone:          {clone_cmd}\n"
         f"2. Create branch:  cd repo && {branch_cmd}\n"
-        f"3. Implement:      write all UI files directly inside repo/ (see ## UI Plan below)\n"
+        f"3. Restyle:        edit repo/src/index.html in place — apply the design tokens/aesthetic\n"
+        f"                   from the ## UI Plan below; preserve every element id, the entire\n"
+        f"                   <script> block, all forms, <select>/<option> values, and tab wiring.\n"
+        f"                   Change CSS and presentational markup only — do NOT create a new root index.html.\n"
         f"4. Commit & push:  {push_cmd}\n"
         f"5. Create PR:      {pr_cmd}\n"
         f"   Capture the URL printed on stdout (e.g. https://github.com/.../pull/N).\n"
