@@ -1,92 +1,72 @@
 # llms.txt Crawler
 
-Give it a website URL and it crawls the site to produce an [`llms.txt`](https://llmstxt.org/) document, a UI implementation plan, structured analysis reports, and cross-model comparisons — plus semantic search over everything it has crawled. It runs as a FastAPI app on AWS Lambda, with long-running agent work offloaded to Fargate. Crawl, report, and compare can each run on Anthropic Claude or OpenAI models so their outputs can be compared side by side.
+Give it a website URL and it produces four things — an [`llms.txt`](https://llmstxt.org/) document, a UI implementation plan, a structured analysis report, and a cross-model comparison — plus semantic search over everything it has crawled. It runs as a FastAPI app on AWS Lambda, with the slow agent work offloaded to background workers.
 
-## Architecture
+Crawl, report, and compare can each run on **Anthropic Claude** or **OpenAI**, so you can put the two models' output side by side.
+
+## How a request reaches the API
+
+The browser only ever talks to CloudFront. CloudFront serves the static UI from S3 and proxies API calls to the Lambda; everything is gated by basic auth.
+
+```mermaid
+flowchart LR
+  Browser -->|"basic auth"| CloudFront
+  CloudFront -->|"static UI"| S3UI["S3 — index.html"]
+  CloudFront -->|"/api/*"| APIGateway["API Gateway"]
+  APIGateway -->|"x-api-key"| Lambda["Lambda — FastAPI"]
+```
+
+## How jobs run
+
+The API itself is fast. Anything slow is handed to one of two background lanes and the caller polls for the result:
+
+- **Fargate** runs the long agent jobs — `crawl`, `ui-plan`, `implement` (minutes each).
+- **SQS → Lambda** runs `report` and `compare`. They're short, but routing them through a queue that re-invokes the Lambda keeps them off the API request, which has a 30 s timeout.
+- **Search** is the one synchronous job — it runs inside the API call and returns immediately.
+- **Recrawl** is an EventBridge schedule that fans every known site URL onto the same SQS queue, which the Lambda drains as fresh crawl jobs.
+
+Both lanes write artifacts to the same stores; only crawl embeds into Pinecone.
 
 ```mermaid
 flowchart TD
-  subgraph Client
-    Browser["Browser (static UI)"]
+  Lambda["Lambda — FastAPI API"]
+
+  Lambda -->|"crawl · ui-plan · implement"| Fargate["Fargate agents"]
+  Lambda -->|"report · compare"| SQS(["SQS queue"])
+  SQS --> Consumer["Lambda — SQS consumer"]
+  EventBridge["EventBridge schedule"] -->|"recrawl fan-out"| Lambda
+
+  Fargate --> Models["Claude · OpenAI · Titan"]
+  Consumer --> Models
+  Fargate --> Store
+  Consumer --> Store
+  Lambda -->|"reads + search"| Store
+
+  subgraph Store["Stores"]
+    Jobs["DynamoDB — jobs"]
+    Sites["DynamoDB — sites"]
+    S3["S3 — artifacts"]
+    Pinecone["Pinecone — vectors"]
   end
-
-  subgraph Edge["Edge"]
-    CF["CloudFront (basic auth)"]
-    FE["S3 frontend bucket (index.html)"]
-    APIGW["API Gateway (x-api-key)"]
-  end
-
-  subgraph Compute["Compute"]
-    Lambda["Lambda — FastAPI via Mangum"]
-    Authorizer["Lambda authorizer"]
-  end
-
-  subgraph Async["Async workers"]
-    Fargate["Fargate tasks (crawl, ui-plan, implement)"]
-    SQS["SQS recrawl queue"]
-    EB["EventBridge schedule"]
-  end
-
-  subgraph Storage["Storage"]
-    Jobs["DynamoDB jobs (url-createdAt-index)"]
-    Sites["DynamoDB sites"]
-    S3["S3 artifacts (llms.txt, plan.md, report.md, comparison.md)"]
-    Pinecone["Pinecone (vectors)"]
-  end
-
-  subgraph Models["Models"]
-    Anthropic["Anthropic Claude"]
-    OpenAI["OpenAI"]
-    Titan["Bedrock Titan embeddings"]
-  end
-
-  Browser --> CF
-  CF --> FE
-  CF -->|"/api/*"| APIGW
-  APIGW --> Authorizer
-  APIGW --> Lambda
-
-  Lambda -->|"crawl, ui-plan, implement"| Fargate
-  Lambda -->|"report + compare"| Anthropic
-  Lambda -->|"report"| OpenAI
-  Lambda --> Jobs
-  Lambda --> Sites
-  Lambda --> S3
-  Lambda -->|"search"| Pinecone
-  Lambda -->|"embed query"| Titan
-
-  EB -->|"schedule event"| Lambda
-  Lambda -->|"fan out site URLs"| SQS
-  SQS -->|"one crawl per URL"| Lambda
-
-  Fargate --> Anthropic
-  Fargate --> OpenAI
-  Fargate --> Jobs
-  Fargate --> Sites
-  Fargate --> S3
-  Fargate -->|"embed + upsert"| Titan
-  Fargate --> Pinecone
 ```
 
-Crawl, UI-plan, and implement agents run as long-lived Fargate tasks. Report and compare are short enough to run in-process inside the Lambda on a background thread. Recrawl is driven by an EventBridge schedule that fans every known site URL onto an SQS queue, which the Lambda drains and re-dispatches as crawl tasks.
+## Job lifecycle
 
-## Request lifecycle
-
-Job-producing endpoints are asynchronous: they return a `jobId` immediately and the client polls `GET /api/job` until the artifacts are complete.
+Every job-producing endpoint is asynchronous: it returns a `jobId` right away, then the client polls `GET /api/job` until the artifacts are complete.
 
 ```mermaid
 sequenceDiagram
   participant Client
-  participant API as "API (Lambda/FastAPI)"
-  participant Worker as "Worker (Fargate / thread)"
+  participant API as "API (Lambda)"
+  participant Worker as "Worker (Fargate or SQS consumer)"
   participant Store as "DynamoDB + S3"
 
   Client->>API: "POST /api/crawl { url }"
   API->>Store: "create job (processing)"
-  API->>Worker: "dispatch agent(s)"
+  API->>Worker: "dispatch"
   API-->>Client: "202 { jobId, status: processing }"
-  Worker->>Store: "write artifact + mark complete"
-  loop "until status complete"
+  Worker->>Store: "write artifact, mark complete"
+  loop "until status is complete"
     Client->>API: "GET /api/job?id=jobId"
     API-->>Client: "{ status, artifacts }"
   end
@@ -98,27 +78,38 @@ sequenceDiagram
 
 All routes are served under the `/api` prefix.
 
-| Method | Path | Purpose | Uses |
-| --- | --- | --- | --- |
-| POST | `/api/crawl` | Start a crawl: generates llms.txt + UI plan | Fargate, DynamoDB |
-| GET | `/api/job` | Poll job status and per-artifact state | DynamoDB |
-| GET | `/api/job/{id}/llms-txt` | Fetch the llms.txt artifact | S3 |
-| GET | `/api/job/{id}/plan` | Fetch the UI plan artifact | S3 |
-| GET | `/api/job/{id}/report` | Fetch the report artifact | S3 |
-| GET | `/api/job/{id}/comparison` | Fetch the comparison artifact | S3 |
-| GET | `/api/jobs` | List all jobs (optional `model` filter) | DynamoDB |
-| GET | `/api/site` | Latest site record + crawl history for a URL | DynamoDB |
-| GET | `/api/search` | Semantic search over crawled content (synchronous) | Pinecone, Bedrock Titan |
-| POST | `/api/report` | Generate a report for a crawled URL on both models | Anthropic, OpenAI |
-| POST | `/api/compare` | Compare the latest report from each model for a URL | Anthropic |
-| POST | `/api/implement` | Open a GitHub PR implementing a completed UI plan | Fargate |
+| Method | Path | Purpose |
+| --- | --- | --- |
+| POST | `/api/crawl` | Start a crawl — produces the llms.txt + UI plan |
+| GET | `/api/job` | Poll one job's status and per-artifact state |
+| GET | `/api/job/{id}/llms-txt` | Fetch the llms.txt artifact |
+| GET | `/api/job/{id}/plan` | Fetch the UI plan artifact |
+| GET | `/api/job/{id}/report` | Fetch the report artifact |
+| GET | `/api/job/{id}/comparison` | Fetch the comparison artifact |
+| GET | `/api/job/{id}/pr-url` | Fetch an implement job's PR URL + preview URL |
+| GET | `/api/jobs` | List all jobs (optional `model` filter) |
+| GET | `/api/site` | Latest site record + crawl history for a URL |
+| GET | `/api/search` | Semantic search over crawled content (synchronous) |
+| POST | `/api/report` | Generate a report on **both** models for a crawled URL |
+| POST | `/api/compare` | Compare the latest report from each model for a URL |
+| POST | `/api/implement` | Open a GitHub PR for a UI plan and publish a live preview |
 
-`POST /api/report` and `POST /api/compare` both take a body of `{ "url": "..." }` only:
+### Request bodies
 
-- **`/api/report`** fires both models and returns `{ "jobIdClaude": "...", "jobIdOpenai": "...", "status": "processing" }`. Returns `404` if the URL was never crawled.
-- **`/api/compare`** auto-finds the latest completed report per model for the URL and returns `{ "jobId": "...", "status": "processing" }`. Returns `404` naming the missing model if either model lacks a completed report.
+- **`POST /api/crawl`** — `{ "url": "...", "model"?: "claude" | "openai" }` (defaults to `claude`).
+- **`POST /api/report`** — `{ "url": "..." }`. Fires both models and returns `{ "jobIdClaude", "jobIdOpenai", "status" }`. `404` if the URL was never crawled.
+- **`POST /api/compare`** — `{ "url": "...", "model"?: "claude" | "openai" }`. Auto-finds the latest completed report for each model, then runs the comparison on the chosen `model` (default `claude`). Returns `{ "jobId", "status" }`, or `404` naming the model whose report is missing.
+- **`POST /api/implement`** — `{ "job_id": "<crawl job with a completed plan>" }`. Returns `{ "jobId", "status" }`.
 
-Full request/response schemas are available from FastAPI's interactive docs at `/docs` and `/redoc`.
+### Implement previews
+
+`POST /api/implement` does two things: it opens a GitHub PR implementing the UI plan, and it publishes the built UI to `s3://<frontend-bucket>/experimental/<jobId>/`. Because CloudFront serves that bucket, the result is live at `<cloudfront-url>/experimental/<jobId>/` (behind the same basic auth). Both links come back from `GET /api/job/{id}/pr-url` as `prUrl` and `previewUrl`.
+
+### Site metadata
+
+Each crawl extracts structured, search-filterable metadata stored on the site record (`GET /api/site`): `site_category`, `primary_topics`, `tech_stack`, `integrations`, `business_model`, `target_audience`, `content_tone`, `has_public_api`, and `languages`.
+
+Full request/response schemas live in the Pydantic models in `src/models.py`.
 
 ## Local setup
 
@@ -137,6 +128,7 @@ Create a `.env` file (gitignored) with the following variable **names** — supp
 | `SITES_TABLE` | DynamoDB sites table name |
 | `AWS_DEFAULT_REGION` | AWS region (optional; defaults to `us-east-1`) |
 | `ECS_CLUSTER`, `ECS_TASK_DEFINITION`, `ECS_SUBNET_IDS`, `ECS_SECURITY_GROUP` | Required only to dispatch Fargate tasks (crawl, ui-plan, implement) |
+| `FRONTEND_BUCKET`, `CLOUDFRONT_URL` | Required only by the implement task to publish `/experimental` previews |
 | `RECRAWL_QUEUE_URL` | SQS queue URL for the recrawl handler |
 
 The `Makefile` loads `.env` into the shell automatically. Then:
@@ -152,8 +144,9 @@ make format  # ruff format
 ## Deployment
 
 ```bash
-make build     # build.sh → lambda.zip (Linux wheels for the Lambda runtime)
-make tf-apply  # terraform init + apply (provide pinecone_index, vpc_id, subnet_ids, basic_auth_password)
+make build       # build.sh → lambda.zip (Linux wheels for the Lambda runtime)
+make docker-push # build + push the Fargate agent image to ECR
+make tf-apply    # terraform init + apply (provide pinecone_index, vpc_id, subnet_ids, basic_auth_password)
 ```
 
 Secrets are read from AWS Secrets Manager via the Lambda Parameters and Secrets Extension — never committed or passed as Terraform variables.
@@ -165,9 +158,9 @@ src/
   handler.py          # FastAPI app + Lambda entrypoint (dispatches by event shape)
   constants.py        # model IDs, tool lists, config thresholds
   models.py           # Pydantic request/response and agent output models
-  prompts.py
+  prompts.py          # system prompts + message builders for each agent
   index.html          # static UI served from S3 via CloudFront
-  agents/             # reporter, comparer (in-process agents)
+  agents/             # reporter, comparer (run via the SQS consumer)
   tasks/              # Fargate agent entrypoints (crawl, ui-plan, implement)
   services/           # storage, embeddings, pinecone_client, llm, fargate, recrawl, search, ...
 infra/
