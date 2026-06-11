@@ -591,7 +591,7 @@
   </header>
   <p class="app-tagline">Turn any website into an llms.txt document, a UI implementation plan, structured analysis reports, and cross-model comparisons — with semantic search over everything crawled.</p>
 
-  <main class="app-card">
+  <main id="app-main" class="app-card">
     <!-- Tab nav -->
     <nav class="tab-nav" role="tablist">
       <button class="tab-btn active" data-tab="crawl" role="tab" aria-selected="true">Crawl</button>
@@ -1349,15 +1349,15 @@ async function renderJobDetail(jobId) {
 
 function handleRoute() {
   const match = location.hash.match(/^#job\/(.+)$/)
-  const appCard = document.querySelector('.app-card')
+  const appMain = document.getElementById('app-main')
   const detail = document.getElementById('job-detail')
   if (match) {
-    appCard.hidden = true
+    appMain.hidden = true
     detail.hidden = false
     renderJobDetail(decodeURIComponent(match[1]))
   } else {
     detail.hidden = true
-    appCard.hidden = false
+    appMain.hidden = false
   }
 }
 
