@@ -83,6 +83,8 @@ resource "aws_ecs_task_definition" "implement" {
       { name = "BUCKET",             value = var.bucket_name },
       { name = "PINECONE_INDEX",     value = var.pinecone_index },
       { name = "AWS_DEFAULT_REGION", value = var.aws_region },
+      { name = "FRONTEND_BUCKET",    value = var.frontend_bucket_name },
+      { name = "CLOUDFRONT_URL",     value = var.cloudfront_url },
     ]
 
     secrets = [
