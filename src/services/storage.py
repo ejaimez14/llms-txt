@@ -462,7 +462,7 @@ def _slim_job(job: dict) -> dict:
     Strips artifact s3Key and error fields from a job record for lightweight list responses.
     """
     slim_artifacts = {
-        artifact_type: {"status": artifact.get("status")}
+        artifact_type: _slim_artifact(artifact)
         for artifact_type, artifact in job.get("artifacts", {}).items()
     }
     return {
@@ -473,3 +473,12 @@ def _slim_job(job: dict) -> dict:
         "status": job.get("status"),
         "artifacts": slim_artifacts,
     }
+
+
+def _slim_artifact(artifact: dict) -> dict:
+    """Keeps only status, plus prUrl/previewUrl when present (implement jobs' pr-url artifact)."""
+    slim = {"status": artifact.get("status")}
+    for link_field in ("prUrl", "previewUrl"):
+        if link_field in artifact:
+            slim[link_field] = artifact[link_field]
+    return slim
