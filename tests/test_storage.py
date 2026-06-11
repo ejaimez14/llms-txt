@@ -17,6 +17,7 @@ def aws_env() -> Generator[None, None, None]:
         storage._dynamodb = boto3.resource("dynamodb", region_name="us-east-1")
 
         storage._s3.create_bucket(Bucket=os.environ["BUCKET"])
+        storage._s3.create_bucket(Bucket=os.environ["FRONTEND_BUCKET"])
 
         ddb = boto3.resource("dynamodb", region_name="us-east-1")
         ddb.create_table(
@@ -207,6 +208,42 @@ def test_store_implement_result_sets_pr_url_and_completes_job() -> None:
         == "https://github.com/owner/repo/pull/1"
     )
     assert "s3Key" not in job["artifacts"][ArtifactType.PR_URL]
+
+
+def test_store_implement_result_stores_preview_url() -> None:
+    storage.create_job("job-impl", "parent-job-id", "claude", JobType.IMPLEMENT)
+    storage.store_implement_result(
+        "job-impl",
+        "https://github.com/owner/repo/pull/1",
+        "https://test.cloudfront.net/experimental/job-impl/",
+    )
+    artifact = storage.get_job("job-impl")["artifacts"][ArtifactType.PR_URL]
+    assert artifact["previewUrl"] == "https://test.cloudfront.net/experimental/job-impl/"
+
+
+def test_publish_experimental_preview_uploads_files_and_returns_url(tmp_path) -> None:
+    (tmp_path / "index.html").write_text("<h1>hi</h1>")
+    (tmp_path / "assets").mkdir()
+    (tmp_path / "assets" / "app.css").write_text("body{}")
+    (tmp_path / ".git").mkdir()
+    (tmp_path / ".git" / "config").write_text("secret")
+
+    preview_url = storage.publish_experimental_preview("job-impl", str(tmp_path))
+
+    assert preview_url == "https://test.cloudfront.net/experimental/job-impl/"
+    bucket = os.environ["FRONTEND_BUCKET"]
+    keys = {
+        obj["Key"]
+        for obj in storage._s3.list_objects_v2(Bucket=bucket).get("Contents", [])
+    }
+    assert keys == {
+        "experimental/job-impl/index.html",
+        "experimental/job-impl/assets/app.css",
+    }
+    head = storage._s3.head_object(
+        Bucket=bucket, Key="experimental/job-impl/index.html"
+    )
+    assert head["ContentType"] == "text/html"
 
 
 def test_get_latest_report_job_by_model_returns_correct_jobs() -> None:

@@ -122,6 +122,15 @@ def test_hooks_on_complete_implement_saves_pr_url(mocker: MockerFixture) -> None
     hooks = JobHooks("job-6", AgentType.IMPLEMENT, "owner/repo", "claude")
     hooks._start_time = time.time()
 
-    hooks.on_complete({"pr_url": "https://github.com/owner/repo/pull/42"})
+    hooks.on_complete(
+        {
+            "pr_url": "https://github.com/owner/repo/pull/42",
+            "preview_url": "https://test.cloudfront.net/experimental/job-6/",
+        }
+    )
 
-    mock_store.assert_called_once_with("job-6", "https://github.com/owner/repo/pull/42")
+    mock_store.assert_called_once_with(
+        "job-6",
+        "https://github.com/owner/repo/pull/42",
+        "https://test.cloudfront.net/experimental/job-6/",
+    )

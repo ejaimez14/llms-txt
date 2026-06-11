@@ -119,7 +119,7 @@ def get_pr_url(id: str) -> dict:
     pr_url = artifact.get("prUrl")
     if not pr_url:
         raise HTTPException(status_code=404, detail="PR URL not available")
-    return {"jobId": id, "prUrl": pr_url}
+    return {"jobId": id, "prUrl": pr_url, "previewUrl": artifact.get("previewUrl", "")}
 
 
 @router.get("/jobs", summary="List all jobs")

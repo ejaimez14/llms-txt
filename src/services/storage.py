@@ -1,5 +1,7 @@
+import mimetypes
 import os
 from datetime import UTC, datetime
+from pathlib import Path
 from typing import Any
 
 import boto3
@@ -113,8 +115,8 @@ def create_job(
         raise
 
 
-def store_implement_result(job_id: str, pr_url: str) -> None:
-    """Marks the prUrl artifact complete, storing the GitHub PR URL in a prUrl field."""
+def store_implement_result(job_id: str, pr_url: str, preview_url: str = "") -> None:
+    """Marks the prUrl artifact complete, storing the GitHub PR URL and optional /experimental preview URL."""
     table = _jobs_table()
     try:
         response = table.update_item(
@@ -122,7 +124,11 @@ def store_implement_result(job_id: str, pr_url: str) -> None:
             UpdateExpression="SET artifacts.#artifact = :artifact_val",
             ExpressionAttributeNames={"#artifact": ArtifactType.PR_URL},
             ExpressionAttributeValues={
-                ":artifact_val": {"status": ArtifactStatus.COMPLETE, "prUrl": pr_url},
+                ":artifact_val": {
+                    "status": ArtifactStatus.COMPLETE,
+                    "prUrl": pr_url,
+                    "previewUrl": preview_url,
+                },
             },
             ReturnValues="ALL_NEW",
         )
@@ -130,6 +136,29 @@ def store_implement_result(job_id: str, pr_url: str) -> None:
         logger.error({"event": "store_implement_result_failed", "error": str(exc)})
         raise
     _recalculate_job_status(response["Attributes"])
+
+
+def publish_experimental_preview(job_id: str, source_dir: str) -> str:
+    """Uploads a built UI directory to the frontend bucket under experimental/<job_id>/ and returns its CloudFront URL."""
+    bucket = os.environ["FRONTEND_BUCKET"]
+    base_url = os.environ["CLOUDFRONT_URL"].rstrip("/")
+    source = Path(source_dir)
+    try:
+        for path in source.rglob("*"):
+            relative = path.relative_to(source)
+            if not path.is_file() or any(part.startswith(".") for part in relative.parts):
+                continue
+            content_type = mimetypes.guess_type(path.name)[0] or "application/octet-stream"
+            _s3.upload_file(
+                str(path),
+                bucket,
+                f"experimental/{job_id}/{relative.as_posix()}",
+                ExtraArgs={"ContentType": content_type},
+            )
+    except ClientError as exc:
+        logger.error({"event": "publish_preview_failed", "error": str(exc)})
+        raise
+    return f"{base_url}/experimental/{job_id}/"
 
 
 def complete_artifact(

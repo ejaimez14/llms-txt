@@ -10,6 +10,7 @@ from src.prompts import _build_implement_prompt
 from src.services.hooks import JobHooks
 from src.services.llm import create_agent, run_agent
 from src.services.logger import get_logger
+from src.services.storage import publish_experimental_preview
 
 logger = get_logger(__name__)
 
@@ -64,4 +65,7 @@ async def _run_sdk(hooks: JobHooks, url: str, config: TaskConfig) -> None:
         output = config.output_model.model_validate_json(
             Path(workspace, config.output_file).read_text()
         )
+        repo_dir = Path(workspace, "repo")
+        if config.agent_type == AgentType.IMPLEMENT and output.pr_url and repo_dir.is_dir():
+            output.preview_url = publish_experimental_preview(hooks.job_id, str(repo_dir))
         hooks.on_complete(output.model_dump())
