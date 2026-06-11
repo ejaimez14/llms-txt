@@ -151,22 +151,10 @@ def publish_experimental_preview(job_id: str, source_dir: str) -> str:
     base_url = os.environ["CLOUDFRONT_URL"].rstrip("/")
     source = Path(source_dir)
     try:
-        for path in source.rglob("*"):
-            relative = path.relative_to(source)
-            skip = (
-                not path.is_file()
-                or any(part.startswith(".") for part in relative.parts)
-                or path.suffix.lower() not in WEB_PREVIEW_EXTENSIONS
-            )
-            if skip:
-                continue
-            content_type = mimetypes.guess_type(path.name)[0] or "application/octet-stream"
-            _s3.upload_file(
-                str(path),
-                bucket,
-                f"experimental/{job_id}/{relative.as_posix()}",
-                ExtraArgs={"ContentType": content_type},
-            )
+        for asset in _web_assets(source):
+            key = f"experimental/{job_id}/{asset.relative_to(source).as_posix()}"
+            content_type = mimetypes.guess_type(asset.name)[0] or "application/octet-stream"
+            _s3.upload_file(str(asset), bucket, key, ExtraArgs={"ContentType": content_type})
     except ClientError as exc:
         logger.error({"event": "publish_preview_failed", "error": str(exc)})
         raise
@@ -373,6 +361,20 @@ def list_sites() -> list[dict]:
 
 
 # --- Internal ---
+
+
+def _web_assets(source: Path) -> list[Path]:
+    """Returns the web-servable files under source, skipping hidden paths (e.g. .git) and non-web extensions."""
+    assets = []
+    for path in source.rglob("*"):
+        if not path.is_file():
+            continue
+        if any(part.startswith(".") for part in path.relative_to(source).parts):
+            continue
+        if path.suffix.lower() not in WEB_PREVIEW_EXTENSIONS:
+            continue
+        assets.append(path)
+    return assets
 
 
 def _bucket() -> str:
