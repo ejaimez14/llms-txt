@@ -89,7 +89,7 @@ class CrawlOutput(BaseModel):
     """Structured output returned by the crawl agent's submit tool."""
 
     llms_txt: str  # full llms.txt formatted document
-    metadata: SiteMetadata  # stored as Pinecone metadata for filtered search
+    metadata: SiteMetadata  # stored as a nested map in the sites table; embedded for semantic search
 
 
 class DesignTokens(BaseModel):

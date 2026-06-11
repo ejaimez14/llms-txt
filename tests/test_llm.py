@@ -149,6 +149,10 @@ def test_crawl_on_complete_embeds_text(mocker: MockerFixture) -> None:
     )
 
     mock_embed.assert_called_once()
+    embedded_text = mock_embed.call_args.args[0]
+    assert "A docs site for a tool." in embedded_text
+    assert "Clear and well organized." in embedded_text
+    assert embedded_text != "# Site"
 
 
 def test_non_crawl_on_complete_does_not_embed(mocker: MockerFixture) -> None:
