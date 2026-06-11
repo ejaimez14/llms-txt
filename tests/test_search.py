@@ -1,5 +1,6 @@
 from pytest_mock import MockerFixture
 
+from src.constants import SEARCH_TOP_K
 from src.services.search import run_search
 
 _PINECONE_MATCHES = [
@@ -26,7 +27,9 @@ _PINECONE_MATCHES = [
 
 def test_search_returns_ranked_results(mocker: MockerFixture) -> None:
     mocker.patch("src.services.search.embed_text", return_value=[0.1, 0.2, 0.3])
-    mocker.patch("src.services.search.query_vectors", return_value=_PINECONE_MATCHES)
+    mock_query = mocker.patch(
+        "src.services.search.query_vectors", return_value=_PINECONE_MATCHES
+    )
     mocker.patch(
         "src.services.search.generate_download_url",
         side_effect=lambda s3_key: f"https://s3.presigned/{s3_key}",
@@ -34,6 +37,7 @@ def test_search_returns_ranked_results(mocker: MockerFixture) -> None:
 
     response = run_search("find documentation tools")
 
+    mock_query.assert_called_once_with([0.1, 0.2, 0.3], top_k=SEARCH_TOP_K)
     assert response.query == "find documentation tools"
     assert response.error is None
     assert len(response.results) == 2
