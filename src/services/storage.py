@@ -1,4 +1,3 @@
-import mimetypes
 import os
 from datetime import UTC, datetime
 from pathlib import Path
@@ -14,7 +13,6 @@ from src.constants import (
     JobStatus,
     JobType,
     ModelName,
-    WEB_PREVIEW_EXTENSIONS,
 )
 from src.services.logger import get_logger
 
@@ -146,15 +144,17 @@ def store_implement_result(job_id: str, pr_url: str, preview_url: str = "") -> N
 
 
 def publish_experimental_preview(job_id: str, source_dir: str) -> str:
-    """Uploads the built UI's web assets to the frontend bucket under experimental/<job_id>/ and returns its CloudFront URL."""
+    """Publishes the reskinned UI (the repo's src/index.html) to experimental/<job_id>/index.html and returns its CloudFront URL."""
     bucket = os.environ["FRONTEND_BUCKET"]
     base_url = os.environ["CLOUDFRONT_URL"].rstrip("/")
-    source = Path(source_dir)
+    index_html = Path(source_dir) / "src" / "index.html"
     try:
-        for asset in _web_assets(source):
-            key = f"experimental/{job_id}/{asset.relative_to(source).as_posix()}"
-            content_type = mimetypes.guess_type(asset.name)[0] or "application/octet-stream"
-            _s3.upload_file(str(asset), bucket, key, ExtraArgs={"ContentType": content_type})
+        _s3.upload_file(
+            str(index_html),
+            bucket,
+            f"experimental/{job_id}/index.html",
+            ExtraArgs={"ContentType": "text/html"},
+        )
     except ClientError as exc:
         logger.error({"event": "publish_preview_failed", "error": str(exc)})
         raise
@@ -361,17 +361,6 @@ def list_sites() -> list[dict]:
 
 
 # --- Internal ---
-
-
-def _web_assets(source: Path) -> list[Path]:
-    """Returns files under source safe to serve: real web files whose path has no hidden (dot) segment, e.g. .git."""
-    return [
-        path
-        for path in source.rglob("*")
-        if path.is_file()
-        and path.suffix.lower() in WEB_PREVIEW_EXTENSIONS
-        and not any(segment.startswith(".") for segment in path.relative_to(source).parts)
-    ]
 
 
 def _bucket() -> str:
