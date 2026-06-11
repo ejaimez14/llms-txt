@@ -134,9 +134,12 @@ def test_upsert_site_overwrites_previous() -> None:
         "site_category": "docs",
         "primary_topics": ["payments"],
         "tech_stack": ["React"],
+        "integrations": ["Stripe"],
+        "business_model": "saas-subscription",
         "target_audience": "devs",
+        "content_tone": "technical",
         "has_public_api": True,
-        "integrations": [],
+        "languages": ["en"],
     }
     storage.upsert_site(
         "https://example.com", "job-a", "results/job-a/llms.txt", metadata, "claude"
@@ -149,10 +152,18 @@ def test_upsert_site_overwrites_previous() -> None:
 
     sites = storage.list_sites()
     assert len(sites) == 1
-    assert sites[0]["latestJobId"] == "job-b"
-    assert sites[0]["tech_stack"] == ["Vue"]
-    assert sites[0]["site_category"] == "docs"
-    assert sites[0]["has_public_api"] is True
+    site = sites[0]
+    assert site["latestJobId"] == "job-b"
+    # Every redesigned field persists flat (renames included) so search filters stay intact.
+    assert site["tech_stack"] == ["Vue"]
+    assert site["site_category"] == "docs"
+    assert site["primary_topics"] == ["payments"]
+    assert site["integrations"] == ["Stripe"]
+    assert site["business_model"] == "saas-subscription"
+    assert site["target_audience"] == "devs"
+    assert site["content_tone"] == "technical"
+    assert site["has_public_api"] is True
+    assert site["languages"] == ["en"]
 
 
 def test_report_and_compare_jobs_initialize_correct_artifacts() -> None:
