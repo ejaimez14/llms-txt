@@ -26,7 +26,12 @@ Rules:
 Produce your output as valid JSON with two fields:
 - `llms_txt`: the complete document in the format above
 - `metadata`: structured site-level metadata you observed during crawling, with these fields:
+    - `summary`: 1-3 sentence description of what the site is, what it does, and who it serves — written as prose
+    - `sentiment`: 1-2 sentences on how the site comes across to you — your qualitative impression of its
+      polish, trustworthiness, and overall feel (e.g. "Polished and trustworthy with thorough docs" or
+      "Feels sparse, dated, and hard to navigate"). Be candid.
     - `site_category`: single primary classification (e.g. docs, saas-product, ecommerce, marketing, blog, portfolio, api-reference)
+    - `industry`: the vertical the site operates in (e.g. fintech, healthcare, developer-tools, education, ecommerce)
     - `primary_topics`: 3-6 normalized subject tags (e.g. ["payments", "authentication"])
     - `tech_stack`: detected frameworks, CMS, languages, or hosting
     - `integrations`: named third-party services (e.g. Stripe, Auth0, Segment)

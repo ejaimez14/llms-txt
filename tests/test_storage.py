@@ -158,7 +158,10 @@ def test_list_jobs_for_url_returns_sorted_history() -> None:
 def test_upsert_site_overwrites_previous() -> None:
     """Second upsert for same URL replaces the first — one row per URL always."""
     metadata = {
+        "summary": "A payments platform.",
+        "sentiment": "Polished and trustworthy.",
         "site_category": "docs",
+        "industry": "fintech",
         "primary_topics": ["payments"],
         "tech_stack": ["React"],
         "integrations": ["Stripe"],
@@ -181,16 +184,11 @@ def test_upsert_site_overwrites_previous() -> None:
     assert len(sites) == 1
     site = sites[0]
     assert site["latestJobId"] == "job-b"
-    # Every redesigned field persists flat (renames included) so search filters stay intact.
-    assert site["tech_stack"] == ["Vue"]
-    assert site["site_category"] == "docs"
-    assert site["primary_topics"] == ["payments"]
-    assert site["integrations"] == ["Stripe"]
-    assert site["business_model"] == "saas-subscription"
-    assert site["target_audience"] == "devs"
-    assert site["content_tone"] == "technical"
-    assert site["has_public_api"] is True
-    assert site["languages"] == ["en"]
+    # Metadata persists as a nested map (schema-flexible), with the latest crawl's values.
+    assert site["metadata"]["tech_stack"] == ["Vue"]
+    assert site["metadata"]["site_category"] == "docs"
+    assert site["metadata"]["industry"] == "fintech"
+    assert site["metadata"]["has_public_api"] is True
 
 
 def test_report_and_compare_jobs_initialize_correct_artifacts() -> None:

@@ -4,6 +4,7 @@ import time
 from src.constants import AgentType, ArtifactType
 from src.models import CompareOutput, CrawlOutput, ReportOutput, UIPlanOutput
 from src.services.embeddings import embed_text
+from src.services.helpers import build_search_text
 from src.services.logger import get_logger, log_job_event
 from src.services.pinecone_client import upsert_vector
 from src.services.storage import (
@@ -55,18 +56,14 @@ class JobHooks:
             s3_key = save_llms_txt(self.job_id, output.llms_txt)
             metadata = output.metadata.model_dump()
 
+            # Embed the agent's assessment (summary + metadata blurb), not the raw llms.txt, so
+            # semantic search can serve queries about audience, industry, sentiment, and site type.
             # Pinecone vector ID is a URL hash so re-crawling overwrites rather than accumulates.
-            vector = embed_text(output.llms_txt)
+            vector = embed_text(build_search_text(output.metadata))
             upsert_vector(
                 _url_vector_id(self.url),
                 vector,
-                {
-                    "url": self.url,
-                    "s3Key": s3_key,
-                    "model": self.model,
-                    "artifact": "crawl",
-                    **metadata,
-                },
+                {"url": self.url, "s3Key": s3_key, "model": self.model},
             )
 
             upsert_site(self.url, self.job_id, s3_key, metadata, self.model)

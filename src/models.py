@@ -69,9 +69,12 @@ class ArtifactContent(BaseModel):
 
 
 class SiteMetadata(BaseModel):
-    """Structured site-level metadata the crawl agent extracts; string fields are required so nulls never reach Pinecone."""
+    """Structured site-level metadata the crawl agent extracts; string fields are required so nulls never reach storage."""
 
+    summary: str
+    sentiment: str
     site_category: str
+    industry: str
     primary_topics: list[str] = []
     tech_stack: list[str] = []
     integrations: list[str] = []
@@ -86,7 +89,7 @@ class CrawlOutput(BaseModel):
     """Structured output returned by the crawl agent's submit tool."""
 
     llms_txt: str  # full llms.txt formatted document
-    metadata: SiteMetadata  # stored as Pinecone metadata for filtered search
+    metadata: SiteMetadata  # stored as a nested map in the sites table; embedded for semantic search
 
 
 class DesignTokens(BaseModel):
