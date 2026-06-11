@@ -101,6 +101,22 @@ def test_build_implement_prompt_includes_plan_and_repo(
     assert "`pr_url` (string)" in prompt
 
 
+def test_build_implement_prompt_restyles_index_in_place(
+    mock_get_artifact_content: MagicMock,
+) -> None:
+    """The prompt must target src/index.html and require preserving ids and the script block."""
+    os.environ["AGENT_ID"] = "abcdef12345678"
+    config = REGISTRY.get(AgentType.IMPLEMENT)
+
+    prompt = _build_implement_prompt("source-job-restyle", config)
+
+    assert "repo/src/index.html" in prompt
+    assert "in place" in prompt
+    assert "<script>" in prompt
+    assert "every element id" in prompt
+    assert "do NOT create a new root index.html" in prompt
+
+
 def test_build_implement_prompt_missing_plan_triggers_on_error(
     mocker: MockerFixture,
 ) -> None:

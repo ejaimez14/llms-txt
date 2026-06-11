@@ -239,15 +239,11 @@ def test_store_implement_result_sets_pr_url_and_completes_job() -> None:
     assert "s3Key" not in artifact
 
 
-def test_publish_experimental_preview_uploads_web_assets_only(tmp_path) -> None:
-    (tmp_path / "index.html").write_text("<h1>hi</h1>")
-    (tmp_path / "assets").mkdir()
-    (tmp_path / "assets" / "app.css").write_text("body{}")
-    (tmp_path / ".git").mkdir()
-    (tmp_path / ".git" / "config").write_text("secret")
-    # Source/config files must NOT be served from the public preview path.
-    (tmp_path / "main.py").write_text("print('x')")
-    (tmp_path / "README.md").write_text("# repo")
+def test_publish_experimental_preview_serves_reskinned_index_at_root(tmp_path) -> None:
+    # The reskinned app is the repo's src/index.html; it must be served at the preview root
+    # so <cloudfront>/experimental/<jobId>/ resolves to it (not a nested src/ path).
+    (tmp_path / "src").mkdir()
+    (tmp_path / "src" / "index.html").write_text("<h1>reskinned app</h1>")
 
     preview_url = storage.publish_experimental_preview("job-impl", str(tmp_path))
 
@@ -257,10 +253,7 @@ def test_publish_experimental_preview_uploads_web_assets_only(tmp_path) -> None:
         obj["Key"]
         for obj in storage._s3.list_objects_v2(Bucket=bucket).get("Contents", [])
     }
-    assert keys == {
-        "experimental/job-impl/index.html",
-        "experimental/job-impl/assets/app.css",
-    }
+    assert keys == {"experimental/job-impl/index.html"}
     head = storage._s3.head_object(
         Bucket=bucket, Key="experimental/job-impl/index.html"
     )
