@@ -20,6 +20,7 @@ class ReportRequest(BaseModel):
 
 class CompareRequest(BaseModel):
     url: str
+    model: ModelName = ModelName.CLAUDE
 
 
 class ImplementRequest(BaseModel):
