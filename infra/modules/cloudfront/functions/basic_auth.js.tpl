@@ -13,9 +13,7 @@ function handler(event) {
         };
     }
 
-    // Map experimental preview directory requests to their index.html, since
-    // default_root_object only applies to the distribution root. Handle both a
-    // trailing slash and a bare directory path (no slash, no file extension).
+    // Serve index.html for /experimental directory paths (with or without a trailing slash).
     if (request.uri.startsWith("/experimental/")) {
         if (request.uri.endsWith("/")) {
             request.uri += "index.html";
