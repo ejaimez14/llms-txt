@@ -17,35 +17,38 @@ implement) to ECS Fargate. Agents call the Claude and OpenAI APIs; state lives i
 
 ## Pages
 
-### Crawl
-Point it at any website and pick a model.
+Click any thumbnail to open it full size.
 
-![Crawl](img/crawl.png)
-
-### Search
-Semantic search over everything crawled — `developer tools` surfaces GitHub, Vercel, and Figma, ranked by similarity (top 3).
-
-![Search](img/search.png)
-
-### Report
-A structured site-analysis report, generated per model.
-
-![Report](img/report.png)
-
-### Compare
-A diff-focused comparison of the two models' reports for the same site.
-
-![Compare](img/compare.png)
-
-### History
-Every job is tracked, with filters for model, status, and artifact.
-
-![History](img/history.png)
-
-### Job detail
-Any job opens to its artifacts — `llms.txt` and the UI plan — with per-job token usage.
-
-![Job detail](img/job-detail.png)
+<table>
+  <tr>
+    <td width="33%" align="center" valign="top">
+      <a href="img/crawl.png"><img src="img/crawl.png" width="380" alt="Crawl"></a><br>
+      <b>Crawl</b> · URL + model
+    </td>
+    <td width="33%" align="center" valign="top">
+      <a href="img/search.png"><img src="img/search.png" width="380" alt="Search"></a><br>
+      <b>Search</b> · semantic top-3
+    </td>
+    <td width="33%" align="center" valign="top">
+      <a href="img/report.png"><img src="img/report.png" width="380" alt="Report"></a><br>
+      <b>Report</b> · structured analysis
+    </td>
+  </tr>
+  <tr>
+    <td align="center" valign="top">
+      <a href="img/compare.png"><img src="img/compare.png" width="380" alt="Compare"></a><br>
+      <b>Compare</b> · cross-model diff
+    </td>
+    <td align="center" valign="top">
+      <a href="img/history.png"><img src="img/history.png" width="380" alt="History"></a><br>
+      <b>History</b> · model/status/artifact filters
+    </td>
+    <td align="center" valign="top">
+      <a href="img/job-detail.png"><img src="img/job-detail.png" width="380" alt="Job detail"></a><br>
+      <b>Job detail</b> · artifacts + token usage
+    </td>
+  </tr>
+</table>
 
 ## Reskin (implement)
 
@@ -60,4 +63,4 @@ it live at `/experimental/<jobId>/` and opens a PR — the same app, many differ
 
 | Stripe | Spotify | Discord | tryprofound |
 |---|---|---|---|
-| ![stripe](img/reskin-after-stripe.png) | ![spotify](img/reskin-after-spotify.png) | ![discord](img/reskin-after-discord.png) | ![tryprofound](img/reskin-after-tryprofound.png) |
+| [![stripe](img/reskin-after-stripe.png)](img/reskin-after-stripe.png) | [![spotify](img/reskin-after-spotify.png)](img/reskin-after-spotify.png) | [![discord](img/reskin-after-discord.png)](img/reskin-after-discord.png) | [![tryprofound](img/reskin-after-tryprofound.png)](img/reskin-after-tryprofound.png) |
