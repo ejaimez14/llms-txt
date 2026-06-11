@@ -119,7 +119,7 @@ def get_pr_url(id: str) -> dict:
     pr_url = artifact.get("prUrl")
     if not pr_url:
         raise HTTPException(status_code=404, detail="PR URL not available")
-    return {"jobId": id, "prUrl": pr_url}
+    return {"jobId": id, "prUrl": pr_url, "previewUrl": artifact.get("previewUrl", "")}
 
 
 @router.get("/jobs", summary="List all jobs")
@@ -190,12 +190,12 @@ def compare(req: CompareRequest) -> dict:
         )
 
     job_id = str(uuid.uuid4())
-    create_job(job_id, req.url, ModelName.CLAUDE.value, JobType.COMPARE)
+    create_job(job_id, req.url, req.model.value, JobType.COMPARE)
     enqueue_compare(
         job_id,
         report_jobs[ModelName.CLAUDE],
         report_jobs[ModelName.OPENAI],
-        ModelName.CLAUDE.value,
+        req.model.value,
     )
     return {"jobId": job_id, "status": "processing"}
 

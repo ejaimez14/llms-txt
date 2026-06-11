@@ -1,12 +1,12 @@
 locals {
-  bucket_name              = "llms-txt-crawler-output"
-  jobs_table_name          = "llms-txt-jobs"
-  sites_table_name         = "llms-txt-sites"
-  ecr_repository_name      = "llms-txt-agents"
-  cluster_name             = "llms-txt-cluster"
-  task_family              = "llms-txt-agent"
-  implement_task_family    = "llms-txt-implement"
-  ecs_log_group_name       = "/ecs/llms-txt"
+  bucket_name           = "llms-txt-crawler-output"
+  jobs_table_name       = "llms-txt-jobs"
+  sites_table_name      = "llms-txt-sites"
+  ecr_repository_name   = "llms-txt-agents"
+  cluster_name          = "llms-txt-cluster"
+  task_family           = "llms-txt-agent"
+  implement_task_family = "llms-txt-implement"
+  ecs_log_group_name    = "/ecs/llms-txt"
 }
 
 module "iam" {
@@ -42,6 +42,9 @@ module "ecs" {
 
   vpc_id                = var.vpc_id
   implement_task_family = local.implement_task_family
+
+  frontend_bucket_name = module.cloudfront.frontend_bucket_name
+  cloudfront_url       = module.cloudfront.cloudfront_url
 }
 
 module "lambda" {
@@ -53,11 +56,11 @@ module "lambda" {
   sites_table_name = local.sites_table_name
   pinecone_index   = var.pinecone_index
 
-  ecs_cluster                    = module.ecs.cluster_name
-  ecs_task_definition            = module.ecs.task_definition_arn
-  ecs_implement_task_definition  = module.ecs.implement_task_definition_arn
-  ecs_security_group             = module.ecs.security_group_id
-  ecs_subnet_ids                 = var.subnet_ids
+  ecs_cluster                   = module.ecs.cluster_name
+  ecs_task_definition           = module.ecs.task_definition_arn
+  ecs_implement_task_definition = module.ecs.implement_task_definition_arn
+  ecs_security_group            = module.ecs.security_group_id
+  ecs_subnet_ids                = var.subnet_ids
 
   recrawl_queue_url = module.sqs.queue_url
 }

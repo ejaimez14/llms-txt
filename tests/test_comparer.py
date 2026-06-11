@@ -48,6 +48,18 @@ def test_comparer_passes_correct_params_to_create_agent(mocker: MockerFixture) -
     )
 
 
+def test_compare_message_labels_reports_by_model_name() -> None:
+    job_a = {"url": "https://example.com", "model": "claude"}
+    job_b = {"url": "https://example.com", "model": "openai"}
+
+    message = _build_compare_message(job_a, "content a", job_b, "content b")
+
+    assert "--- claude ---" in message
+    assert "--- openai ---" in message
+    assert "Model A" not in message
+    assert "Model B" not in message
+
+
 def test_comparer_notes_different_urls() -> None:
     job_a = {"url": "https://site-a.com", "model": "claude"}
     job_b = {"url": "https://site-b.com", "model": "claude"}

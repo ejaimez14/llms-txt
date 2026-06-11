@@ -130,12 +130,16 @@ def test_compare_returns_404_when_claude_report_missing() -> None:
     assert "claude" in response.json()["detail"]
 
 
-def test_get_pr_url_returns_pr_url() -> None:
+def test_get_pr_url_returns_pr_and_preview_urls() -> None:
     storage.create_job("job-impl", "parent-job", "claude", JobType.IMPLEMENT)
-    storage.store_implement_result("job-impl", "https://github.com/owner/repo/pull/1")
-    response = client.get("/api/job/job-impl/pr-url")
-    assert response.status_code == 200
-    assert response.json()["prUrl"] == "https://github.com/owner/repo/pull/1"
+    storage.store_implement_result(
+        "job-impl",
+        "https://github.com/owner/repo/pull/1",
+        "https://test.cloudfront.net/experimental/job-impl/",
+    )
+    body = client.get("/api/job/job-impl/pr-url").json()
+    assert body["prUrl"] == "https://github.com/owner/repo/pull/1"
+    assert body["previewUrl"] == "https://test.cloudfront.net/experimental/job-impl/"
 
 
 def test_get_pr_url_not_ready_returns_404() -> None:
@@ -170,9 +174,23 @@ def test_compare_returns_202_when_both_reports_complete(mocker: MockerFixture) -
     enqueue_args = mock_enqueue_compare.call_args.args
     assert enqueue_args[1] == "rep-claude"  # claude report enqueued as job_id_a
     assert enqueue_args[2] == "rep-openai"  # openai report enqueued as job_id_b
-    assert enqueue_args[3] == ModelName.CLAUDE.value
+    assert enqueue_args[3] == ModelName.CLAUDE.value  # defaults to claude
     compare_job = storage.get_job(response.json()["jobId"])
     assert compare_job["type"] == JobType.COMPARE
+
+
+def test_compare_uses_requested_model(mocker: MockerFixture) -> None:
+    _seed_site("https://example.com")
+    _seed_complete_report("rep-claude", "https://example.com", "claude")
+    _seed_complete_report("rep-openai", "https://example.com", "openai")
+    mock_enqueue_compare = mocker.patch("src.handler.enqueue_compare")
+    response = client.post(
+        "/api/compare", json={"url": "https://example.com", "model": "openai"}
+    )
+    assert response.status_code == 202
+    assert mock_enqueue_compare.call_args.args[3] == ModelName.OPENAI.value
+    compare_job = storage.get_job(response.json()["jobId"])
+    assert compare_job["model"] == ModelName.OPENAI.value
 
 
 def _seed_site(url: str) -> None:

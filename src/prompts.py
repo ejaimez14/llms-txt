@@ -25,8 +25,18 @@ Rules:
 
 Produce your output as valid JSON with two fields:
 - `llms_txt`: the complete document in the format above
-- `metadata`: structured site metadata you observed during crawling.
-  Use null for any field you cannot determine — never guess.
+- `metadata`: structured site-level metadata you observed during crawling, with these fields:
+    - `site_category`: single primary classification (e.g. docs, saas-product, ecommerce, marketing, blog, portfolio, api-reference)
+    - `primary_topics`: 3-6 normalized subject tags (e.g. ["payments", "authentication"])
+    - `tech_stack`: detected frameworks, CMS, languages, or hosting
+    - `integrations`: named third-party services (e.g. Stripe, Auth0, Segment)
+    - `business_model`: single value (e.g. saas-subscription, ecommerce, marketplace, ads, open-source, services)
+    - `target_audience`: one concise descriptor of who the site is for (e.g. "backend developers")
+    - `content_tone`: brand voice (e.g. technical, formal, playful, promotional)
+    - `has_public_api`: true if the site documents a programmatic API, otherwise false
+    - `languages`: ISO codes of languages the site publishes in (e.g. ["en", "es"])
+  Always provide a value for every field — use "unknown" for any string you cannot determine and []
+  only for a list that genuinely has no entries. Never use null.
 """.strip()
 
 UI_PLAN_SYSTEM_PROMPT = """
@@ -79,22 +89,29 @@ You are a site analyst that produces structured reports based on llms.txt naviga
 Given an llms.txt document for a website, produce a concise analysis in this format:
 
 ## Overview
-What the site is and what it does — one paragraph.
+What the site is and does, its apparent business model, and its primary topics — one paragraph.
 
-## Target Audience
-Who the site is built for, based on the content and framing in the document.
+## Target Audience & Tone
+Who the site is built for and the brand voice it uses (technical, formal, playful, promotional, etc.).
 
-## Content Structure
-The main sections and how they are organized. What kinds of pages exist.
+## Site Structure & Navigation
+How the site is organized — the main sections, what kinds of pages exist, and how a visitor moves through it.
 
 ## Notable Pages
-3-5 specific pages or sections that stand out as central to the site's purpose.
+3-5 specific pages or sections that stand out as central to the site's purpose, with a note on why each matters.
 
 ## Tech & Integrations
-Any technical details, frameworks, or integrations evident from the content.
+Frameworks, platforms, named third-party integrations, and whether the site documents a public/programmatic API.
 
-## Summary Assessment
-One paragraph: what makes this site distinctive, and how well the llms.txt represents the site's content.
+## Content & SEO Signals
+Content formats present, languages published, content freshness if evident, and any notable content gaps.
+
+## llms.txt Readiness
+How well the site maps to the llms.txt structure (H1, summary blockquote, grouped H2 sections, Optional section)
+and how completely the generated document represents the site.
+
+## Recommendations
+A short, prioritized list of concrete, actionable improvements for the site or its llms.txt.
 
 Rules:
 - Base everything strictly on what the llms.txt contains — do not speculate
@@ -109,7 +126,10 @@ Produce your output as valid JSON with one field:
 COMPARE_SYSTEM_PROMPT = """
 You are an analyst comparing two site-analysis reports for the same website — each produced by a different AI model.
 
-Given two reports labeled Model A and Model B, produce a comparison focused on differences:
+You will be given two reports, each labeled with the name of the model that produced it. Refer to each report
+by that model name throughout your comparison — never "Model A" or "Model B".
+
+Produce a comparison focused on differences:
 
 ## Summary
 2-3 sentences on the most significant differences between the two reports.
@@ -129,21 +149,18 @@ The same aspects characterized differently — quote both where useful.
 How each report organized and prioritized its analysis differently.
 
 ## Sentiment
-
-### Model A
-How Model A characterizes the site's tone and emotional register — confident, cautious,
-authoritative, approachable, technical, etc. Quote specific language from the report.
-
-### Model B
-The same assessment for Model B.
+For each model, describe how it characterizes the site's tone and emotional register — confident, cautious,
+authoritative, approachable, technical, etc. Use the model's name as the subsection header and quote specific
+language from its report.
 
 ### Comparison
 Where the two reports diverge in how they perceive the site's emotional positioning.
 
 ## Side-by-Side
+A markdown table with one column per model, using each model's name as the column header:
 
-| Aspect | Model A | Model B |
-|--------|---------|---------|
+| Aspect | <first model name> | <second model name> |
+|--------|--------------------|----------------------|
 | Key strengths | ... | ... |
 | Coverage depth | ... | ... |
 | Dominant focus | ... | ... |
@@ -154,9 +171,10 @@ Which report is more complete or useful for understanding the site — and why.
 Be specific and evidence-based; do not give a blanket verdict without quoting the reports.
 
 Rules:
+- Refer to each report by its model name throughout — never "Model A" or "Model B"
 - Focus on differences — agreements get one short section
 - Quote from the actual reports when comparing specific characterizations
-- "Model A is more detailed" is not useful without citing what it includes that B does not
+- "<model> is more detailed" is not useful without citing what it includes that the other does not
 
 Produce your output as valid JSON with one field:
 - `comparison_markdown`: the complete comparison in the format above
@@ -209,7 +227,7 @@ Rules:
 def _build_compare_message(
     job_a: dict, content_a: str, job_b: dict, content_b: str
 ) -> str:
-    """Formats both reports into a labeled comparison message for the agent."""
+    """Formats both reports into a comparison message labeled by the model that produced each."""
     model_a = job_a.get("model", "unknown")
     model_b = job_b.get("model", "unknown")
     url_a = job_a.get("url", "")
@@ -217,12 +235,14 @@ def _build_compare_message(
 
     url_note = ""
     if url_a != url_b:
-        url_note = f"\nNote: Job A is for {url_a} and Job B is for {url_b} — these are different URLs.\n"
+        url_note = f"\nNote: the {model_a} report is for {url_a} and the {model_b} report is for {url_b} — these are different URLs.\n"
 
     return (
         f"Compare these two reports for the same website.{url_note}\n\n"
-        f"--- Model A ({model_a}) ---\n{content_a}\n\n"
-        f"--- Model B ({model_b}) ---\n{content_b}"
+        f"Each report is labeled below with the model that produced it. Use these exact model names — "
+        f'"{model_a}" and "{model_b}" — as the section headers and table columns throughout your comparison.\n\n'
+        f"--- {model_a} ---\n{content_a}\n\n"
+        f"--- {model_b} ---\n{content_b}"
     )
 
 
