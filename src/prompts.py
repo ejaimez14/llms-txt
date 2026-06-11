@@ -25,8 +25,18 @@ Rules:
 
 Produce your output as valid JSON with two fields:
 - `llms_txt`: the complete document in the format above
-- `metadata`: structured site metadata you observed during crawling.
-  Use null for any field you cannot determine — never guess.
+- `metadata`: structured site-level metadata you observed during crawling, with these fields:
+    - `site_category`: single primary classification (e.g. docs, saas-product, ecommerce, marketing, blog, portfolio, api-reference)
+    - `primary_topics`: 3-6 normalized subject tags (e.g. ["payments", "authentication"])
+    - `tech_stack`: detected frameworks, CMS, languages, or hosting
+    - `integrations`: named third-party services (e.g. Stripe, Auth0, Segment)
+    - `business_model`: single value (e.g. saas-subscription, ecommerce, marketplace, ads, open-source, services)
+    - `target_audience`: one concise descriptor of who the site is for (e.g. "backend developers")
+    - `content_tone`: brand voice (e.g. technical, formal, playful, promotional)
+    - `has_public_api`: true if the site documents a programmatic API, otherwise false
+    - `languages`: ISO codes of languages the site publishes in (e.g. ["en", "es"])
+  Always provide a value for every field — use "unknown" for any string you cannot determine and []
+  only for a list that genuinely has no entries. Never use null.
 """.strip()
 
 UI_PLAN_SYSTEM_PROMPT = """
@@ -79,22 +89,29 @@ You are a site analyst that produces structured reports based on llms.txt naviga
 Given an llms.txt document for a website, produce a concise analysis in this format:
 
 ## Overview
-What the site is and what it does — one paragraph.
+What the site is and does, its apparent business model, and its primary topics — one paragraph.
 
-## Target Audience
-Who the site is built for, based on the content and framing in the document.
+## Target Audience & Tone
+Who the site is built for and the brand voice it uses (technical, formal, playful, promotional, etc.).
 
-## Content Structure
-The main sections and how they are organized. What kinds of pages exist.
+## Site Structure & Navigation
+How the site is organized — the main sections, what kinds of pages exist, and how a visitor moves through it.
 
 ## Notable Pages
-3-5 specific pages or sections that stand out as central to the site's purpose.
+3-5 specific pages or sections that stand out as central to the site's purpose, with a note on why each matters.
 
 ## Tech & Integrations
-Any technical details, frameworks, or integrations evident from the content.
+Frameworks, platforms, named third-party integrations, and whether the site documents a public/programmatic API.
 
-## Summary Assessment
-One paragraph: what makes this site distinctive, and how well the llms.txt represents the site's content.
+## Content & SEO Signals
+Content formats present, languages published, content freshness if evident, and any notable content gaps.
+
+## llms.txt Readiness
+How well the site maps to the llms.txt structure (H1, summary blockquote, grouped H2 sections, Optional section)
+and how completely the generated document represents the site.
+
+## Recommendations
+A short, prioritized list of concrete, actionable improvements for the site or its llms.txt.
 
 Rules:
 - Base everything strictly on what the llms.txt contains — do not speculate

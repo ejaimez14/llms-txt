@@ -69,14 +69,17 @@ class ArtifactContent(BaseModel):
 
 
 class SiteMetadata(BaseModel):
-    """Structured metadata the crawl agent extracts alongside the llms.txt content."""
+    """Structured site-level metadata the crawl agent extracts; string fields are required so nulls never reach Pinecone."""
 
+    site_category: str
+    primary_topics: list[str] = []
     tech_stack: list[str] = []
-    audience: str | None = None
-    tone: str | None = None
-    business_model: str | None = None
     integrations: list[str] = []
-    content_types: list[str] = []
+    business_model: str
+    target_audience: str
+    content_tone: str
+    has_public_api: bool = False
+    languages: list[str] = []
 
 
 class CrawlOutput(BaseModel):
@@ -121,6 +124,7 @@ class ImplementOutput(BaseModel):
 
     pr_url: str
     debug: str = ""
+    preview_url: str = ""
 
 
 # --- Task config ---
