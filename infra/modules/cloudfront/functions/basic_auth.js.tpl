@@ -13,5 +13,11 @@ function handler(event) {
         };
     }
 
+    // Map experimental preview directory requests to their index.html, since
+    // default_root_object only applies to the distribution root.
+    if (request.uri.startsWith("/experimental/") && request.uri.endsWith("/")) {
+        request.uri += "index.html";
+    }
+
     return request;
 }
