@@ -29,7 +29,6 @@ The API itself is fast; anything slow is handed to a background worker and the c
 - **[Demo](docs/demo/)** — screenshots of every page, the walkthrough GIF, and reskin examples.
 - **[Architecture](docs/architecture.md)** — how jobs run, the two async lanes, and the request lifecycle.
 - **[API reference](docs/endpoints.md)** — every endpoint, request bodies, implement previews, and site metadata.
-- **[Contributor conventions](CLAUDE.md)** — code style, error handling, testing, and PR format.
 - **[Build plans](plans/)** — historical phased build specs, kept for reference; the docs above are the source of truth for the current system.
 
 ## Local setup
