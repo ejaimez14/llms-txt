@@ -6,6 +6,8 @@ Crawl, report, and compare can each run on **Anthropic Claude** or **OpenAI**, s
 
 ## Demo
 
+**Live app:** [d1mxhtwiqyni6u.cloudfront.net](https://d1mxhtwiqyni6u.cloudfront.net/) — protected by basic auth; ask the maintainer for a username and password to access it.
+
 ![Walkthrough](docs/demo/walkthrough.gif)
 
 A full tour — crawl, semantic search, reports, comparison, history, and the reskin step that restyles the app's own UI from a crawled site — with screenshots of every page is in **[docs/demo](docs/demo/)**.
