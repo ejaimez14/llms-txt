@@ -29,10 +29,7 @@ The API itself is fast; anything slow is handed to a background worker and the c
 - **[Demo](docs/demo/)** — screenshots of every page, the walkthrough GIF, and reskin examples.
 - **[Architecture](docs/architecture.md)** — how jobs run, the two async lanes, and the request lifecycle.
 - **[API reference](docs/endpoints.md)** — every endpoint, request bodies, implement previews, and site metadata.
-- **[Contributor conventions](CLAUDE.md)** — code style, error handling, testing, and PR format.
 - **[Build plans](plans/)** — historical phased build specs, kept for reference; the docs above are the source of truth for the current system.
-
-New to the code? Start at [`src/handler.py`](src/handler.py) (the API surface), then follow a job into `src/tasks/` (Fargate agents) and `src/services/`.
 
 ## Local setup
 
@@ -73,8 +70,6 @@ make build       # build.sh → lambda.zip (Linux wheels for the Lambda runtime)
 make docker-push # build + push the Fargate agent image to ECR
 make tf-apply    # terraform init + apply (provide pinecone_index, vpc_id, subnet_ids, basic_auth_password)
 ```
-
-Secrets are read from AWS Secrets Manager via the Lambda Parameters and Secrets Extension — never committed or passed as Terraform variables.
 
 ## Project layout
 
