@@ -32,8 +32,6 @@ The API itself is fast; anything slow is handed to a background worker and the c
 - **[Contributor conventions](CLAUDE.md)** — code style, error handling, testing, and PR format.
 - **[Build plans](plans/)** — historical phased build specs, kept for reference; the docs above are the source of truth for the current system.
 
-New to the code? Start at [`src/handler.py`](src/handler.py) (the API surface), then follow a job into `src/tasks/` (Fargate agents) and `src/services/`.
-
 ## Local setup
 
 **Prerequisites:** [uv](https://docs.astral.sh/uv/), Python 3.11+, and AWS credentials with access to DynamoDB, S3, and Bedrock.
