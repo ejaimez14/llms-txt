@@ -25,6 +25,31 @@ All routes are served under the `/api` prefix. Every request goes through CloudF
 - **`POST /api/compare`** — `{ "url": "...", "model"?: "claude" | "openai" }`. Auto-finds the latest completed report for each model, then runs the comparison on the chosen `model` (default `claude`). Returns `{ "jobId", "status" }`, or `404` naming the model whose report is missing.
 - **`POST /api/implement`** — `{ "job_id": "<crawl job with a completed plan>" }`. Returns `{ "jobId", "status" }`.
 
+## Responses & status codes
+
+- The four `POST` endpoints return **`202 Accepted`** with `"status": "processing"` and a job id (`jobId`, or `jobIdClaude`/`jobIdOpenai` for `/report`). The work runs in the background — poll `GET /api/job`.
+- `GET` endpoints return **`200`**; a **`404`** means either the job/site doesn't exist *or* the artifact isn't ready yet (keep polling).
+- `POST /api/implement` also returns **`400`** if the referenced crawl's UI plan isn't complete.
+
+Example response shapes:
+
+```jsonc
+// GET /api/job?id=<jobId>
+{ "jobId": "...", "url": "...", "model": "claude", "createdAt": "...",
+  "status": "processing | complete | partial | failed",
+  "artifacts": { "llmsTxt": { "status": "complete" }, "plan": { "status": "processing" } } }
+
+// GET /api/job/{id}/llms-txt   (also /plan, /report, /comparison)
+{ "jobId": "...", "content": "# ..." }
+
+// GET /api/jobs   — lightweight: artifact status only, no content
+{ "jobs": [ { "jobId": "...", "url": "...", "model": "...", "status": "...", "artifacts": { } } ] }
+
+// GET /api/search?q=...
+{ "query": "...", "results": [ { "jobId": "...", "score": 0.19, "url": "...",
+  "s3Key": "...", "model": "claude", "downloadUrl": "https://..." } ] }
+```
+
 ## Implement previews
 
 `POST /api/implement` does two things: it opens a GitHub PR implementing the UI plan, and it publishes the built UI to `s3://<frontend-bucket>/experimental/<jobId>/`. Because CloudFront serves that bucket, the result is live at `<cloudfront-url>/experimental/<jobId>/` (behind the same basic auth). Both links come back from `GET /api/job/{id}/pr-url` as `prUrl` and `previewUrl`.

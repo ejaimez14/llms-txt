@@ -4,6 +4,12 @@ Give it a website URL and it produces four things — an [`llms.txt`](https://ll
 
 Crawl, report, and compare can each run on **Anthropic Claude** or **OpenAI**, so you can put the two models' output side by side.
 
+## Demo
+
+![Walkthrough](docs/demo/walkthrough.gif)
+
+A full tour — crawl, semantic search, reports, comparison, history, and the reskin step that restyles the app's own UI from a crawled site — with screenshots of every page is in **[docs/demo](docs/demo/)**.
+
 ## Architecture at a glance
 
 The browser only ever talks to CloudFront. CloudFront serves the static UI from S3 and proxies API calls to the Lambda; everything is gated by basic auth.
@@ -20,9 +26,13 @@ The API itself is fast; anything slow is handed to a background worker and the c
 
 ## Documentation
 
+- **[Demo](docs/demo/)** — screenshots of every page, the walkthrough GIF, and reskin examples.
 - **[Architecture](docs/architecture.md)** — how jobs run, the two async lanes, and the request lifecycle.
 - **[API reference](docs/endpoints.md)** — every endpoint, request bodies, implement previews, and site metadata.
 - **[Contributor conventions](CLAUDE.md)** — code style, error handling, testing, and PR format.
+- **[Build plans](plans/)** — historical phased build specs, kept for reference; the docs above are the source of truth for the current system.
+
+New to the code? Start at [`src/handler.py`](src/handler.py) (the API surface), then follow a job into `src/tasks/` (Fargate agents) and `src/services/`.
 
 ## Local setup
 
@@ -39,10 +49,11 @@ Create a `.env` file (gitignored) with the following variable **names** — supp
 | `BUCKET` | S3 bucket for artifact content |
 | `TABLE` | DynamoDB jobs table name |
 | `SITES_TABLE` | DynamoDB sites table name |
-| `AWS_DEFAULT_REGION` | AWS credentials region (the app itself is pinned to `us-east-1` in `src/constants.py`) |
+| `AWS_DEFAULT_REGION` | Region for the boto3 ECS client (the app's fixed region lives in `AWS_REGION` in `src/constants.py`) |
 | `ECS_CLUSTER`, `ECS_TASK_DEFINITION`, `ECS_IMPLEMENT_TASK_DEFINITION`, `ECS_SUBNET_IDS`, `ECS_SECURITY_GROUP` | Required only to dispatch Fargate tasks (crawl, ui-plan, implement) |
 | `FRONTEND_BUCKET`, `CLOUDFRONT_URL` | Required only by the implement task to publish `/experimental` previews |
 | `RECRAWL_QUEUE_URL` | SQS queue URL for the recrawl handler |
+| `ECR_URL` | ECR repository URL for the Fargate agent image (used by `make docker-push`) |
 
 The `Makefile` loads `.env` into the shell automatically. Then:
 
@@ -52,6 +63,7 @@ make run     # uvicorn dev server on :8000
 make test    # pytest
 make lint    # ruff check --fix
 make format  # ruff format
+make local-task  # run one agent task locally vs real AWS (override AGENT_URL, AGENT_MODEL, AGENT_TYPE)
 ```
 
 ## Deployment

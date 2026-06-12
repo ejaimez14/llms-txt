@@ -13,6 +13,8 @@ Work is routed to one of two lanes:
 - **Search** is the one synchronous job — it runs inside the API call and returns immediately.
 - **Recrawl** is an EventBridge schedule that fans every known site URL onto the same SQS queue; the consumer drains them as fresh crawl jobs.
 
+**Model choice.** `crawl` and `compare` take the model (`claude` or `openai`) from the request; `report` fans out to **two** jobs — one per model — so the outputs can be compared side by side; `implement` is always Claude. `implement` reads a completed crawl's UI plan, opens a GitHub PR, and publishes a live preview at `/experimental/<jobId>/` — poll `GET /api/job/{id}/pr-url` for both links.
+
 ```mermaid
 flowchart LR
   API["FastAPI API (Lambda)"]

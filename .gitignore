@@ -17,6 +17,11 @@ infra/.terraform/
 infra/*.tfstate
 infra/*.tfstate.backup
 infra/.terraform.lock.hcl
+infra/tfplan
+
+# Demo capture scratch (curated assets live in docs/demo/)
+.uimockup/
+/demo/
 
 # Claude Code local config
 .claude/

@@ -8,21 +8,29 @@ This file is loaded automatically by every Claude Code agent working in this rep
 
 ```
 src/
-  handler.py          # FastAPI app + Lambda entrypoint
+  handler.py          # FastAPI app + Lambda entrypoint (dispatches by event shape)
   constants.py
   models.py
   prompts.py
-  agents/
-    crawler.py
-    ui_planner.py
-    search.py
+  agents/             # report/compare agents (run via the SQS consumer)
+    reporter.py
+    comparer.py
   services/
-    storage.py
-    embeddings.py
+    storage.py        # S3 + DynamoDB
+    embeddings.py     # Bedrock Titan
     pinecone_client.py
-    llm.py
-    hooks.py
+    llm.py            # Claude / OpenAI agent routing
+    hooks.py          # job lifecycle
+    helpers.py        # secrets fetch + search-text builder
+    fargate.py        # ECS task dispatch
+    recrawl.py        # SQS producers + consumer
+    search.py
+    tools.py          # web fetch
     logger.py
+  tasks/              # Fargate agent entrypoints (crawl, ui-plan, implement)
+    __main__.py
+    base.py
+    registry.py
 infra/
   main.tf
   variables.tf
@@ -31,15 +39,26 @@ infra/
   modules/
     s3/
     dynamodb/
-    secrets/
     lambda/
     api_gateway/
     observability/
     cloudfront/
     sqs/
+    ecs/
+    iam/
 tests/
-plans/
+plans/                # historical phased build specs (see docs/ for current state)
 ```
+
+---
+
+## Running locally
+
+- `make run` — FastAPI dev server on `:8000`.
+- `make test` / `make lint` / `make format` — pytest and ruff.
+- `make local-task` — run a single Fargate agent task locally against real AWS (override `AGENT_URL`, `AGENT_MODEL`, `AGENT_TYPE`).
+
+See the [README](README.md) for full setup and the `.env` variables.
 
 ---
 
