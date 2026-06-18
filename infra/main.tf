@@ -7,6 +7,8 @@ locals {
   task_family           = "llms-txt-agent"
   implement_task_family = "llms-txt-implement"
   ecs_log_group_name    = "/ecs/llms-txt"
+  # Control-room static UI bucket — created by the agent-org-platform deploy, served under /control/*.
+  control_room_ui_bucket_name = "org-engine-control-room-ui"
 }
 
 module "iam" {
@@ -85,8 +87,9 @@ module "sqs" {
 }
 
 module "cloudfront" {
-  source               = "./modules/cloudfront"
-  api_gateway_endpoint = module.api_gateway.api_url
-  basic_auth_user      = var.basic_auth_user
-  basic_auth_password  = var.basic_auth_password
+  source                      = "./modules/cloudfront"
+  api_gateway_endpoint        = module.api_gateway.api_url
+  basic_auth_user             = var.basic_auth_user
+  basic_auth_password         = var.basic_auth_password
+  control_room_ui_bucket_name = local.control_room_ui_bucket_name
 }
