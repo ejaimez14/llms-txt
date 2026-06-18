@@ -81,6 +81,12 @@ resource "aws_cloudfront_distribution" "app" {
     }
   }
 
+  origin {
+    domain_name              = data.aws_s3_bucket.control_room_ui.bucket_regional_domain_name
+    origin_id                = "ControlRoomUI"
+    origin_access_control_id = aws_cloudfront_origin_access_control.control_room_ui.id
+  }
+
   default_cache_behavior {
     allowed_methods        = ["GET", "HEAD"]
     cached_methods         = ["GET", "HEAD"]
@@ -120,6 +126,51 @@ resource "aws_cloudfront_distribution" "app" {
     min_ttl     = 0
     default_ttl = 0
     max_ttl     = 0
+  }
+
+  # Control-room API → shared API Gateway origin (dispatched to the org Lambda by the /control route).
+  # Listed before /control/* so the more specific API path wins.
+  ordered_cache_behavior {
+    path_pattern           = "/control/api/*"
+    allowed_methods        = ["DELETE", "GET", "HEAD", "OPTIONS", "PATCH", "POST", "PUT"]
+    cached_methods         = ["GET", "HEAD"]
+    target_origin_id       = "APIGateway"
+    viewer_protocol_policy = "https-only"
+
+    function_association {
+      event_type   = "viewer-request"
+      function_arn = aws_cloudfront_function.basic_auth.arn
+    }
+
+    forwarded_values {
+      query_string = true
+      headers      = ["Content-Type"]
+      cookies { forward = "none" }
+    }
+
+    min_ttl     = 0
+    default_ttl = 0
+    max_ttl     = 0
+  }
+
+  # Control-room static UI → its own S3 origin.
+  ordered_cache_behavior {
+    path_pattern           = "/control/*"
+    allowed_methods        = ["GET", "HEAD"]
+    cached_methods         = ["GET", "HEAD"]
+    target_origin_id       = "ControlRoomUI"
+    viewer_protocol_policy = "redirect-to-https"
+    compress               = true
+
+    function_association {
+      event_type   = "viewer-request"
+      function_arn = aws_cloudfront_function.basic_auth.arn
+    }
+
+    forwarded_values {
+      query_string = false
+      cookies { forward = "none" }
+    }
   }
 
   restrictions {

@@ -14,3 +14,8 @@ variable "basic_auth_password" {
   description = "Password for CloudFront basic auth"
   type        = string
 }
+
+variable "control_room_ui_bucket_name" {
+  description = "Name of the control-room static UI S3 bucket (created by the agent-org-platform deploy)"
+  type        = string
+}
