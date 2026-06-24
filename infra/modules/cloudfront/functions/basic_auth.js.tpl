@@ -13,8 +13,8 @@ function handler(event) {
         };
     }
 
-    // Serve index.html for /experimental directory paths (with or without a trailing slash).
-    if (request.uri.startsWith("/experimental/")) {
+    // Serve index.html for /experimental and /control directory paths (with or without a trailing slash).
+    if (request.uri.startsWith("/experimental/") || request.uri.startsWith("/control/")) {
         if (request.uri.endsWith("/")) {
             request.uri += "index.html";
         } else if (!request.uri.split("/").pop().includes(".")) {
