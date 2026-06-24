@@ -13,11 +13,16 @@ function handler(event) {
         };
     }
 
-    // Serve index.html for /experimental and /control directory paths (with or without a trailing slash).
-    if (request.uri.startsWith("/experimental/") || request.uri.startsWith("/control/")) {
-        if (request.uri.endsWith("/")) {
+    // Serve index.html for static-UI directory paths so /experimental/<id> and /control/ resolve.
+    // The control room's API lives under /control/api/* and must pass through to API Gateway untouched.
+    var uri = request.uri;
+    var isUiPath =
+        uri.startsWith("/experimental/") ||
+        (uri.startsWith("/control/") && !uri.startsWith("/control/api/"));
+    if (isUiPath) {
+        if (uri.endsWith("/")) {
             request.uri += "index.html";
-        } else if (!request.uri.split("/").pop().includes(".")) {
+        } else if (!uri.split("/").pop().includes(".")) {
             request.uri += "/index.html";
         }
     }
