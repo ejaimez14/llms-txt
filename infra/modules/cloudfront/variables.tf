@@ -19,3 +19,8 @@ variable "control_room_ui_bucket_name" {
   description = "Name of the control-room static UI S3 bucket (created by the agent-org-platform deploy)"
   type        = string
 }
+
+variable "remodel_api_endpoint" {
+  description = "Remodel Studio API Gateway invoke URL (from the remodel-studio stack); served under /studio/api/*"
+  type        = string
+}

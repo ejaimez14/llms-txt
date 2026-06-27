@@ -28,6 +28,11 @@ output "cloudfront_url" {
   value       = module.cloudfront.cloudfront_url
 }
 
+output "studio_url" {
+  description = "Remodel Studio app URL — served under /studio/ on the shared distribution."
+  value       = "${module.cloudfront.cloudfront_url}/studio/"
+}
+
 output "frontend_bucket_name" {
   description = "Upload index.html here after terraform apply"
   value       = module.cloudfront.frontend_bucket_name
