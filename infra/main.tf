@@ -86,10 +86,21 @@ module "sqs" {
   lambda_function_name = module.lambda.function_name
 }
 
+# Remodel Studio runs as a second app under /studio/* on this distribution. Its API Gateway lives in
+# a separate stack (../../remodel-studio); read its invoke URL from that stack's state. Apply remodel
+# first so this output exists.
+data "terraform_remote_state" "remodel" {
+  backend = "local"
+  config = {
+    path = "${path.module}/../../remodel-studio/infra/terraform.tfstate"
+  }
+}
+
 module "cloudfront" {
   source                      = "./modules/cloudfront"
   api_gateway_endpoint        = module.api_gateway.api_url
   basic_auth_user             = var.basic_auth_user
   basic_auth_password         = var.basic_auth_password
   control_room_ui_bucket_name = local.control_room_ui_bucket_name
+  remodel_api_endpoint        = data.terraform_remote_state.remodel.outputs.api_url
 }

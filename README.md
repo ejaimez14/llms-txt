@@ -14,13 +14,15 @@ A full tour — crawl, semantic search, reports, comparison, history, and the re
 
 ## Architecture at a glance
 
-The browser only ever talks to CloudFront. CloudFront serves the static UI from S3 and proxies API calls to the Lambda; everything is gated by basic auth.
+The browser only ever talks to CloudFront. CloudFront serves the static UI from S3 and proxies API calls to the Lambda; everything is gated by basic auth. The same distribution also hosts two additional apps by path: the org control room under `/control/*` and [Remodel Studio](https://github.com/ejaimez14/remodel-studio) under `/studio/*` (its SPA from the `studio/` prefix of the frontend bucket, its API routed to a separate API Gateway in the remodel-studio stack).
 
 ```mermaid
 flowchart LR
   Browser -->|"basic auth"| CloudFront
   CloudFront -->|"static UI + /experimental previews"| S3UI["S3 — frontend bucket"]
   CloudFront -->|"/api/*"| APIGateway["API Gateway"]
+  CloudFront -->|"/control/*"| ControlRoom["Control room (org-engine)"]
+  CloudFront -->|"/studio/*"| Remodel["Remodel Studio (separate stack)"]
   APIGateway -->|"x-api-key"| Lambda["Lambda — FastAPI"]
 ```
 

@@ -13,12 +13,13 @@ function handler(event) {
         };
     }
 
-    // Serve index.html for static-UI directory paths so /experimental/<id> and /control/ resolve.
-    // The control room's API lives under /control/api/* and must pass through to API Gateway untouched.
+    // Serve index.html for static-UI directory paths so /experimental/<id>, /control/, and /studio/
+    // resolve. Each app's API (/control/api/*, /studio/api/*) must pass through to API Gateway untouched.
     var uri = request.uri;
     var isUiPath =
         uri.startsWith("/experimental/") ||
-        (uri.startsWith("/control/") && !uri.startsWith("/control/api/"));
+        (uri.startsWith("/control/") && !uri.startsWith("/control/api/")) ||
+        (uri.startsWith("/studio/") && !uri.startsWith("/studio/api/"));
     if (isUiPath) {
         if (uri.endsWith("/")) {
             request.uri += "index.html";
